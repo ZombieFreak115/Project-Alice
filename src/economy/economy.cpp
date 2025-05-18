@@ -2487,10 +2487,11 @@ void daily_update(sys::state& state, bool presimulation, float presimulation_sta
 
 	/* initialization parallel block */
 
+	populate_army_consumption(state);
 	concurrency::parallel_for(0, 10, [&](int32_t index) {
 		switch(index) {
 		case 0:
-			populate_army_consumption(state);
+			//populate_army_consumption(state);
 			break;
 		case 1:
 			populate_navy_consumption(state);
