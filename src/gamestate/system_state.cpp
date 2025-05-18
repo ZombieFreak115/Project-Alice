@@ -4045,14 +4045,6 @@ void state::single_game_tick() {
 			demographics::update_literacy(*this, o, days_in_month);
 			break;
 		}
-		case 5:
-		{
-			auto o = uint32_t(ymd_date.day + 5);
-			if(o >= days_in_month)
-				o -= days_in_month;
-			demographics::update_growth(*this, o, days_in_month);
-			break;
-		}
 		case 6:
 			province::ve_for_each_land_province(*this,
 					[&](auto ids) { world.province_set_daily_net_migration(ids, ve::fp_vector{}); });
@@ -4067,6 +4059,12 @@ void state::single_game_tick() {
 	});
 
 	// because they may add pops, these changes must be applied sequentially
+	{
+		auto o = uint32_t(ymd_date.day + 5);
+		if(o >= days_in_month)
+			o -= days_in_month;
+		demographics::update_growth(*this, o, days_in_month);
+	}
 	{
 		auto o = uint32_t(ymd_date.day + 6);
 		if(o >= days_in_month)

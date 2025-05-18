@@ -451,15 +451,6 @@ void checked_single_tick_advanced(sys::state& state1, sys::state& state2) {
 			demographics::update_literacy(state2, o, days_in_month);
 			break;
 		}
-		case 5:
-		{
-			auto o = uint32_t(ymd_date.day + 5);
-			if(o >= days_in_month)
-				o -= days_in_month;
-			demographics::update_growth(state1, o, days_in_month);
-			demographics::update_growth(state2, o, days_in_month);
-			break;
-		}
 		case 6:
 			province::ve_for_each_land_province(state1,
 					[&](auto ids) { state1.world.province_set_daily_net_migration(ids, ve::fp_vector{}); });
@@ -484,6 +475,13 @@ void checked_single_tick_advanced(sys::state& state1, sys::state& state2) {
 
 
 	// because they may add pops, these changes must be applied sequentially
+	{
+		auto o = uint32_t(ymd_date.day + 5);
+		if(o >= days_in_month)
+			o -= days_in_month;
+		demographics::update_growth(state1, o, days_in_month);
+		demographics::update_growth(state2, o, days_in_month);
+	}
 	{
 		auto o = uint32_t(ymd_date.day + 6);
 		if(o >= days_in_month)
