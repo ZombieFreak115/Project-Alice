@@ -1863,6 +1863,16 @@ object {
 		tag{ save }
 	}
 	property{	
+		name{ supplies }
+		type{ float }
+		tag{ save }
+	}
+	property{	
+		name{ reinforcement_supplies }
+		type{ float }
+		tag{ save }
+	}
+	property{	
 		name{ strength }
 		type{ float }
 		tag{ save }
@@ -3965,8 +3975,8 @@ object {
 		tag{ save }
 	}
 	property {
-		name{ effective_land_spending }
-		type{ float }
+		name{ army_stockpile }
+		type{ array{commodity_id}{float} }
 		tag{ save }
 	}
 	property {

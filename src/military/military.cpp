@@ -8431,6 +8431,10 @@ economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id ow
 	return commodities;
 }
 
+float regiment_consume_supplies(sys::state& state, dcon::regiment_id) {
+
+}
+
 void recover_org(sys::state& state) {
 	/*
 	- Units that are not on the frontline of a battle, and not embarked recover organization daily at: (national-organization-regeneration-modifier
@@ -8455,18 +8459,42 @@ void recover_org(sys::state& state) {
 		auto regen_mod = tech_nation.get_modifier_values(sys::national_mod_offsets::org_regain)
 			+ leader.get_personality().get_morale() + leader.get_background().get_morale() + 1.0f
 			+ leader.get_prestige() * state.defines.leader_prestige_to_morale_factor;
-		auto spending_level = (in_nation ? in_nation.get_effective_land_spending() : 1.0f);
+		auto spending_level = (in_nation ? 1.0f : 1.0f);
+
+
+
+
+
+
 		auto army_regen = regen_mod * spending_level / 150.f;
 		for(auto reg : ar.get_army_membership()) {
 			if(reg.get_regiment().get_army_from_army_membership().get_battle_from_army_battle_participation() && !is_regiment_in_reserve(state, reg.get_regiment())) {
 				continue;
 			}
+
+			auto sup_consumption_mod = state.world.nation_get_unit_stats(tech_nation, reg.get_regiment().get_type()).supply_consumption;
+
+			auto net_supply_consumption = 1 * sup_consumption_mod;
+
+			float supplies_fufillment = 0.0f;
+
+			if(reg.get_regiment().get_supplies() >= net_supply_consumption) {
+				supplies_fufillment = 1.0f;
+				auto& cur_supplies = state.world.regiment_get_supplies(reg.get_regiment());
+				state.world.regiment_set_supplies(reg.get_regiment(), cur_supplies - net_supply_consumption);
+			} else {
+				supplies_fufillment = reg.get_regiment().get_supplies() / net_supply_consumption;
+				state.world.regiment_set_supplies(reg.get_regiment(), 0.0f);
+			}
+
+
+
 			// the max org divisor to org recovery is calculated by getting the effective default org (ie max org) of a unit, and dividing it by 30.
 			// 30 is the starting default org for most units, so org regen is normalized to what it was previously
 			// this will scale the org regen to the actual max org of the unit
 
 			auto max_org_divisor = unit_get_effective_default_org(state, reg.get_regiment()) / 30;
-			auto reg_regen = army_regen / max_org_divisor;
+			auto reg_regen = army_regen * supplies_fufillment / max_org_divisor;
 
 
 			auto c_org = reg.get_regiment().get_org();
