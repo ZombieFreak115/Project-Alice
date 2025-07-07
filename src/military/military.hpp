@@ -471,7 +471,6 @@ float local_enemy_army_weight_max(sys::state& state, dcon::province_id prov, dco
 float attrition_amount(sys::state& state, dcon::navy_id a);
 float attrition_amount(sys::state& state, dcon::army_id a);
 float peacetime_attrition_limit(sys::state& state, dcon::nation_id n, dcon::province_id prov);
-float calculate_army_combined_reinforce(sys::state& state, dcon::army_id a);
 
 void reduce_regiment_strength_safe(sys::state& state, dcon::regiment_id reg, float value);
 void reduce_ship_strength_safe(sys::state& state, dcon::ship_id reg, float value);
@@ -532,11 +531,15 @@ float unit_get_strength(sys::state& state, dcon::regiment_id regiment_id);
 float unit_get_strength(sys::state& state, dcon::ship_id ship_id);
 bool province_has_enemy_fleet(sys::state& state, dcon::province_id location, dcon::nation_id our_nation);
 float calculate_battle_reinforcement(sys::state& state, dcon::land_battle_id b, bool attacker);
+
+float regiment_calculate_reinforcement(sys::state& state, dcon::regiment_id reg, bool potential_reinf = false);
+
 float calculate_average_battle_supply_spending(sys::state& state, dcon::land_battle_id b, bool attacker);
 float calculate_average_battle_location_modifier(sys::state& state, dcon::land_battle_id b, bool attacker);
 float calculate_average_battle_national_modifiers(sys::state& state, dcon::land_battle_id b, bool attacker);
-float unit_calculate_reinforcement(sys::state& state, dcon::regiment_id reg, bool potential_reinf = false);
 float unit_calculate_reinforcement(sys::state& state, dcon::ship_id reg);
+float army_get_national_reinforcement_modifier(sys::state& state, dcon::nation_id tech_nation);
+float get_army_reinforcement_modifiers(sys::state& state, dcon::army_id ar);
 void reinforce_regiments(sys::state& state);
 void repair_ships(sys::state& state);
 void run_gc(sys::state& state);

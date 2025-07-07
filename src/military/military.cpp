@@ -8431,10 +8431,6 @@ economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id ow
 	return commodities;
 }
 
-float regiment_consume_supplies(sys::state& state, dcon::regiment_id) {
-
-}
-
 void recover_org(sys::state& state) {
 	/*
 	- Units that are not on the frontline of a battle, and not embarked recover organization daily at: (national-organization-regeneration-modifier
@@ -8705,32 +8701,6 @@ float calculate_location_reinforce_modifier_battle(sys::state& state, dcon::prov
 }
 
 
-// Calculates max reinforcement for units in the army
-float calculate_army_combined_reinforce(sys::state& state, dcon::army_id a) {
-	auto ar = fatten(state.world, a);
-	if(ar.get_navy_from_army_transport() || ar.get_is_retreating() || ar.get_black_flag())
-		return 0.0f;
-
-	auto in_nation = ar.get_controller_from_army_control();
-	auto tech_nation = in_nation ? in_nation : ar.get_controller_from_army_rebel_control().get_ruler_from_rebellion_within();
-
-	auto spending_level = (in_nation ? std::clamp(in_nation.get_effective_land_spending(), 0.f, 1.f) : 1.0f);
-
-	float location_modifier;
-	if(ar.get_battle_from_army_battle_participation()) {
-		location_modifier = calculate_location_reinforce_modifier_battle(state, ar.get_location_from_army_location(), in_nation);
-	} else {
-		location_modifier = calculate_location_reinforce_modifier_no_battle(state, ar.get_location_from_army_location(), in_nation);
-	}
-	auto combined = state.defines.reinforce_speed * spending_level * location_modifier *
-		(1.0f + tech_nation.get_modifier_values(sys::national_mod_offsets::reinforce_speed)) *
-		(1.0f + tech_nation.get_modifier_values(sys::national_mod_offsets::reinforce_rate));
-
-	assert(std::isfinite(combined));
-	return std::clamp(combined, 0.f, 1.f);
-}
-
-
 // calculates average effective army spending for all regiments on one side of a battle.
 float calculate_average_battle_supply_spending(sys::state& state, dcon::land_battle_id b, bool attacker) {
 	assert(b);
@@ -8740,9 +8710,9 @@ float calculate_average_battle_supply_spending(sys::state& state, dcon::land_bat
 		bool battle_attacker = is_attacker_in_battle(state, army.get_army());
 		if((battle_attacker && attacker) || (!battle_attacker && !attacker)) {
 			auto controller = army.get_army().get_controller_from_army_control();
-			float army_reinf = (controller ? controller.get_effective_land_spending() : 1.0f);
 			for(auto reg : army.get_army().get_army_membership()) {
-				total += army_reinf;
+
+				total += (controller ? controller.get_effective_land_spending() : 1.0f);
 				count++;
 			}
 		}
@@ -8786,8 +8756,7 @@ float calculate_average_battle_national_modifiers(sys::state& state, dcon::land_
 		bool battle_attacker = is_attacker_in_battle(state, army.get_army());
 		if((battle_attacker && attacker) || (!battle_attacker && !attacker)) {
 			auto controller = army.get_army().get_controller_from_army_control();
-			float army_reinf = (1.0f + state.world.nation_get_modifier_values(controller, sys::national_mod_offsets::reinforce_speed)) *
-				(1.0f + state.world.nation_get_modifier_values(controller, sys::national_mod_offsets::reinforce_rate));
+			float army_reinf = army_get_national_reinforcement_modifier(state, controller);
 			for(auto reg : army.get_army().get_army_membership()) {
 				total += army_reinf;
 				count++;
@@ -8800,25 +8769,45 @@ float calculate_average_battle_national_modifiers(sys::state& state, dcon::land_
 	return total / count;
 }
 
-// Calculates reinforcement for a particular regiment
-// Combined = max reinforcement for units in the army from calculate_army_combined_reinforce
+
+
+// Calculates reinforcement for a particular regiment with the given reinforcement modifiers (excluding supplies modifier)
 // potential_reinf = if true, will not cap max reinforcement to max unit strength, aka it will ignore current unit strength when returning reinforcement rate!
-float regiment_calculate_reinforcement(sys::state& state, dcon::regiment_fat_id reg, float combined, bool potential_reinf = false) {
+float regiment_calculate_reinforcement(sys::state& state, dcon::regiment_id r, float reinf_modifiers, bool potential_reinf = false) {
+	auto reg = fatten(state.world, r);
 	auto pop = reg.get_pop_from_regiment_source();
 	if((reg.get_army_from_army_membership().get_battle_from_army_battle_participation() && !is_regiment_in_reserve(state, reg)) ||
 		!pop) {
 		return 0.0f;
 	}
+
+	auto tech_nation = tech_nation_for_regiment(state, reg.id);
+
+	auto type = state.world.regiment_get_type(reg.id);
+
+
+	auto net_supply_consumption = 1 * reinf_modifiers;
+
+	auto& current_reinf_supplies = state.world.regiment_get_reinforcement_supplies(reg.id);
+
+	float supplies_fufillment = 0.0f;
+
+	if(current_reinf_supplies >= net_supply_consumption) {
+		supplies_fufillment = 1.0f;
+	} else {
+		supplies_fufillment = current_reinf_supplies;
+	}
+
 	float newstr;
 	float curstr;
 	auto pop_size = pop.get_size();
 	if(!potential_reinf) {
 		auto limit_fraction = std::max(state.defines.alice_full_reinforce, std::min(1.0f, pop_size / state.defines.pop_size_per_regiment));
 		curstr = reg.get_strength();
-		newstr = std::min(curstr + combined, limit_fraction);
+		newstr = std::min(curstr + supplies_fufillment * reinf_modifiers, limit_fraction);
 	} else {
 		curstr = reg.get_strength();
-		newstr = curstr + combined;
+		newstr = curstr + supplies_fufillment * reinf_modifiers;
 	}
 
 	assert(std::isfinite(newstr));
@@ -8827,15 +8816,41 @@ float regiment_calculate_reinforcement(sys::state& state, dcon::regiment_fat_id 
 	return newstr - curstr;
 }
 
+// Calculates reinforcement for a particular regiment, and computes the reinforcement modifiers itself
+// potential_reinf = if true, will not cap max reinforcement to max unit strength, aka it will ignore current unit strength when returning reinforcement rate!
+float regiment_calculate_reinforcement(sys::state& state, dcon::regiment_id reg, bool potential_reinf) {
+	float reinforcement_mod = get_army_reinforcement_modifiers(state, state.world.regiment_get_army_from_army_membership(reg));
+	return regiment_calculate_reinforcement(state, reg, reinforcement_mod, potential_reinf);
+}
+
+
+void regiment_consume_supplies_and_reinforce(sys::state& state, dcon::regiment_fat_id reg, float reinf_modifiers) {
+	float reinforcement = regiment_calculate_reinforcement(state, reg, reinf_modifiers);
+	auto net_supply_consumption = 1 * reinf_modifiers;
+
+	auto in_nation = reg.get_army_from_army_membership().get_controller_from_army_control();
+
+	auto& current_reinf_supplies = state.world.regiment_get_reinforcement_supplies(reg.id);
+
+	if(current_reinf_supplies >= net_supply_consumption) {
+		state.world.regiment_set_reinforcement_supplies(reg.id, current_reinf_supplies - net_supply_consumption);
+	} else {
+		state.world.regiment_set_reinforcement_supplies(reg.id, 0.0f);
+	}
+	reg.set_strength(reg.get_strength() + reinforcement);
+	adjust_regiment_experience(state, in_nation.id, reg.id, reinforcement * 5.f * state.defines.exp_gain_div);
+}
+
+
+
 // calculates the raw amount of reinforcements one side of a battle can potentially receive every month, for display to the user
 float calculate_battle_reinforcement(sys::state& state, dcon::land_battle_id b, bool attacker) {
 	float total = 0;
 	for(auto army : state.world.land_battle_get_army_battle_participation(b)) {
 		bool battle_attacker = is_attacker_in_battle(state, army.get_army());
 		if((battle_attacker && attacker) || (!battle_attacker && !attacker)) {
-			float combined = calculate_army_combined_reinforce(state, army.get_army());
 			for(auto reg : state.world.army_get_army_membership(army.get_army())) {
-				total += regiment_calculate_reinforcement(state, reg.get_regiment(), combined, true) * state.defines.pop_size_per_regiment;
+				total += regiment_calculate_reinforcement(state, reg.get_regiment());
 			}
 		}
 	}
@@ -8843,15 +8858,30 @@ float calculate_battle_reinforcement(sys::state& state, dcon::land_battle_id b, 
 }
 
 
+float army_get_national_reinforcement_modifier(sys::state& state, dcon::nation_id tech_nation) {
+	return std::clamp(1.0f + state.world.nation_get_modifier_values(tech_nation, sys::national_mod_offsets::reinforce_speed) + state.world.nation_get_modifier_values(tech_nation, sys::national_mod_offsets::reinforce_rate), 0.0f, 1.0f);
+}
+float army_get_location_reinforcement_modifier(sys::state& state, dcon::army_id army) {
+	auto in_nation = state.world.army_get_controller_from_army_control(army);
+	float location_modifier;
+	if(state.world.army_get_battle_from_army_battle_participation(army)) {
+		location_modifier = calculate_location_reinforce_modifier_battle(state, state.world.army_get_location_from_army_location(army), in_nation);
+	} else {
+		location_modifier = calculate_location_reinforce_modifier_no_battle(state, state.world.army_get_location_from_army_location(army), in_nation);
+	}
+	return location_modifier;
+}
 
-// Calculates reinforcement for a particular unit from scratch, unit type is unknown
-// potential_reinf = if true, will not cap max reinforcement to max unit strength, aka it will ignore current unit strength when returning reinforcement rate!
-float unit_calculate_reinforcement(sys::state& state, dcon::regiment_id reg_id, bool potential_reinf) {
-	auto reg = dcon::fatten(state.world, reg_id);
-	auto ar = reg.get_army_from_army_membership();
-	auto combined = calculate_army_combined_reinforce(state, ar);
+float get_army_reinforcement_modifiers(sys::state& state, dcon::army_id ar) {
+	auto fat_ar = fatten(state.world, ar);
+	auto in_nation = fat_ar.get_controller_from_army_control();
 
-	return regiment_calculate_reinforcement(state, reg, combined, potential_reinf);
+	auto tech_nation = in_nation ? in_nation : fat_ar.get_controller_from_army_rebel_control().get_ruler_from_rebellion_within();
+
+	float location_modifier = army_get_location_reinforcement_modifier(state, fat_ar.id);
+
+	auto national_modifiers = army_get_national_reinforcement_modifier(state, tech_nation) ;
+	return location_modifier * national_modifiers * state.defines.reinforce_speed;
 }
 
 void reinforce_regiments(sys::state& state) {
@@ -8864,16 +8894,15 @@ max possible regiments (feels like a bug to me) or 0.5 if mobilized)
 	*/
 
 	for(auto ar : state.world.in_army) {
-		if(ar.get_navy_from_army_transport() || ar.get_is_retreating())
+		if(ar.get_navy_from_army_transport() || ar.get_is_retreating() || ar.get_black_flag())
 			continue;
 
 		auto in_nation = ar.get_controller_from_army_control();
-		auto combined = calculate_army_combined_reinforce(state, ar);
+		auto tech_nation = in_nation ? in_nation : ar.get_controller_from_army_rebel_control().get_ruler_from_rebellion_within();
+		auto army_reinforcement_mod = get_army_reinforcement_modifiers(state, ar);
+
 		for(auto reg : ar.get_army_membership()) {
-			auto reinforcement = regiment_calculate_reinforcement(state, reg.get_regiment(), combined);
-			assert(std::isfinite(reinforcement));
-			reg.get_regiment().set_strength(reg.get_regiment().get_strength() + reinforcement);
-			adjust_regiment_experience(state, in_nation.id, reg.get_regiment(), reinforcement * 5.f * state.defines.exp_gain_div);
+			regiment_consume_supplies_and_reinforce(state, reg.get_regiment(), army_reinforcement_mod);
 		}
 	}
 }

@@ -3980,6 +3980,11 @@ object {
 		tag{ save }
 	}
 	property {
+		name{ effective_land_spending }
+		type{ float }
+		tag{ save }
+	}
+	property {
 		name{ effective_naval_spending }
 		type{ float }
 		tag{ save }

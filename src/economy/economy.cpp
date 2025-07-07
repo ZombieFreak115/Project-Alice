@@ -1083,7 +1083,7 @@ void populate_army_consumption(sys::state& state) {
 
 			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
 				if(build_cost.commodity_type[i]) {
-					auto reinforcement = military::unit_calculate_reinforcement(state, reg);
+					auto reinforcement = military::regiment_calculate_reinforcement(state, r);
 					if(reinforcement > 0) {
 						// Regiment needs reinforcement - add extra consumption. Every 1% of reinforcement demands 1% of unit cost
 						auto& curr_demand = state.world.market_get_army_demand(market, build_cost.commodity_type[i]);
@@ -3243,22 +3243,23 @@ void daily_update(sys::state& state, bool presimulation, float presimulation_sta
 					refund += delta;
 					total += val;
 					max_sp += val * sat;
-					state.world.nation_set_army_stockpile(n, c, state.world.nation_get_army_stockpile(n, c) + sat);
+					auto& current = state.world.nation_get_army_stockpile(n, c);
+					state.world.nation_set_army_stockpile(n, c, current + sat);
 				}
 				
 			});
 			if(total > 0.f)
 				max_sp /= total;
 			assert(std::isfinite(nations_commodity_spending* max_sp* spending_level));
-			/*state.world.nation_set_effective_land_spending(
-				n, nations_commodity_spending * max_sp * spending_level);*/
+			state.world.nation_set_effective_land_spending(
+				n, nations_commodity_spending * max_sp * spending_level);
 
 
 				// for now, give regiments supplies in arbitrary order
 			for(auto ar : state.world.nation_get_army_control(n)) {
 				for(auto reg : state.world.army_get_army_membership(ar.get_army().id)) {
 					float supplied = 0.0f;
-					float total = 0.0f;
+					float total_supply = 0.0f;
 					auto current_supply = reg.get_regiment().get_supplies();
 
 					for(uint32_t com = 0; com < commodity_set::set_size; com++) {
@@ -3266,8 +3267,8 @@ void daily_update(sys::state& state, bool presimulation, float presimulation_sta
 						auto& current_stockpile_inventory = state.world.nation_get_army_stockpile(n, item);
 						float unit_supply_full = state.military_definitions.unit_base_definitions[reg.get_regiment().get_type()].supply_cost.commodity_amounts[com];
 						float supply_consumption_mod = state.world.nation_get_unit_stats(n, reg.get_regiment().get_type()).supply_consumption;
-						float actual_needed = unit_supply_full * supply_consumption_mod * state.world.nation_get_military_spending(n);
-						total += unit_supply_full;
+						float actual_needed = unit_supply_full * supply_consumption_mod * (state.world.nation_get_military_spending(n) / 100);
+						total_supply += unit_supply_full;
 						if(current_stockpile_inventory >= actual_needed) {
 							supplied += actual_needed;
 							state.world.nation_set_army_stockpile(n, item, current_stockpile_inventory - actual_needed);
@@ -3277,7 +3278,7 @@ void daily_update(sys::state& state, bool presimulation, float presimulation_sta
 							state.world.nation_set_army_stockpile(n, item, 0.0f);
 						}
 					}
-					float net_supply_gain = supplied / total;
+					float net_supply_gain = supplied / total_supply;
 					reg.get_regiment().set_supplies(reg.get_regiment().get_supplies() + net_supply_gain);
 
 				}
@@ -3286,15 +3287,15 @@ void daily_update(sys::state& state, bool presimulation, float presimulation_sta
 			for(auto ar : state.world.nation_get_army_control(n)) {
 				for(auto reg : state.world.army_get_army_membership(ar.get_army().id)) {
 					float supplied = 0.0f;
-					float total = 0.0f;
+					float total_supply = 0.0f;
 					auto current_supply = reg.get_regiment().get_supplies();
 
 					for(uint32_t com = 0; com < commodity_set::set_size; com++) {
 						dcon::commodity_id item = state.military_definitions.unit_base_definitions[reg.get_regiment().get_type()].supply_cost.commodity_type[com];
 						auto& current_stockpile_inventory = state.world.nation_get_army_stockpile(n, item);
 						float unit_supply_full = state.military_definitions.unit_base_definitions[reg.get_regiment().get_type()].supply_cost.commodity_amounts[com];
-						float actual_needed = unit_supply_full *  state.world.nation_get_military_spending(n);
-						total += unit_supply_full;
+						float actual_needed = unit_supply_full * (state.world.nation_get_military_spending(n) / 100);
+						total_supply += unit_supply_full;
 						if(current_stockpile_inventory >= actual_needed) {
 							supplied += actual_needed;
 							state.world.nation_set_army_stockpile(n, item, current_stockpile_inventory - actual_needed);
@@ -3303,7 +3304,7 @@ void daily_update(sys::state& state, bool presimulation, float presimulation_sta
 							state.world.nation_set_army_stockpile(n, item, 0.0f);
 						}
 					}
-					float net_supply_gain = supplied / total;
+					float net_supply_gain = supplied / total_supply;
 					reg.get_regiment().set_reinforcement_supplies(reg.get_regiment().get_reinforcement_supplies() + net_supply_gain);
 
 				}
