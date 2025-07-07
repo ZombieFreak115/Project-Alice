@@ -1626,3 +1626,5 @@ alice_sort_pops;Sort Pops
 alice_sort_states;Sort States
 alice_topbar_avg_literacy_in_states;The average ?Yliteracy?W of our non-colonial population is ?Y$x$?W
 open_economy_scene;Open economy viewer
+alice_regiment_supplies_tooltip;This regiment has $x$ supplies stockpiled
+alice_regiment_reinf_supplies_tooltip;this regiment has $x$ reinforcement supplies stockpiled

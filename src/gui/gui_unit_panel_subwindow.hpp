@@ -197,6 +197,9 @@ public:
 				text::add_line(state, contents, "reinforce_rate_none");
 			}
 		}
+		text::add_line(state, contents, "alice_regiment_supplies_tooltip", text::variable_type::x, std::to_string(state.world.regiment_get_supplies(reg_id)));
+		text::add_line(state, contents, "alice_regiment_reinf_supplies_tooltip", text::variable_type::x, std::to_string(state.world.regiment_get_reinforcement_supplies(reg_id)));
+
 	}
 };
 
