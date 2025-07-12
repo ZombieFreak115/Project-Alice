@@ -168,32 +168,34 @@ public:
 		auto type = state.world.regiment_get_type(target.regiment);
 		text::add_line(state, contents, state.military_definitions.unit_base_definitions[type].name);
 
-		//TODO: change this to iterate over all connected pops
+		auto base_pops = state.world.regiment_get_regiment_source(target.regiment);
 
-		auto base_pop = (*state.world.regiment_get_regiment_source(target.regiment).begin()).get_pop();
-
-		if(!base_pop) {
+		if(base_pops.begin() == base_pops.end()) {
 			text::add_line(state, contents, "reinforce_rate_none");
 		} else {
-			// Added culture name to the tooltip
-			text::add_line(state, contents, "x_from_y", text::variable_type::x, state.world.pop_get_poptype(base_pop).get_name(), text::variable_type::y, state.world.pop_get_province_from_pop_location(base_pop), text::variable_type::culture, state.world.pop_get_culture(base_pop).get_name());
-			text::add_line_break_to_layout(state, contents);
 
-			auto reg_range = state.world.pop_get_regiment_source(base_pop);
-			text::add_line(state, contents, "pop_size_unitview",
-				text::variable_type::val, text::pretty_integer{ int64_t(state.world.pop_get_size(base_pop)) },
-				text::variable_type::allowed, military::regiments_possible_from_pop(state, base_pop),
-				text::variable_type::current, int64_t(reg_range.end() - reg_range.begin())
-			);
 
-			auto a = state.world.regiment_get_army_from_army_membership(target.regiment);
-			auto reinf = state.defines.pop_size_per_regiment * military::calculate_army_combined_reinforce<military::reinforcement_estimation_type::monthly>(state, a);
+			auto reinf = state.defines.pop_size_per_regiment * military::unit_calculate_reinforcement<military::reinforcement_estimation_type::monthly>(state, target.regiment, true);
 			if(reinf >= 2.0f) {
 				text::add_line(state, contents, "reinforce_rate", text::variable_type::x, int64_t(reinf));
 			} else {
 				text::add_line(state, contents, "reinforce_rate_none");
 			}
+
+			for(auto pop : base_pops) {
+				// Added culture name to the tooltip
+				text::add_line(state, contents, "x_from_y", text::variable_type::x, state.world.pop_get_poptype(pop.get_pop()).get_name(), text::variable_type::y, state.world.pop_get_province_from_pop_location(pop.get_pop()), text::variable_type::culture, state.world.pop_get_culture(pop.get_pop()).get_name());
+
+				auto reg_range = state.world.pop_get_regiment_source(pop.get_pop());
+				text::add_line(state, contents, "pop_size_unitview",
+					text::variable_type::val, text::pretty_integer{ int64_t(state.world.pop_get_size(pop.get_pop())) },
+					text::variable_type::allowed, military::regiments_possible_from_pop(state, pop.get_pop()),
+					text::variable_type::current, int64_t(reg_range.end() - reg_range.begin()), 30
+				);
+			}
+			
 		}
+
 	}
 };
 

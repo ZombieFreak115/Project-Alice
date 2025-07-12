@@ -153,16 +153,17 @@ public:
 		auto reg_id = retrieve<dcon::regiment_id>(state, parent);
 
 		//TODO: change this to iterate over all connected pops
-
-		auto base_pop = (*state.world.regiment_get_regiment_source(reg_id).begin()).get_pop();
-		if(!base_pop) {
+		float all_pops_size = military::get_backing_pops_size_from_regiment(state, reg_id);
+		float needed_effective_pops = military::get_needed_effective_soldier_pop_size(state, reg_id);
+		auto largest_pop = military::regiment_get_largest_pop_backer(state, reg_id);
+		if(!largest_pop) {
 			frame = state.world.pop_type_get_sprite(state.culture_definitions.soldiers) - 1;
 			color = sys::pack_color(255, 75, 75);
 		} else {
-			frame = state.world.pop_type_get_sprite(state.world.pop_get_poptype(base_pop)) - 1;
-			if(state.world.pop_get_size(base_pop) < state.defines.pop_min_size_for_regiment) {
+			frame = state.world.pop_type_get_sprite(state.world.pop_get_poptype(largest_pop)) - 1;
+			if(all_pops_size < state.defines.pop_min_size_for_regiment) {
 				color = sys::pack_color(220, 75, 75);
-			} else if(state.world.pop_get_size(base_pop) < state.defines.pop_size_per_regiment) {
+			} else if(needed_effective_pops > 0.0f) {
 				color = sys::pack_color(200, 200, 0);
 			} else {
 				color = sys::pack_color(255, 255, 255);
@@ -178,29 +179,31 @@ public:
 		auto reg_id = retrieve<dcon::regiment_id>(state, parent);
 		//TODO: change this to iterate over all connected pops
 
-		auto base_pop = (*state.world.regiment_get_regiment_source(reg_id).begin()).get_pop();
+		auto base_pops = state.world.regiment_get_regiment_source(reg_id);
 
-		if(!base_pop) {
+		if(base_pops.begin() == base_pops.end()) {
 			text::add_line(state, contents, "reinforce_rate_none");
 		} else {
-			// Added culture name to the tooltip
-			text::add_line(state, contents, "x_from_y", text::variable_type::x, state.world.pop_get_poptype(base_pop).get_name(), text::variable_type::y, state.world.pop_get_province_from_pop_location(base_pop), text::variable_type::culture, state.world.pop_get_culture(base_pop).get_name());
-			text::add_line_break_to_layout(state, contents);
 
-			auto reg_range = state.world.pop_get_regiment_source(base_pop);
-			text::add_line(state, contents, "pop_size_unitview",
-				text::variable_type::val, text::pretty_integer{ int64_t(state.world.pop_get_size(base_pop)) },
-				text::variable_type::allowed, military::regiments_possible_from_pop(state, base_pop),
-				text::variable_type::current, int64_t(reg_range.end() - reg_range.begin())
-			);
 
-			//auto a = state.world.regiment_get_army_from_army_membership(reg_id);
 			auto reinf = state.defines.pop_size_per_regiment * military::unit_calculate_reinforcement<military::reinforcement_estimation_type::monthly>(state, reg_id, true);
 			if(reinf >= 2.0f) {
 				text::add_line(state, contents, "reinforce_rate", text::variable_type::x, int64_t(reinf));
 			} else {
 				text::add_line(state, contents, "reinforce_rate_none");
 			}
+
+			for(auto pop : base_pops) {
+				// Added culture name to the tooltip
+				text::add_line(state, contents, "x_from_y", text::variable_type::x, state.world.pop_get_poptype(pop.get_pop()).get_name(), text::variable_type::y, state.world.pop_get_province_from_pop_location(pop.get_pop()), text::variable_type::culture, state.world.pop_get_culture(pop.get_pop()).get_name());
+				auto reg_range = state.world.pop_get_regiment_source(pop.get_pop());
+				text::add_line(state, contents, "pop_size_unitview",
+					text::variable_type::val, text::pretty_integer{ int64_t(state.world.pop_get_size(pop.get_pop())) },
+					text::variable_type::allowed, military::regiments_possible_from_pop(state, pop.get_pop()),
+					text::variable_type::current, int64_t(reg_range.end() - reg_range.begin()), 30
+				);
+			}
+			
 		}
 	}
 };
