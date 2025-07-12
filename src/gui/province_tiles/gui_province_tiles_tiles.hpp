@@ -168,7 +168,9 @@ public:
 		auto type = state.world.regiment_get_type(target.regiment);
 		text::add_line(state, contents, state.military_definitions.unit_base_definitions[type].name);
 
-		auto base_pop = state.world.regiment_get_pop_from_regiment_source(target.regiment);
+		//TODO: change this to iterate over all connected pops
+
+		auto base_pop = (*state.world.regiment_get_regiment_source(target.regiment).begin()).get_pop();
 
 		if(!base_pop) {
 			text::add_line(state, contents, "reinforce_rate_none");

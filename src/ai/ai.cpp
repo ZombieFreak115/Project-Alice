@@ -2157,7 +2157,9 @@ void update_land_constructions(sys::state& state) {
 				* AI upgrades units only if less than 10% of the army is currently under 80% strength (requiring supplies for reinforcement)
 				*/
 				if(will_upgrade_regiments(state, n)) {
-					auto primary_culture = r.get_regiment().get_pop_from_regiment_source().get_culture() == n.get_primary_culture();
+					// TODO: change this to work better as it just takes the largest pop and works with that
+					auto primary_culture = state.world.pop_get_culture(military::regiment_get_largest_pop_backer(state, r.get_regiment())) == n.get_primary_culture();
+					
 
 					// AI can upgrade into primary-culture-specific units such as guards
 					if(primary_culture) {

@@ -761,13 +761,13 @@ bool cb_instance_conditions_satisfied(sys::state& state, dcon::nation_id actor, 
 						}
 					}
 				}
-			} else { // no allowed states trigger -> nation is automatically a valid target
-				validity = true;
+				} else { // no allowed states trigger -> nation is automatically a valid target
+					validity = true;
 			}
 			if(!validity)
 				return false;
-		} else {
-			return false;
+				} else {
+					return false;
 		}
 	}
 
@@ -789,6 +789,35 @@ bool province_is_blockaded_by_enemy(sys::state& state, dcon::province_id prov, d
 	}
 
 	return false;
+}
+float get_backing_pops_size_from_regiment(sys::state& state, dcon::regiment_id reg) {
+	assert(state.world.regiment_get_regiment_source(reg).begin() != state.world.regiment_get_regiment_source(reg).end());
+	float total = 0.0f;
+	auto base_pops = state.world.regiment_get_regiment_source(reg);
+	for(auto base_pop : base_pops) {
+		total += state.world.pop_get_size(base_pop.get_pop());
+	}
+	return total;
+}
+
+dcon::pop_id regiment_get_largest_pop_backer(sys::state& state, dcon::regiment_id reg) {
+	dcon::pop_id largest{};
+	for(auto pop : state.world.regiment_get_regiment_source(reg)) {
+		if(state.world.pop_get_size(pop.get_pop()) > state.world.pop_get_size(largest)) {
+			largest = pop.get_pop();
+		}
+	}
+	return largest;
+}
+
+void regiment_spread_poploss_between_pops(sys::state& state, dcon::regiment_id regiment, float damage) {
+	float total_size = get_backing_pops_size_from_regiment(state, regiment);
+	assert(state.world.regiment_get_regiment_source(regiment).begin() != state.world.regiment_get_regiment_source(regiment).end());
+	for(auto pop : state.world.regiment_get_regiment_source(regiment)) {
+		float pop_dmg = damage * (pop.get_pop().get_size() / total_size);
+		pop.get_pop().set_size(std::max(pop.get_pop().get_size() - pop_dmg, 0.0f));
+	}
+
 }
 
 bool compute_blockade_status(sys::state& state, dcon::province_id p) {
@@ -824,6 +853,147 @@ float recruited_pop_fraction(sys::state const& state, dcon::nation_id n) {
 	auto current = float(state.world.nation_get_active_regiments(n));
 	auto maximum = float(state.world.nation_get_recruitable_regiments(n));
 	return maximum > 0.0f ? current / maximum : 1.0f;
+}
+
+
+int32_t get_num_pops_belonging_to_regiment(sys::state& state, dcon::regiment_id reg) {
+	int32_t total = 0;
+	for(auto pop : state.world.regiment_get_regiment_source(reg)) {
+		total++;
+	}
+	return total;
+}
+
+int32_t get_num_regiments_constructions_belonging_to_pop(sys::state& state, dcon::pop_id pop) {
+	auto land_constructions = state.world.pop_get_province_land_construction(pop);
+	auto regs = state.world.pop_get_regiment_source(pop);
+	return int32_t((regs.end() - regs.begin()) + (land_constructions.end() - land_constructions.begin()));
+}
+
+
+
+float effective_soldier_pop_size(sys::state& state, dcon::pop_id pop) {
+	assert(state.world.pop_get_poptype(pop) == state.culture_definitions.soldiers);
+	// if it has no regiments attached or active constructions, its always divided by min_size_for_regiment
+	if(get_num_regiments_constructions_belonging_to_pop(state, pop) == 0) {
+		return state.world.pop_get_size(pop) / state.defines.pop_min_size_for_regiment;
+	}
+	auto location = state.world.pop_get_province_from_pop_location(pop);
+	if(state.world.province_get_is_colonial(location)) {
+		float divisor = state.defines.pop_size_per_regiment * state.defines.pop_min_size_for_regiment_colony_multiplier;
+		return state.world.pop_get_size(pop) / divisor;
+	}
+	else if(!state.world.province_get_is_owner_core(location)) {
+		float divisor = state.defines.pop_size_per_regiment * state.defines.pop_min_size_for_regiment_noncore_multiplier;;
+		return state.world.pop_get_size(pop) / divisor;
+	}
+	else {
+		float divisor = state.defines.pop_size_per_regiment;
+		return state.world.pop_get_size(pop) / divisor;
+	}
+}
+
+float get_needed_effective_soldier_pop_size(sys::state& state, dcon::regiment_id reg) {
+	float total_effective_soldier_pop = 0.0f;
+	int32_t total_reg_constructions = 0;
+	for(auto pop : state.world.regiment_get_regiment_source(reg)) {
+		total_effective_soldier_pop += effective_soldier_pop_size(state, pop.get_pop());
+		total_reg_constructions += get_num_regiments_constructions_belonging_to_pop(state, pop.get_pop());
+	}
+	return std::max(total_reg_constructions - total_effective_soldier_pop, 0.0f);
+}
+
+
+float free_effective_soldier_pop_size(sys::state& state, dcon::pop_id pop) {
+	assert(state.world.pop_get_poptype(pop) == state.culture_definitions.soldiers);
+	float regs_constructions = float(get_num_regiments_constructions_belonging_to_pop(state, pop));
+	float effective_size = effective_soldier_pop_size(state, pop);
+	return std::max(effective_size - regs_constructions, 0.0f);
+
+}
+
+template<soldier_pop_priority priority>
+std::vector<dcon::pop_id> find_available_soldiers(sys::state& state, dcon::regiment_id reg, bool require_accepted, float effective_soldiers_additional_size) {
+	std::vector<dcon::pop_id> soldier_pops_by_size;
+	std::vector<dcon::pop_id> result;
+	auto controller = state.world.army_get_controller_from_army_control(state.world.regiment_get_army_from_army_membership(reg));
+	if(!controller) {
+		return std::vector<dcon::pop_id>{ };
+	}
+	for(auto p : state.world.nation_get_province_ownership(controller)) {
+		auto prov = p.get_province();
+		for(auto pop : state.world.province_get_pop_location(prov)) {
+			// grab all soldier pops which currently have some free soldier size
+			if(pop.get_pop().get_poptype() == state.culture_definitions.soldiers && (!require_accepted || require_accepted && pop.get_pop().get_is_primary_or_accepted_culture()) && free_effective_soldier_pop_size(state, pop.get_pop()) != 0.0f) {
+				soldier_pops_by_size.push_back(pop.get_pop().id);
+
+
+				/*if(pop.get_pop().get_size() >= minimum) {
+					auto amount = int32_t((pop.get_pop().get_size() / divisor) + 1);
+					auto regs = pop.get_pop().get_regiment_source();
+					auto building = pop.get_pop().get_province_land_construction();
+
+					if(amount > ((regs.end() - regs.begin()) + (building.end() - building.begin()))) {
+						if(require_accepted == pop.get_pop().get_is_primary_or_accepted_culture())
+							return pop.get_pop().id;
+						else
+							non_preferred = pop.get_pop().id;
+					}
+				}*/
+			}
+		}
+	}
+	if constexpr(priority == soldier_pop_priority::smallest_first) {
+		// sort it so small soldier pops have higher prio
+		std::sort(soldier_pops_by_size.begin(), soldier_pops_by_size.end(), [&](dcon::pop_id a, dcon::pop_id b) {
+			return state.world.pop_get_size(a) < state.world.pop_get_size(b);
+
+		});
+	}
+	else if constexpr(priority == soldier_pop_priority::largest_first) {
+		// sort it so big soldier pops have higher prio
+		std::sort(soldier_pops_by_size.begin(), soldier_pops_by_size.end(), [&](dcon::pop_id a, dcon::pop_id b) {
+			return state.world.pop_get_size(a) > state.world.pop_get_size(b);
+
+		});
+	}
+	
+	for(auto pop : soldier_pops_by_size) {
+		result.push_back(pop);
+		// note to self: double check this line and if its feastible to even add soldier pops with small amount of extra pop size
+		effective_soldiers_additional_size -= free_effective_soldier_pop_size(state, pop);
+		if(effective_soldiers_additional_size <= 0.0f) {
+			break;
+		}
+	}
+	return result;
+	
+}
+
+std::vector<dcon::pop_id> find_replacement_soldier_pops(sys::state& state, dcon::regiment_id reg) {
+	// ensure that the regiment dosent have a pop attached to it, before finding new ones
+	assert(state.world.regiment_get_regiment_source(reg).begin() != state.world.regiment_get_regiment_source(reg).end());
+	auto army = state.world.regiment_get_army_from_army_membership(reg);
+	auto type = state.world.regiment_get_type(reg);
+	bool requires_accepted = state.military_definitions.unit_base_definitions[type].primary_culture;
+	auto controller = state.world.army_get_controller_from_army_control(army);
+	if(!controller) {
+		return std::vector<dcon::pop_id>{ };
+	}
+	std::vector<dcon::pop_id> pops;
+	// try to find a fully available soldier pop first
+	for(auto p : state.world.nation_get_province_ownership(controller)) {
+		auto prov = p.get_province();
+		if(state.world.province_get_nation_from_province_control(prov) != controller) {
+			continue;
+		}
+		dcon::pop_id pop = find_available_soldier(state, prov, requires_accepted);
+		if(bool(pop)) {
+			pops.push_back(pop);
+			return pops;
+		}
+	}
+	return pops;
 }
 
 bool state_has_naval_base(sys::state const& state, dcon::state_instance_id si) {
@@ -1109,31 +1279,31 @@ int32_t regiments_possible_from_pop(sys::state& state, dcon::pop_id p) {
 	auto type = state.world.pop_get_poptype(p);
 	if(type == state.culture_definitions.soldiers) {
 		auto location = state.world.pop_get_province_from_pop_location(p);
-		if(state.world.province_get_is_colonial(location)) {
-			float divisor = state.defines.pop_size_per_regiment * state.defines.pop_min_size_for_regiment_colony_multiplier;
-			float minimum = state.defines.pop_min_size_for_regiment;
+			if(state.world.province_get_is_colonial(location)) {
+				float divisor = state.defines.pop_size_per_regiment * state.defines.pop_min_size_for_regiment_colony_multiplier;
+				float minimum = state.defines.pop_min_size_for_regiment;
 
-			if(state.world.pop_get_size(p) >= minimum) {
-				return int32_t((state.world.pop_get_size(p) / divisor) + 1);
-			}
-			return 0;
-		} else if(!state.world.province_get_is_owner_core(location)) {
-			float divisor = state.defines.pop_size_per_regiment * state.defines.pop_min_size_for_regiment_noncore_multiplier;
-			float minimum = state.defines.pop_min_size_for_regiment;
+				if(state.world.pop_get_size(p) >= minimum) {
+					return int32_t((state.world.pop_get_size(p) / divisor) + 1);
+				}
+				return 0;
+			} else if(!state.world.province_get_is_owner_core(location)) {
+				float divisor = state.defines.pop_size_per_regiment * state.defines.pop_min_size_for_regiment_noncore_multiplier;
+				float minimum = state.defines.pop_min_size_for_regiment;
 
-			if(state.world.pop_get_size(p) >= minimum) {
-				return int32_t((state.world.pop_get_size(p) / divisor) + 1);
-			}
-			return 0;
-		} else {
-			float divisor = state.defines.pop_size_per_regiment;
-			float minimum = state.defines.pop_min_size_for_regiment;
+				if(state.world.pop_get_size(p) >= minimum) {
+					return int32_t((state.world.pop_get_size(p) / divisor) + 1);
+				}
+				return 0;
+			} else {
+				float divisor = state.defines.pop_size_per_regiment;
+				float minimum = state.defines.pop_min_size_for_regiment;
 
-			if(state.world.pop_get_size(p) >= minimum) {
-				return int32_t((state.world.pop_get_size(p) / divisor) + 1);
+				if(state.world.pop_get_size(p) >= minimum) {
+					return int32_t((state.world.pop_get_size(p) / divisor) + 1);
+				}
+				return 0;
 			}
-			return 0;
-		}
 	} else { // mobilized
 		return int32_t(state.world.pop_get_size(p) * mobilization_size(state, nations::owner_of_pop(state, p)) / state.defines.pop_size_per_regiment);
 	}
@@ -6188,9 +6358,9 @@ void apply_regiment_damage(sys::state& state) {
 			auto& pending_combat_damage = state.world.regiment_get_pending_combat_damage(s);
 			auto& pending_attrition_damage = state.world.regiment_get_pending_attrition_damage(s);
 			auto& current_strength = state.world.regiment_get_strength(s);
-			auto backing_pop = state.world.regiment_get_pop_from_regiment_source(s);
+			auto backing_pops = state.world.regiment_get_regiment_source(s);
 			// the regiment must always have a backing pop
-			assert(backing_pop);
+			assert(backing_pops.begin() != backing_pops.end());
 		
 			if(pending_combat_damage > 0) {
 				auto tech_nation = tech_nation_for_regiment(state, s);
@@ -6201,10 +6371,9 @@ void apply_regiment_damage(sys::state& state) {
 					auto extra_war_ex = get_war_exhaustion_from_land_losses<regiment_dmg_source::combat>(state, pending_combat_damage, in_nation);
 					state.world.nation_set_war_exhaustion(in_nation, std::min(current_war_ex + extra_war_ex, state.world.nation_get_modifier_values(in_nation, sys::national_mod_offsets::max_war_exhaustion)));
 				}
-				if(backing_pop) {
-					auto& psize = state.world.pop_get_size(backing_pop);
+				if(backing_pops.begin() != backing_pops.end()) {
 					float damage_modifier = std::max(state.defines.soldier_to_pop_damage - state.world.nation_get_modifier_values(tech_nation, sys::national_mod_offsets::soldier_to_pop_loss), 0.0f);
-					state.world.pop_set_size(backing_pop, psize - state.defines.pop_size_per_regiment * pending_combat_damage * damage_modifier);
+					regiment_spread_poploss_between_pops(state, s, state.defines.pop_size_per_regiment * pending_combat_damage * damage_modifier);
 				}
 				state.world.regiment_set_pending_combat_damage(s, 0.0f);
 			}
@@ -6217,24 +6386,33 @@ void apply_regiment_damage(sys::state& state) {
 					auto extra_war_ex = get_war_exhaustion_from_land_losses<regiment_dmg_source::attrition>(state, pending_attrition_damage, in_nation);
 					state.world.nation_set_war_exhaustion(in_nation, std::min(current_war_ex + extra_war_ex, state.world.nation_get_modifier_values(in_nation, sys::national_mod_offsets::max_war_exhaustion)));
 				}
-				if(backing_pop) {
-					auto& psize = state.world.pop_get_size(backing_pop);
+				if(backing_pops.begin() != backing_pops.end()) {
 					float damage_modifier = std::max(state.defines.soldier_to_pop_damage - state.world.nation_get_modifier_values(tech_nation, sys::national_mod_offsets::soldier_to_pop_loss), 0.0f);
-					state.world.pop_set_size(backing_pop, psize - state.defines.pop_size_per_regiment * pending_attrition_damage * damage_modifier);
+					regiment_spread_poploss_between_pops(state, s, state.defines.pop_size_per_regiment * pending_attrition_damage * damage_modifier);
 				}
 				state.world.regiment_set_pending_attrition_damage(s, 0.0f);
 			}
-			// check if the pop has taken enough damage to be deleted, and if so, also delete the connected regiments safely
-			auto psize = state.world.pop_get_size(backing_pop);
-			if(psize <= 1.0f) {
-				//safely delete any regiment which has this pop as its source
-				while(state.world.pop_get_regiment_source(backing_pop).begin() != state.world.pop_get_regiment_source(backing_pop).end()) {
-					auto reg = *(state.world.pop_get_regiment_source(backing_pop).begin());
-					military::delete_regiment_safe_wrapper(state, reg.get_regiment());
-
+			// check if the regiment's backing pops are damaged enough to require reinforcements from other pops, and if so add them.
+			float needed_eff_soldier_size = get_needed_effective_soldier_pop_size(state, s);
+			if(needed_eff_soldier_size != 0.0f) {
+				std::vector<dcon::pop_id> soldier_pops = find_available_soldiers<soldier_pop_priority::smallest_first>(state, s, false, needed_eff_soldier_size);
+				for(auto soldier_pop : soldier_pops) {
+					state.world.force_create_regiment_source(s, soldier_pop);
 				}
-				state.world.delete_pop(backing_pop);
 			}
+			// if it has no backing pops left, delete it
+			if(backing_pops.begin() == backing_pops.end()) {
+				military::delete_regiment_safe_wrapper(state, s);
+			}
+			//if(psize <= 1.0f) {
+			//	//safely delete any regiment which has this pop as its source
+			//	while(state.world.pop_get_regiment_source(backing_pop).begin() != state.world.pop_get_regiment_source(backing_pop).end()) {
+			//		auto reg = *(state.world.pop_get_regiment_source(backing_pop).begin());
+			//		military::delete_regiment_safe_wrapper(state, reg.get_regiment());
+
+			//	}
+			//	state.world.delete_pop(backing_pop);
+			//}
 		}
 	}
 }
@@ -8047,6 +8225,11 @@ int32_t free_transport_capacity(sys::state& state, dcon::navy_id n) {
 	return transport_capacity(state, n) - used_total;
 }
 
+
+
+
+
+
 constexpr inline float siege_speed_mul = 1.0f / 50.0f;
 
 void send_rebel_hunter_to_next_province(sys::state& state, dcon::army_id ar, dcon::province_id prov) {
@@ -8817,15 +9000,15 @@ float calculate_average_battle_national_modifiers(sys::state& state, dcon::land_
 // Combined = max reinforcement for units in the army from calculate_army_combined_reinforce
 // potential_reinf = if true, will not cap max reinforcement to max unit strength, aka it will ignore current unit strength when returning reinforcement rate!
 float regiment_calculate_reinforcement(sys::state& state, dcon::regiment_fat_id reg, float combined, bool potential_reinf = false) {
-	auto pop = reg.get_pop_from_regiment_source();
+	auto pops = reg.get_regiment_source();
 	if((reg.get_army_from_army_membership().get_battle_from_army_battle_participation() && !is_regiment_in_reserve(state, reg)) ||
-		!pop) {
+		pops.begin() == pops.end()) {
 		return 0.0f;
 	}
 	float newstr;
 	float curstr;
-	auto pop_size = pop.get_size();
 	if(!potential_reinf) {
+		float pop_size = get_backing_pops_size_from_regiment(state, reg);
 		auto limit_fraction = std::max(state.defines.alice_full_reinforce, std::min(1.0f, pop_size / state.defines.pop_size_per_regiment));
 		curstr = reg.get_strength();
 		newstr = std::min(curstr + combined, limit_fraction);
@@ -9067,8 +9250,8 @@ void end_mobilization(sys::state& state, dcon::nation_id n) {
 	std::vector<dcon::regiment_id> mobs_to_be_deleted;
 	for(auto ar : state.world.nation_get_army_control(n)) {
 		for(auto rg : ar.get_army().get_army_membership()) {
-			auto pop = rg.get_regiment().get_pop_from_regiment_source();
-			if(!pop || pop.get_poptype() != state.culture_definitions.soldiers) {
+			auto pops = rg.get_regiment().get_regiment_source();
+			if(pops.begin() == pops.end() || (*pops.begin()).get_pop().get_poptype() != state.culture_definitions.soldiers) {
 				mobs_to_be_deleted.push_back(rg.get_regiment().id);
 			}
 		}
@@ -9411,6 +9594,9 @@ void move_navy_to_merge(sys::state& state, dcon::nation_id by, dcon::navy_id a, 
 	}
 }
 
+
+
+
 bool pop_eligible_for_mobilization(sys::state& state, dcon::pop_id p) {
 	auto const pop = dcon::fatten(state.world, p);
 	return pop.get_poptype() != state.culture_definitions.soldiers
@@ -9420,13 +9606,16 @@ bool pop_eligible_for_mobilization(sys::state& state, dcon::pop_id p) {
 }
 template<regiment_dmg_source damage_source>
 void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id) {
-	auto base_pop = state.world.regiment_get_pop_from_regiment_source(reg_id);
+	auto base_pops = state.world.regiment_get_regiment_source(reg_id);
+	float total_pop_size = get_backing_pops_size_from_regiment(state, reg_id);
 	auto army = state.world.regiment_get_army_from_army_membership(reg_id);
 	auto controller = state.world.army_get_controller_from_army_control(army);
-	if(!controller && base_pop) {
-		// When a rebel regiment is destroyed, divide the militancy of the backing pop by define:REDUCTION_AFTER_DEFEAT.
-		auto mil = pop_demographics::get_militancy(state, base_pop) / state.defines.reduction_after_defeat;
-		pop_demographics::set_militancy(state, base_pop, mil);
+	if(!controller) {
+		for(auto base_pop : base_pops) {
+			// When a rebel regiment is destroyed, divide the militancy of the backing pops by define:REDUCTION_AFTER_DEFEAT.
+			auto mil = pop_demographics::get_militancy(state, base_pop.get_pop()) / state.defines.reduction_after_defeat;
+			pop_demographics::set_militancy(state, base_pop.get_pop(), mil);
+		}
 	}
 	else if(controller) {
 		// give war exhaustion for the losses
@@ -9435,7 +9624,8 @@ void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id) {
 		state.world.nation_set_war_exhaustion(controller, std::min(current_war_ex + extra_war_ex, state.world.nation_get_modifier_values(controller, sys::national_mod_offsets::max_war_exhaustion)));
 
 	}
-	demographics::reduce_pop_size_safe(state, base_pop, int32_t(state.world.regiment_get_strength(reg_id) * state.defines.pop_size_per_regiment * state.defines.soldier_to_pop_damage));
+	float damage = state.world.regiment_get_strength(reg_id) * state.defines.pop_size_per_regiment * (state.defines.soldier_to_pop_damage + state.world.nation_get_modifier_values(controller, sys::national_mod_offsets::soldier_to_pop_loss));
+	regiment_spread_poploss_between_pops(state, reg_id, damage);
 	military::delete_regiment_safe_wrapper(state, reg_id);
 }
 

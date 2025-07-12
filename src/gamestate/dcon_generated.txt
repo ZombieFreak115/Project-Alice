@@ -2328,17 +2328,25 @@ relationship{
 relationship{
 	name{ regiment_source }
 	tag{ save }
+	storage_type { erasable }
+	size{ 100000 }
 
 	link{
 		object{regiment}
 		name{regiment}
-		type{unique}
+		type{many}
+		index_storage{array}
 	}
 	link{
 		object{pop}
 		name{pop}
 		type{many}
 		index_storage{array}
+	}
+	composite_key{
+		name{pop_regiment_key}
+		index{pop}
+		index{regiment}
 	}
 }
 

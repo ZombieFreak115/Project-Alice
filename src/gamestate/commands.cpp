@@ -4250,8 +4250,8 @@ bool can_disband_undermanned_regiments(sys::state& state, dcon::nation_id source
 void execute_disband_undermanned_regiments(sys::state& state, dcon::nation_id source, dcon::army_id a) {
 	std::vector<dcon::regiment_id> regs;
 	for(auto r : state.world.army_get_army_membership(a)) {
-		auto pop = r.get_regiment().get_pop_from_regiment_source();
-		if(!pop || pop.get_size() < state.defines.pop_min_size_for_regiment)
+		float size = military::get_backing_pops_size_from_regiment(state, r.get_regiment().id);
+		if(size < state.defines.pop_min_size_for_regiment)
 			regs.push_back(r.get_regiment());
 	}
 	for(auto r : regs)

@@ -1022,9 +1022,14 @@ void populate_army_consumption(sys::state& state) {
 
 	state.world.for_each_regiment([&](dcon::regiment_id r) {
 		auto reg = fatten(state.world, r);
+		// This regiment should be deleted soon if it has no pop backers
+		if(reg.get_regiment_source().begin() == reg.get_regiment_source().end()) {
+			return;
+		}
 		auto type = state.world.regiment_get_type(r);
 		auto owner = reg.get_army_from_army_membership().get_controller_from_army_control();
-		auto pop = reg.get_pop_from_regiment_source();
+		// TODO: Spread demand between markets dependant the size of the soldier pops in the regiment
+		auto pop = fatten(state.world, military::regiment_get_largest_pop_backer(state, r));
 		auto location = pop.get_pop_location().get_province().get_state_membership();
 		auto market = location.get_market_from_local_market();
 		auto strength = reg.get_strength();

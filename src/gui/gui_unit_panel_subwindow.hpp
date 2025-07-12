@@ -151,7 +151,10 @@ class regiment_pop_icon : public tinted_image_element_base {
 public:
 	void on_update(sys::state& state) noexcept override {
 		auto reg_id = retrieve<dcon::regiment_id>(state, parent);
-		auto base_pop = state.world.regiment_get_pop_from_regiment_source(reg_id);
+
+		//TODO: change this to iterate over all connected pops
+
+		auto base_pop = (*state.world.regiment_get_regiment_source(reg_id).begin()).get_pop();
 		if(!base_pop) {
 			frame = state.world.pop_type_get_sprite(state.culture_definitions.soldiers) - 1;
 			color = sys::pack_color(255, 75, 75);
@@ -173,7 +176,9 @@ public:
 
 	void update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept override {
 		auto reg_id = retrieve<dcon::regiment_id>(state, parent);
-		auto base_pop = state.world.regiment_get_pop_from_regiment_source(reg_id);
+		//TODO: change this to iterate over all connected pops
+
+		auto base_pop = (*state.world.regiment_get_regiment_source(reg_id).begin()).get_pop();
 
 		if(!base_pop) {
 			text::add_line(state, contents, "reinforce_rate_none");

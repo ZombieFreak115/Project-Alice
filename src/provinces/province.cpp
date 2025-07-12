@@ -1262,39 +1262,54 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 
 	
 	if(new_owner) {
-		std::vector<dcon::regiment_id> to_be_deleted;
+		std::vector<dcon::regiment_id> regs_to_be_deleted;
+		std::vector<dcon::regiment_source_id> reg_source_to_be_deleted;
 		for(auto p : state.world.province_get_pop_location(id)) {
 			rebel::remove_pop_from_movement(state, p.get_pop());
 			rebel::remove_pop_from_rebel_faction(state, p.get_pop());
 			for(const auto src : p.get_pop().get_regiment_source()) {
-				if(!src.get_regiment().get_army_from_army_membership().get_is_retreating()
-				&& !src.get_regiment().get_army_from_army_membership().get_navy_from_army_transport()
-				&& !src.get_regiment().get_army_from_army_membership().get_battle_from_army_battle_participation()
-				&& !src.get_regiment().get_army_from_army_membership().get_controller_from_army_rebel_control()) {
-					auto loc = src.get_regiment().get_army_from_army_membership().get_location_from_army_location();
-					auto old_army = src.get_regiment().get_army_from_army_membership();
-					auto new_u = fatten(state.world, state.world.create_army());
-					new_u.set_controller_from_army_control(new_owner);
-					src.get_regiment().set_army_from_army_membership(new_u);
-					// if the previous army is now empty, clean it up early so incoming collitions with enemy armies on the same day can be handled properly
-					if(old_army.get_army_membership().begin() == old_army.get_army_membership().end()) {
-						military::cleanup_army(state, old_army);
+				// if there is only 1 backing pop left
+				if(military::get_num_pops_belonging_to_regiment(state, src.get_regiment().id) == 1) {
+					if(!src.get_regiment().get_army_from_army_membership().get_is_retreating()
+						&& !src.get_regiment().get_army_from_army_membership().get_navy_from_army_transport()
+						&& !src.get_regiment().get_army_from_army_membership().get_battle_from_army_battle_participation()
+						&& !src.get_regiment().get_army_from_army_membership().get_controller_from_army_rebel_control()) {
+						auto loc = src.get_regiment().get_army_from_army_membership().get_location_from_army_location();
+						auto old_army = src.get_regiment().get_army_from_army_membership();
+						auto new_u = fatten(state.world, state.world.create_army());
+						new_u.set_controller_from_army_control(new_owner);
+						src.get_regiment().set_army_from_army_membership(new_u);
+						// if the previous army is now empty, clean it up early so incoming collitions with enemy armies on the same day can be handled properly
+						if(old_army.get_army_membership().begin() == old_army.get_army_membership().end()) {
+							military::cleanup_army(state, old_army);
+						}
+						//src.get_regiment().set_org(0.01f); // remove this so regiments keeps the same org as previously, otherwise civil wars/seceding nations have no chance as they start on 0 org.
+						military::army_arrives_in_province(state, new_u, loc, military::crossing_type::none);
+					} else {
+						// if the army is in a battle, is retreating, is on a transport, or is controlled by rebels,add to the delete list
+						regs_to_be_deleted.push_back(src.get_regiment());
 					}
-					//src.get_regiment().set_org(0.01f); // remove this so regiments keeps the same org as previously, otherwise civil wars/seceding nations have no chance as they start on 0 org.
-					military::army_arrives_in_province(state, new_u, loc, military::crossing_type::none);
-				} else {
-					// if the army is in a battle, is retreating, is on a transport, or is controlled by rebels,add to the delete list
-					to_be_deleted.push_back(src.get_regiment());
 				}
+				else {
+					reg_source_to_be_deleted.push_back(src);
+				}
+			
 			}
 			auto lc = p.get_pop().get_province_land_construction();
 			while(lc.begin() != lc.end()) {
 				state.world.delete_province_land_construction(*(lc.begin()));
 			}
 		}
+		for(auto src : reg_source_to_be_deleted) {
+			if(state.world.regiment_source_is_valid(src)) {
+				state.world.delete_regiment_source(src);
+			}
+		}
 		//  safely delete the regiment instead of transferring it to the new owner
-		for(auto reg : to_be_deleted) {
-			military::delete_regiment_safe_wrapper(state, reg);
+		for(auto reg : regs_to_be_deleted) {
+			if(state.world.regiment_is_valid(reg)) {
+				military::delete_regiment_safe_wrapper(state, reg);
+			}
 		}
 	}
 
