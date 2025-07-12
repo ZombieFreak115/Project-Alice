@@ -349,6 +349,7 @@ dcon::pop_id regiment_get_largest_pop_backer(sys::state& state, dcon::regiment_i
 float get_backing_pops_size_from_regiment(sys::state& state, dcon::regiment_id reg);
 int32_t get_num_pops_belonging_to_regiment(sys::state& state, dcon::regiment_id reg);
 float get_needed_effective_soldier_pop_size(sys::state& state, dcon::regiment_id reg);
+float free_effective_soldier_pop_size(sys::state& state, dcon::pop_id pop);
 
 float recruited_pop_fraction(sys::state const& state, dcon::nation_id n);
 bool state_has_naval_base(sys::state const& state, dcon::state_instance_id si);

@@ -2387,13 +2387,26 @@ void oob_regiment::home(association_type, int32_t value, error_handler& err, int
 		err.accumulated_errors +=
 				"Province id " + std::to_string(value) + " is too large (" + err.file_name + " line " + std::to_string(line) + ")\n";
 	} else {
+		dcon::pop_id non_preferred{ };
 		auto province_id = context.outer_context.original_id_to_prov_id_map[value];
 		for(auto pl : context.outer_context.state.world.province_get_pop_location(province_id)) {
 			auto p = pl.get_pop();
+			float free_effective_size = military::free_effective_soldier_pop_size(context.outer_context.state, p);
 			if(p.get_poptype() == context.outer_context.state.culture_definitions.soldiers) {
-				context.outer_context.state.world.force_create_regiment_source(context.id, p);
-				return;
+				if(free_effective_size >= 1.0f) {
+					context.outer_context.state.world.force_create_regiment_source(context.id, p);
+					return;
+				}
+				else if(free_effective_size > 0.0f && free_effective_size > military::free_effective_soldier_pop_size(context.outer_context.state, non_preferred)) {
+					non_preferred = p;
+				}
+
+				
 			}
+		}
+		if(bool(non_preferred)) {
+			context.outer_context.state.world.force_create_regiment_source(context.id, non_preferred);
+			return;
 		}
 		err.accumulated_warnings +=
 				"No soldiers in province regiment comes from (" + err.file_name + " line " + std::to_string(line) + ")\n";
