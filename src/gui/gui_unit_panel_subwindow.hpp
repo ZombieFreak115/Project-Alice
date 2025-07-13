@@ -152,7 +152,6 @@ public:
 	void on_update(sys::state& state) noexcept override {
 		auto reg_id = retrieve<dcon::regiment_id>(state, parent);
 
-		//TODO: change this to iterate over all connected pops
 		float all_pops_size = military::get_backing_pops_size_from_regiment(state, reg_id);
 		float needed_effective_pops = military::get_needed_effective_soldier_pop_size(state, reg_id);
 		auto largest_pop = military::regiment_get_largest_pop_backer(state, reg_id);

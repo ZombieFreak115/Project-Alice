@@ -4339,6 +4339,7 @@ void state::single_game_tick() {
 			break;
 		case 8:
 			military::apply_attrition(*this);
+			military::remove_excess_pops_from_regiments(*this);
 			break;
 		case 9:
 			military::repair_ships(*this);

@@ -351,6 +351,8 @@ int32_t get_num_pops_belonging_to_regiment(sys::state& state, dcon::regiment_id 
 float get_needed_effective_soldier_pop_size(sys::state& state, dcon::regiment_id reg);
 float free_effective_soldier_pop_size(sys::state& state, dcon::pop_id pop);
 
+void remove_excess_pops_from_regiments(sys::state& state);
+
 float recruited_pop_fraction(sys::state const& state, dcon::nation_id n);
 bool state_has_naval_base(sys::state const& state, dcon::state_instance_id si);
 uint32_t state_naval_base_level(sys::state const& state, dcon::state_instance_id si);

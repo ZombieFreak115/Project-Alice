@@ -896,10 +896,9 @@ float effective_soldier_pop_size(sys::state& state, dcon::pop_id pop) {
 
 float get_needed_effective_soldier_pop_size(sys::state& state, dcon::regiment_id reg) {
 	float total_effective_soldier_pop = 0.0f;
-	int32_t total_reg_constructions = 0;
 	for(auto pop : state.world.regiment_get_regiment_source(reg)) {
 		if(bool(pop)) {
-			total_effective_soldier_pop += effective_soldier_pop_size(state, pop.get_pop());
+			total_effective_soldier_pop += effective_soldier_pop_size(state, pop.get_pop()) / float(get_num_regiments_constructions_belonging_to_pop(state, pop.get_pop()));
 		}
 		/*total_reg_constructions += get_num_regiments_constructions_belonging_to_pop(state, pop.get_pop());*/
 	}
@@ -6420,6 +6419,28 @@ void apply_regiment_damage(sys::state& state) {
 			//	state.world.delete_pop(backing_pop);
 			//}
 		}
+	}
+}
+
+void remove_excess_pops_from_regiments(sys::state& state) {
+	std::vector<dcon::regiment_source_id> to_be_del;
+	for(uint32_t i = state.world.regiment_size(); i-- > 0;) {
+		dcon::regiment_id reg{ dcon::regiment_id::value_base_t(i) };
+		float total_eff_size = 0.0f;
+		for(auto src : state.world.regiment_get_regiment_source(reg)) {
+			if(effective_soldier_pop_size(state, src.get_pop()) / float(get_num_regiments_constructions_belonging_to_pop(state, src.get_pop())) >= 1.0f ) {
+				for(auto del_src : state.world.regiment_get_regiment_source(reg)) {
+					if(src != del_src) {
+						to_be_del.push_back(del_src.id);
+					}
+				}
+				break;
+			}
+		}
+
+	}
+	for(auto src : to_be_del) {
+		state.world.delete_regiment_source(src);
 	}
 }
 
