@@ -1261,6 +1261,7 @@ int32_t regiments_created_from_province(sys::state& state, dcon::province_id p) 
 	}
 	return total;
 }
+
 int32_t mobilized_regiments_created_from_province(sys::state& state, dcon::province_id p) {
 	/*
 	Mobilized regiments come only from non-colonial provinces.
@@ -6425,17 +6426,32 @@ void apply_regiment_damage(sys::state& state) {
 void remove_excess_pops_from_regiments(sys::state& state) {
 	std::vector<dcon::regiment_source_id> to_be_del;
 	for(uint32_t i = state.world.regiment_size(); i-- > 0;) {
+		float accomulated_size = 0.0f;
+		static std::vector<dcon::regiment_source_id> sorted_src;
+		sorted_src.clear();
 		dcon::regiment_id reg{ dcon::regiment_id::value_base_t(i) };
 		float total_eff_size = 0.0f;
 		for(auto src : state.world.regiment_get_regiment_source(reg)) {
-			if(effective_soldier_pop_size(state, src.get_pop()) / float(get_num_regiments_constructions_belonging_to_pop(state, src.get_pop())) >= 1.0f ) {
-				for(auto del_src : state.world.regiment_get_regiment_source(reg)) {
-					if(src != del_src) {
-						to_be_del.push_back(del_src.id);
-					}
+			sorted_src.push_back(src.id);
+		}
+		// sort so the largest pops are at the end of the vector
+		std::sort(sorted_src.begin(), sorted_src.end(), [&](dcon::regiment_source_id a, dcon::regiment_source_id b) {
+			return state.world.pop_get_size(state.world.regiment_source_get_pop(a)) < state.world.pop_get_size(state.world.regiment_source_get_pop(b));
+		});
+		bool has_enough = false;
+		for(auto src_index = sorted_src.size(); src_index--;) {
+			auto pop = state.world.regiment_source_get_pop(sorted_src[src_index]);
+			accomulated_size += effective_soldier_pop_size(state, pop) / float(get_num_regiments_constructions_belonging_to_pop(state, pop));
+			if(!has_enough) {
+				//sorted_src.pop_back();
+				if(accomulated_size >= 1.0f) {
+					has_enough = true;
 				}
-				break;
 			}
+			else {
+				to_be_del.push_back(sorted_src[src_index]);
+			}
+			
 		}
 
 	}
