@@ -898,10 +898,12 @@ float get_needed_effective_soldier_pop_size(sys::state& state, dcon::regiment_id
 	float total_effective_soldier_pop = 0.0f;
 	int32_t total_reg_constructions = 0;
 	for(auto pop : state.world.regiment_get_regiment_source(reg)) {
-		total_effective_soldier_pop += effective_soldier_pop_size(state, pop.get_pop());
-		total_reg_constructions += get_num_regiments_constructions_belonging_to_pop(state, pop.get_pop());
+		if(bool(pop)) {
+			total_effective_soldier_pop += effective_soldier_pop_size(state, pop.get_pop());
+		}
+		/*total_reg_constructions += get_num_regiments_constructions_belonging_to_pop(state, pop.get_pop());*/
 	}
-	return std::max(total_reg_constructions - total_effective_soldier_pop, 0.0f);
+	return std::max(1.0f - total_effective_soldier_pop, 0.0f);
 }
 
 
