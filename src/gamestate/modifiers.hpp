@@ -59,7 +59,7 @@ namespace sys {
 	MOD_LIST_ELEMENT(48, min_build_bank, false, modifier_display_type::integer, "bank_level") \
 	MOD_LIST_ELEMENT(49, min_build_university, false, modifier_display_type::integer, "university_level") \
 	MOD_LIST_ELEMENT(50, conversion_rate, true, modifier_display_type::percent, "modifier_conversion_rate") \
-	MOD_LIST_ELEMENT(51, fort_level, true, modifier_display_type::fp_two_places, "fort_level") \
+	MOD_LIST_ELEMENT(51, fort_level, true, modifier_display_type::fp_two_places, "fort_level")
 #define MOD_PROV_LIST_COUNT 52
 
 #define MOD_NAT_LIST                                                                                                             \

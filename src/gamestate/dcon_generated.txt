@@ -319,6 +319,69 @@ relationship{
 		type{unique}
 	}
 }
+object {
+	name{ province_building_type }
+	storage_type{ contiguous }
+	size{ 256 }
+	tag{ scenario }
+	
+	property{
+		name{ type }
+		type{ uint8_t }
+		tag{ scenario }
+	}
+	property{
+		name{one_per_state}
+		type{bitfield}
+		tag {scenario}
+	}
+	property{
+		name{infrastructure}
+		type{float }
+		tag {scenario}
+	}
+	property{
+		name{max_level}
+		type{uint8_t }
+		tag {scenario}
+	}
+	property{
+		name{time}
+		type{int32_t }
+		tag {scenario}
+	}
+	property{
+		name{colonial_range}
+		type{int32_t }
+		tag {scenario}
+	}
+	
+	property{
+		name{colonial_points}
+		type{std::array<int32_t,8> }
+		tag {scenario}
+	}
+	
+	property{
+		name{ name }
+		type{ text_key }
+		tag{ scenario }
+	}
+	
+	property{
+		name{ cost }
+		type {economy::commodity_set}
+		tag {scenario}
+	}
+	
+	property{
+		name{ modifiers }
+		type {modifier_id}
+		tag {scenario}
+	}
+
+}
+
 
 object {
 	name{ commodity }
@@ -1453,6 +1516,10 @@ object {
 		name{ rgo }
 		type{ commodity_id }
 		tag{ save }
+	}
+	property{
+		name{province_buildings}
+		type{array{province_building_type_id}{uint8_t} }
 	}
 	property{
 		name{ building_level }

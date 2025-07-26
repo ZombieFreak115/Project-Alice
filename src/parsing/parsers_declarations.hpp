@@ -643,6 +643,7 @@ public:
 	MOD_PROV_FUNCTION(rich_luxury_needs)
 	MOD_NAT_FUNCTION(unemployment_benefit)
 	MOD_NAT_FUNCTION(pension_level)
+	MOD_PROV_FUNCTION(fort_level)
 	MOD_PROV_FUNCTION(population_growth)
 	template<typename T>
 	void global_population_growth(association_type, float v, error_handler& err, int32_t line, T& context) {
@@ -1082,6 +1083,7 @@ struct building_definition : public modifier_base {
 	int32_t time = 0;
 	int32_t cost = 0;
 	bool can_be_built_in_colonies = false;
+	bool one_per_state = false;
 	economy::province_building_type stored_type = economy::province_building_type::factory;
 
 	void type(association_type, std::string_view value, error_handler& err, int32_t line, scenario_building_context& context);

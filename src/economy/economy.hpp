@@ -66,6 +66,8 @@ inline std::string_view province_building_type_get_name(economy::province_buildi
 		return "bank";
 	case economy::province_building_type::university:
 		return "university";
+	case economy::province_building_type::custom:
+		return "custom";
 	default:
 		return "???";
 	}
@@ -82,6 +84,8 @@ inline std::string_view province_building_type_get_level_text(economy::province_
 		return "bank_level";
 	case economy::province_building_type::university:
 		return "university_level";
+	case economy::province_building_type::custom:
+		return "custom";
 	default:
 		return "???";
 	}

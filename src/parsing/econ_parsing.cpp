@@ -106,17 +106,27 @@ void building_file::result(std::string_view name, building_definition&& res, err
 	} else if(res.stored_type == economy::province_building_type::province_selector) {
 		// Not a building per se, rather we will do what the modders intended this to be!
 		context.state.economy_definitions.selector_modifier = context.state.world.create_modifier();
+		auto new_building = context.state.world.create_province_building_type();
+		context.state.world.province_building_type_set_modifiers(new_building, context.state.economy_definitions.selector_modifier);
+		context.state.world.province_building_type_set_type(new_building, uint8_t(res.stored_type));
 	} else if(res.stored_type == economy::province_building_type::province_immigrator) {
 		// Not a building per se, rather we will do what the modders intended this to be!
+		auto new_building = context.state.world.create_province_building_type();
 		context.state.economy_definitions.immigrator_modifier = context.state.world.create_modifier();
+		context.state.world.province_building_type_set_modifiers(new_building, context.state.economy_definitions.immigrator_modifier);
+		context.state.world.province_building_type_set_type(new_building, uint8_t(res.stored_type));
 	} else {
+		auto new_building = context.state.world.create_province_building_type();
 		auto t = res.stored_type;
+		context.state.world.province_building_type_set_type(new_building, uint8_t(res.stored_type));
 
-		context.state.economy_definitions.building_definitions[int32_t(t)].defined = true; // Is defined now!
+		//context.state.economy_definitions.building_definitions[int32_t(t)].defined = true; // Is defined now!
 
 		for(uint32_t i = 0; i < 8 && i < res.colonial_points.data.size(); ++i)
-			context.state.economy_definitions.building_definitions[int32_t(t)].colonial_points[i] = res.colonial_points.data[i];
-		context.state.economy_definitions.building_definitions[int32_t(t)].colonial_range = res.colonial_range;
+			context.state.world.province_building_type_get_colonial_points(new_building)[i] = res.colonial_points.data[i];
+			//context.state.economy_definitions.building_definitions[int32_t(t)].colonial_points[i] = res.colonial_points.data[i];
+		context.state.world.province_building_type_set_colonial_range(new_building, res.colonial_range);
+		//context.state.economy_definitions.building_definitions[int32_t(t)].colonial_range = res.colonial_range;
 
 		uint32_t added = 0;
 		context.state.world.for_each_commodity([&](dcon::commodity_id id) {
@@ -125,18 +135,31 @@ void building_file::result(std::string_view name, building_definition&& res, err
 				if(added >= economy::commodity_set::set_size) {
 					err.accumulated_warnings += "Too many special building cost goods in " + std::string(name) + " (" + err.file_name + ")\n";
 				} else {
-					context.state.economy_definitions.building_definitions[int32_t(t)].cost.commodity_type[added] = id;
-					context.state.economy_definitions.building_definitions[int32_t(t)].cost.commodity_amounts[added] = amount;
+					context.state.world.province_building_type_get_cost(new_building).commodity_type[added] = id;
+					context.state.world.province_building_type_get_cost(new_building).commodity_amounts[added] = amount;
+					/*context.state.economy_definitions.building_definitions[int32_t(t)].cost.commodity_type[added] = id;
+					context.state.economy_definitions.building_definitions[int32_t(t)].cost.commodity_amounts[added] = amount;*/
 					++added;
 				}
 			}
 		});
-		context.state.economy_definitions.building_definitions[int32_t(t)].infrastructure = res.infrastructure;
+		context.state.world.province_building_type_set_infrastructure(new_building, res.infrastructure);
+		context.state.world.province_building_type_set_max_level(new_building, uint8_t(res.max_level));
+		context.state.world.province_building_type_set_time(new_building, res.time);
+		context.state.world.province_building_type_set_name(new_building, text::find_or_add_key(context.state, name, false));
+		/*context.state.economy_definitions.building_definitions[int32_t(t)].infrastructure = res.infrastructure;
 		context.state.economy_definitions.building_definitions[int32_t(t)].max_level = res.max_level;
 		context.state.economy_definitions.building_definitions[int32_t(t)].time = res.time;
-		context.state.economy_definitions.building_definitions[int32_t(t)].name = text::find_or_add_key(context.state, name, false);
+		context.state.economy_definitions.building_definitions[int32_t(t)].name = text::find_or_add_key(context.state, name, false);*/
 		if(res.next_to_add_p != 0) {
-			context.state.economy_definitions.building_definitions[int32_t(t)].province_modifier = context.state.world.create_modifier();
+			auto modifier = context.state.world.create_modifier();
+			context.state.world.province_building_type_set_modifiers(new_building, modifier);
+			context.state.world.modifier_set_province_values(modifier, res.peek_province_mod());
+			context.state.world.modifier_set_national_values(modifier, res.peek_national_mod());
+			context.state.world.modifier_set_icon(modifier, uint8_t(res.icon_index));
+			context.state.world.modifier_set_name(modifier, context.state.world.province_building_type_get_name(new_building));
+
+			/*context.state.economy_definitions.building_definitions[int32_t(t)].province_modifier = context.state.world.create_modifier();
 			context.state.world.modifier_set_province_values(context.state.economy_definitions.building_definitions[int32_t(t)].province_modifier,
 					res.peek_province_mod());
 			context.state.world.modifier_set_national_values(context.state.economy_definitions.building_definitions[int32_t(t)].province_modifier,
@@ -144,7 +167,7 @@ void building_file::result(std::string_view name, building_definition&& res, err
 			context.state.world.modifier_set_icon(context.state.economy_definitions.building_definitions[int32_t(t)].province_modifier,
 					uint8_t(res.icon_index));
 			context.state.world.modifier_set_name(context.state.economy_definitions.building_definitions[int32_t(t)].province_modifier,
-					context.state.economy_definitions.building_definitions[int32_t(t)].name);
+					context.state.economy_definitions.building_definitions[int32_t(t)].name);*/
 		}
 	}
 }
