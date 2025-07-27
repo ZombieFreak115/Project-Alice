@@ -373,6 +373,11 @@ object {
 		type {economy::commodity_set}
 		tag {scenario}
 	}
+	property{
+		name{port_only}
+		type{bitfield}
+		tag{scenario}
+	}
 	
 	property{
 		name{ modifiers }
@@ -1518,12 +1523,8 @@ object {
 		tag{ save }
 	}
 	property{
-		name{province_buildings}
-		type{array{province_building_type_id}{uint8_t} }
-	}
-	property{
 		name{ building_level }
-		type{ array{uint8_t}{uint8_t} }
+		type{array{province_building_type_id}{uint8_t} }
 		tag{ save }
 	}
 	property{
@@ -5166,7 +5167,7 @@ relationship{
 	}
 	property{
 		name{ type }
-		type{ uint8_t }
+		type{ province_building_type_id }
 		tag{ save }
 	}
 	property{

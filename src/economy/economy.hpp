@@ -108,6 +108,8 @@ struct global_economy_state {
 	dcon::province_building_type_id railroad_building;
 	dcon::province_building_type_id naval_base_building;
 	dcon::province_building_type_id fort_building;
+	dcon::province_building_type_id bank_building;
+	dcon::province_building_type_id university_building;
 
 };
 static_assert(sizeof(global_economy_state) ==
@@ -247,7 +249,7 @@ struct construction_status {
 	bool is_under_construction = false;
 };
 
-construction_status province_building_construction(sys::state& state, dcon::province_id, province_building_type t);
+construction_status province_building_construction(sys::state& state, dcon::province_id p, dcon::province_building_type_id t);
 construction_status factory_upgrade(sys::state& state, dcon::factory_id f);
 
 struct new_factory {

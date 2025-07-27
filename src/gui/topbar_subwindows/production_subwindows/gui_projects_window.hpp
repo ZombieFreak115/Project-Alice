@@ -152,11 +152,11 @@ public:
 			factory_icon->set_visible(state, false);
 			building_icon->set_visible(state, true);
 			auto fat_id = dcon::fatten(state.world, std::get<dcon::province_building_construction_id>(content));
-			factory_icon->frame = uint16_t(fat_id.get_type());
-			name_text->set_text(state, text::produce_simple_string(state,  province_building_type_get_name(economy::province_building_type(fat_id.get_type()))));
+			factory_icon->frame = fat_id.get_type().id.value;
+			name_text->set_text(state, text::produce_simple_string(state,  fat_id.get_type().get_name()));
 			
-			auto type = economy::province_building_type(fat_id.get_type());
-			needed_commodities = state.economy_definitions.building_definitions[int32_t(type)].cost;
+			auto type = fat_id.get_type();
+			needed_commodities = type.get_cost();
 
 			satisfied_commodities = fat_id.get_purchased_goods();
 		} else if(std::holds_alternative<dcon::factory_construction_id>(content)) {

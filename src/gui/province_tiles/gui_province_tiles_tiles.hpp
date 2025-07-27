@@ -198,7 +198,7 @@ public:
 class province_building_tile : public tile_type_logic {
 public:
 	dcon::text_key get_name(sys::state& state, province_tile target) noexcept override {
-		return state.lookup_key(economy::province_building_type_get_name(target.province_building));
+		return state.world.province_building_type_get_name( target.province_building);
 	}
 
 	bool is_available(sys::state& state, province_tile target) noexcept override {
@@ -206,15 +206,16 @@ public:
 	}
 
 	int get_frame(sys::state& state, province_tile target) noexcept override {
-		auto level = state.world.province_get_building_level(target.province, uint8_t(target.province_building));
+		auto level = state.world.province_get_building_level(target.province, target.province_building);
+		auto type = state.world.province_building_type_get_type(target.province_building);
 
-		if(target.province_building == economy::province_building_type::railroad && level == 0) {
+		if(type == uint8_t(economy::province_building_type::railroad) && level == 0) {
 			return 21;
-		} else if(target.province_building == economy::province_building_type::railroad && level > 0) {
+		} else if(type == uint8_t(economy::province_building_type::railroad) && level > 0) {
 			return 8;
-		} else if(target.province_building == economy::province_building_type::naval_base) {
+		} else if(type == uint8_t(economy::province_building_type::naval_base)) {
 			return 9;
-		} else if(target.province_building == economy::province_building_type::fort) {
+		} else if(type == uint8_t(economy::province_building_type::fort)) {
 			return 12;
 		}
 		return 0;

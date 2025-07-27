@@ -2005,8 +2005,8 @@ void create_nation_based_on_template(sys::state& state, dcon::nation_id n, dcon:
 	});
 	state.world.nation_set_has_gas_attack(n, state.world.nation_get_has_gas_attack(base));
 	state.world.nation_set_has_gas_defense(n, state.world.nation_get_has_gas_defense(base));
-	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-		state.world.nation_set_max_building_level(n, uint8_t(t), state.world.nation_get_max_building_level(base, uint8_t(t)));
+	for(auto building : state.world.in_province_building_type) {
+		state.world.nation_set_max_building_level(n, building, state.world.nation_get_max_building_level(base, building));
 	}
 	state.world.nation_set_election_ends(n, sys::date{0});
 	state.world.nation_set_education_spending(n, int8_t(100));

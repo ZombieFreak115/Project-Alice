@@ -430,9 +430,9 @@ void begin_province_building_construction(sys::state& state, dcon::nation_id sou
 	p.data.start_province_building.type = type;
 	add_to_command_queue(state, p);
 }
-bool can_begin_province_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id p, economy::province_building_type type) {
-
-	switch(type) {
+bool can_begin_province_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id p, dcon::province_building_type_id type) {
+	auto t = state.world.province_building_type_get_type(type);
+	switch(economy::province_building_type(t)) {
 	case economy::province_building_type::railroad:
 		return province::can_build_railroads(state, p, source);
 	case economy::province_building_type::fort:
@@ -441,6 +441,7 @@ bool can_begin_province_building_construction(sys::state& state, dcon::nation_id
 		return province::can_build_naval_base(state, p, source);
 	case economy::province_building_type::bank:
 	case economy::province_building_type::university:
+	case economy::province_building_type::custom:
 		return province::can_build_province_building(state, p, source, type);
 	default:
 		return false;

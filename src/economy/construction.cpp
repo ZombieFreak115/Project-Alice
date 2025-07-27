@@ -225,11 +225,12 @@ float naval_unit_construction_time(
 
 float province_building_construction_time(
 	sys::state& state,
-	economy::province_building_type building_type
+	dcon::province_building_type_id building_type
 ) {
-	assert(0 <= int32_t(building_type) && int32_t(building_type) < int32_t(economy::max_building_types));
+	assert(building_type);
+	//assert(0 <= int32_t(building_type) && int32_t(building_type) < int32_t(economy::max_building_types));
 	return global_province_construction_time_modifier(state)
-		* float(state.economy_definitions.building_definitions[int32_t(building_type)].time);
+		* float(state.world.province_building_type_get_time(building_type));
 }
 
 float factory_building_construction_time(
@@ -436,13 +437,13 @@ province_building_construction_data explain_province_building_construction(
 	auto province = state.world.province_building_construction_get_province(construction);
 	auto local_zone = state.world.province_get_state_membership(province);
 	auto raw_type = state.world.province_building_construction_get_type(construction);
-	auto t = economy::province_building_type(raw_type);
+	auto t = economy::province_building_type(raw_type.get_type());
 	auto is_pop_project = state.world.province_building_construction_get_is_pop_project(construction);
 	province_building_construction_data result = {
 		.can_be_advanced = (owner && state.world.province_get_nation_from_province_control(province) == owner),
 		.is_pop_project = is_pop_project,
 		.is_upgrade = false,
-		.construction_time = province_building_construction_time(state, t),
+		.construction_time = province_building_construction_time(state, raw_type),
 		.cost_multiplier = build_cost_multiplier(state, province, is_pop_project),
 		.owner = owner,
 		.market = state.world.state_instance_get_market_from_local_market(local_zone),
@@ -996,12 +997,12 @@ float estimate_private_construction_spendings(sys::state& state, dcon::nation_id
 
 		// Rationale for not checking building type: Its an invalid state; should not occur under normal circumstances
 		if(nid == c.get_province().get_nation_from_province_control() && c.get_is_pop_project()) {
-			auto t = economy::province_building_type(c.get_type());
-			assert(0 <= int32_t(t) && int32_t(t) < int32_t(economy::max_building_types));
-			auto& base_cost = state.economy_definitions.building_definitions[int32_t(t)].cost;
+			auto t = c.get_type();
+			assert(state.world.province_building_type_is_valid(t));
+			//assert(0 <= int32_t(t) && int32_t(t) < int32_t(economy::max_building_types));
+			auto& base_cost = t.get_cost();
 			auto& current_purchased = c.get_purchased_goods();
-			float construction_time = global_province_construction_time_modifier(state) *
-				float(state.economy_definitions.building_definitions[int32_t(t)].time);
+			float construction_time = global_province_construction_time_modifier(state) * float(t.get_time());
 			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
 				if(base_cost.commodity_type[i]) {
 					if(current_purchased.commodity_amounts[i] < base_cost.commodity_amounts[i])

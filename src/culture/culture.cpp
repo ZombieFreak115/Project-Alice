@@ -448,10 +448,11 @@ void apply_technology(sys::state& state, dcon::nation_id target_nation, dcon::te
 	auto& plur = state.world.nation_get_plurality(target_nation);
 	state.world.nation_set_plurality(target_nation, std::clamp(plur + tech_id.get_plurality() * 100.0f, 0.0f, 100.0f));
 
-	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-		if(tech_id.get_increase_building(t)) {
-			auto& cur_max = state.world.nation_get_max_building_level(target_nation, uint8_t(t));
-			state.world.nation_set_max_building_level(target_nation, uint8_t(t), uint8_t(cur_max + 1));
+	for(auto building : state.world.in_province_building_type) {
+		auto building_levels = tech_id.get_increase_building(building);
+		if(building_levels > 0) {
+			auto& cur_max = state.world.nation_get_max_building_level(target_nation, building);
+			state.world.nation_set_max_building_level(target_nation, building, uint8_t(cur_max + building_levels));
 		}
 	}
 	auto& cur_colonial_pts = state.world.nation_get_permanent_colonial_points(target_nation);

@@ -461,8 +461,8 @@ public:
 		else if(std::holds_alternative<dcon::province_building_construction_id>(content)) {
 			auto pbcid = std::get<dcon::province_building_construction_id>(content);
 			auto btid = state.world.province_building_construction_get_type(pbcid);
-			auto name = economy::province_building_type_get_name(economy::province_building_type(btid));
-			float progress = economy::province_building_construction(state, state.world.province_building_construction_get_province(pbcid), economy::province_building_type(btid)).progress;
+			auto name = text::produce_simple_string(state, btid.get_name());
+			float progress = economy::province_building_construction(state, state.world.province_building_construction_get_province(pbcid), btid).progress;
 
 			auto full_str = text::produce_simple_string(state, name) + " (" + text::format_percentage(progress, 0) + ")";
 

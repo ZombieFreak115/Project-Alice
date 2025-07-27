@@ -394,8 +394,8 @@ void infrastructure_map_tt_box(sys::state& state, text::columnar_layout& content
 	if(prov.value < state.province_definitions.first_sea_province.value) {
 		auto box = text::open_layout_box(contents);
 		text::add_to_layout_box(state, contents, box, fat.get_rgo().get_name(), text::text_color::yellow);
-		int32_t current_rails_lvl = state.world.province_get_building_level(prov, uint8_t(economy::province_building_type::railroad));
-		int32_t max_local_rails_lvl = state.world.nation_get_max_building_level(fat.get_nation_from_province_ownership().id, uint8_t(economy::province_building_type::railroad));
+		int32_t current_rails_lvl = state.world.province_get_building_level(prov, state.economy_definitions.railroad_building);
+		int32_t max_local_rails_lvl = state.world.nation_get_max_building_level(fat.get_nation_from_province_ownership().id, state.economy_definitions.railroad_building);
 		text::add_line_break_to_layout_box(state, contents, box);
 		text::localised_single_sub_box(state, contents, box, std::string_view("infra_level_here"), text::variable_type::val, uint16_t(float(current_rails_lvl) / float(max_local_rails_lvl)));
 		text::close_layout_box(contents, box);

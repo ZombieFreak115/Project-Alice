@@ -1223,8 +1223,8 @@ inline bool f_can_build_naval_base(sys::state* state, int32_t cindex, int32_t si
 	dcon::nation_id n{ dcon::nation_id::value_base_t(sindex) };
 
 	return state->world.province_get_is_coast(p)
-		&& (state->world.province_get_building_level(p, uint8_t(economy::province_building_type::naval_base)) < state->world.nation_get_max_building_level(n, uint8_t(economy::province_building_type::naval_base)))
-		&& (state->world.province_get_building_level(p, uint8_t(economy::province_building_type::naval_base)) != 0 || !military::state_has_naval_base(*state, state->world.province_get_state_membership(p)));
+		&& (state->world.province_get_building_level(p, state->economy_definitions.naval_base_building) < state->world.nation_get_max_building_level(n, state->economy_definitions.naval_base_building))
+		&& (state->world.province_get_building_level(p, state->economy_definitions.naval_base_building) != 0 || !military::state_has_naval_base(*state, state->world.province_get_state_membership(p)));
 }
 inline int32_t* f_can_build_naval_base_b(fif::state_stack& s, int32_t* p, fif::environment* e) {
 	if(fif::typechecking_mode(e->mode)) {

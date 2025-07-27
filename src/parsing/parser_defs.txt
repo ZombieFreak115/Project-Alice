@@ -268,7 +268,7 @@ commodity_array
 
 building_definition
 	#base   modifier_base
-	port                 value    none              discard
+	port                 value    bool              member
 	visibility           value    none              discard
 	onmap                value    none              discard
 	province             value    none              discard

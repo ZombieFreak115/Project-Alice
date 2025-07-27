@@ -750,11 +750,11 @@ void update_ai_econ_construction(sys::state& state) {
 
 				if(military::province_is_under_siege(state, o.get_province()))
 					continue;
-				if(o.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base)) == 0 && o.get_province().get_state_membership().get_naval_base_is_taken())
+				if(o.get_province().get_building_level(state.economy_definitions.naval_base_building) == 0 && o.get_province().get_state_membership().get_naval_base_is_taken())
 					continue;
 
-				int32_t current_lvl = o.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base));
-				int32_t max_local_lvl = n.get_max_building_level(uint8_t(economy::province_building_type::naval_base));
+				int32_t current_lvl = o.get_province().get_building_level(state.economy_definitions.naval_base_building);
+				int32_t max_local_lvl = n.get_max_building_level(state.economy_definitions.naval_base_building);
 				int32_t min_build = int32_t(o.get_province().get_modifier_values(sys::provincial_mod_offsets::min_build_naval_base));
 
 				if(max_local_lvl - current_lvl - min_build <= 0)
@@ -802,7 +802,7 @@ void update_ai_econ_construction(sys::state& state) {
 					si.set_naval_base_is_taken(true);
 				auto new_rr = fatten(state.world, state.world.force_create_province_building_construction(project_provs[0], n));
 				new_rr.set_is_pop_project(false);
-				new_rr.set_type(uint8_t(economy::province_building_type::naval_base));
+				new_rr.set_type(state.economy_definitions.naval_base_building);
 				additional_expenses += expected_item_cost;
 			}
 		}
@@ -810,12 +810,12 @@ void update_ai_econ_construction(sys::state& state) {
 		// try railroads
 		const struct {
 			bool buildable;
-			economy::province_building_type type;
+			dcon::province_building_type_id type;
 			dcon::provincial_modifier_value mod;
 		} econ_buildable[3] = {
-			{ (rules & issue_rule::build_railway) != 0, economy::province_building_type::railroad, sys::provincial_mod_offsets::min_build_railroad },
-			{ (rules & issue_rule::build_bank) != 0 && state.economy_definitions.building_definitions[uint32_t(economy::province_building_type::bank)].defined, economy::province_building_type::bank, sys::provincial_mod_offsets::min_build_bank },
-			{ (rules & issue_rule::build_university) != 0 && state.economy_definitions.building_definitions[uint32_t(economy::province_building_type::university)].defined, economy::province_building_type::university, sys::provincial_mod_offsets::min_build_university }
+			{ (rules & issue_rule::build_railway) != 0, state.economy_definitions.railroad_building, sys::provincial_mod_offsets::min_build_railroad },
+			{ (rules & issue_rule::build_bank) != 0 && bool(state.economy_definitions.bank_building), state.economy_definitions.bank_building, sys::provincial_mod_offsets::min_build_bank },
+			{ (rules & issue_rule::build_university) != 0 && bool(state.economy_definitions.university_building), state.economy_definitions.university_building, sys::provincial_mod_offsets::min_build_university }
 		};
 		for(auto i = 0; i < 3; i++) {
 			if(econ_buildable[i].buildable && budget - additional_expenses > 0) {
@@ -825,8 +825,8 @@ void update_ai_econ_construction(sys::state& state) {
 						continue;
 					if(military::province_is_under_siege(state, o.get_province()))
 						continue;
-					int32_t current_lvl = state.world.province_get_building_level(o.get_province(), uint8_t(econ_buildable[i].type));
-					int32_t max_local_lvl = state.world.nation_get_max_building_level(n, uint8_t(econ_buildable[i].type));
+					int32_t current_lvl = state.world.province_get_building_level(o.get_province(), econ_buildable[i].type);
+					int32_t max_local_lvl = state.world.nation_get_max_building_level(n, econ_buildable[i].type);
 					int32_t min_build = int32_t(state.world.province_get_modifier_values(o.get_province(), econ_buildable[i].mod));
 					if(max_local_lvl - current_lvl - min_build <= 0)
 						continue;
@@ -850,8 +850,8 @@ void update_ai_econ_construction(sys::state& state) {
 					// avoid overbuilding!
 
 					auto expected_item_cost = 0.f;
-					auto& costs = state.economy_definitions.building_definitions[uint8_t(econ_buildable[i].type)].cost;
-					auto& time = state.economy_definitions.building_definitions[uint8_t(econ_buildable[i].type)].time;
+					auto& costs = state.world.province_building_type_get_cost(econ_buildable[i].type);
+					auto& time = state.world.province_building_type_get_time(econ_buildable[i].type);
 					for(uint32_t k = 0; k < costs.set_size; ++k) {
 						if(costs.commodity_type[k]) {
 							expected_item_cost +=
@@ -869,7 +869,7 @@ void update_ai_econ_construction(sys::state& state) {
 
 					auto new_proj = fatten(state.world, state.world.force_create_province_building_construction(project_provs[j], n));
 					new_proj.set_is_pop_project(false);
-					new_proj.set_type(uint8_t(econ_buildable[i].type));
+					new_proj.set_type(econ_buildable[i].type);
 					additional_expenses += expected_item_cost;
 				}
 			}
@@ -890,8 +890,8 @@ void update_ai_econ_construction(sys::state& state) {
 				if(military::province_is_under_siege(state, o.get_province()))
 					continue;
 
-				int32_t current_lvl = state.world.province_get_building_level(o.get_province(), uint8_t(economy::province_building_type::fort));
-				int32_t max_local_lvl = state.world.nation_get_max_building_level(n, uint8_t(economy::province_building_type::fort));
+				int32_t current_lvl = state.world.province_get_building_level(o.get_province(), state.economy_definitions.fort_building);
+				int32_t max_local_lvl = state.world.nation_get_max_building_level(n, state.economy_definitions.fort_building);
 				int32_t min_build = int32_t(state.world.province_get_modifier_values(o.get_province(), sys::provincial_mod_offsets::min_build_fort));
 
 				if(max_local_lvl - current_lvl - min_build <= 0)
@@ -941,7 +941,7 @@ void update_ai_econ_construction(sys::state& state) {
 
 				auto new_rr = fatten(state.world, state.world.force_create_province_building_construction(project_provs[i], n));
 				new_rr.set_is_pop_project(false);
-				new_rr.set_type(uint8_t(economy::province_building_type::fort));
+				new_rr.set_type(state.economy_definitions.fort_building);
 				additional_expenses += expected_item_cost;
 			}
 		}

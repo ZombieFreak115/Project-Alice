@@ -2328,7 +2328,7 @@ void create_railroad_connection(sys::state& state, std::vector<glm::vec2>& railr
 }
 
 bool get_provinces_part_of_rr_path(sys::state& state, std::vector<bool>& visited_adj, std::vector<bool>& visited_prov, std::vector<dcon::province_id>& provinces, dcon::province_id p) {
-	if(state.world.province_get_building_level(p, uint8_t(economy::province_building_type::railroad)) == 0)
+	if(state.world.province_get_building_level(p, state.economy_definitions.railroad_building) == 0)
 		return false;
 	if(!p)
 		return false;
@@ -2340,7 +2340,7 @@ bool get_provinces_part_of_rr_path(sys::state& state, std::vector<bool>& visited
 	std::vector<dcon::province_adjacency_id> valid_adj;
 	for(const auto adj : state.world.province_get_province_adjacency_as_connected_provinces(p)) {
 		auto const pa = adj.get_connected_provinces(adj.get_connected_provinces(0) == p ? 1 : 0);
-		if(pa.get_building_level(uint8_t(economy::province_building_type::railroad)) == 0
+		if(pa.get_building_level(state.economy_definitions.railroad_building) == 0
 			|| visited_prov[pa.id.index()])
 			continue;
 		// Do not display railroads if it's a strait OR an impassable land border!

@@ -653,7 +653,7 @@ public:
 		text::add_line(state, contents, "province_victory_points_base");
 
 		if(!state.world.province_get_is_colonial(p)) {
-			auto nbsize = state.world.province_get_building_level(p, uint8_t(economy::province_building_type::naval_base));
+			auto nbsize = state.world.province_get_building_level(p, state.economy_definitions.naval_base_building);
 
 			if (nbsize > 0)
 				text::add_line(state, contents, "province_victory_points_nb", text::variable_type::x, nbsize);
@@ -665,7 +665,7 @@ public:
 		if (fcount > 0)
 			text::add_line(state, contents, "province_victory_points_fcount", text::variable_type::x, fcount);
 
-		auto fortsize = state.world.province_get_building_level(p, uint8_t(economy::province_building_type::fort));
+		auto fortsize = state.world.province_get_building_level(p, state.economy_definitions.fort_building);
 
 		if (fortsize > 0)
 			text::add_line(state, contents, "province_victory_points_fortsize", text::variable_type::x, fortsize);
@@ -1240,7 +1240,7 @@ class rr_investment_progress : public progress_bar {
 public:
 	void on_update(sys::state& state) noexcept override {
 		auto prov = retrieve<dcon::province_id>(state, parent);
-		progress = economy::province_building_construction(state, prov, economy::province_building_type::railroad).progress;
+		progress = economy::province_building_construction(state, prov, state.economy_definitions.railroad_building).progress;
 	}
 };
 

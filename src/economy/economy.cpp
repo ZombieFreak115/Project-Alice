@@ -3889,16 +3889,17 @@ float estimate_subject_payments_received(sys::state& state, dcon::nation_id o) {
 	return res;
 }
 
-construction_status province_building_construction(sys::state& state, dcon::province_id p, province_building_type t) {
-	assert(0 <= int32_t(t) && int32_t(t) < int32_t(economy::max_building_types));
+construction_status province_building_construction(sys::state& state, dcon::province_id p, dcon::province_building_type_id t) {
+	//assert(0 <= int32_t(t) && int32_t(t) < int32_t(economy::max_building_types));
+	assert(t);
 	for(auto pb_con : state.world.province_get_province_building_construction(p)) {
-		if(pb_con.get_type() == uint8_t(t)) {
+		if(pb_con.get_type() == t) {
 			float modifier = build_cost_multiplier(state, p, pb_con.get_is_pop_project());
 			float total = 0.0f;
 			float purchased = 0.0f;
 			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
 				total +=
-					state.economy_definitions.building_definitions[int32_t(t)].cost.commodity_amounts[i]
+					state.world.province_building_type_get_cost(t).commodity_amounts[i]
 					* modifier;
 				purchased += pb_con.get_purchased_goods().commodity_amounts[i];
 			}
@@ -4145,9 +4146,10 @@ void resolve_constructions(sys::state& state) {
 		auto for_province = c.get_province();
 		float cost_factor = economy::build_cost_multiplier(state, for_province, c.get_is_pop_project());
 
-		auto t = province_building_type(state.world.province_building_construction_get_type(c));
-		assert(0 <= int32_t(t) && int32_t(t) < int32_t(economy::max_building_types));
-		auto& base_cost = state.economy_definitions.building_definitions[int32_t(t)].cost;
+		auto building = state.world.province_building_construction_get_type(c);
+		auto t = state.world.province_building_type_get_type(building);
+		//assert(0 <= int32_t(t) && int32_t(t) < int32_t(economy::max_building_types));
+		auto& base_cost = state.world.province_building_type_get_cost(building);
 		auto& current_purchased = state.world.province_building_construction_get_purchased_goods(c);
 		bool all_finished = true;
 
@@ -4162,10 +4164,10 @@ void resolve_constructions(sys::state& state) {
 		}
 
 		if(all_finished) {
-			if(state.world.province_get_building_level(for_province, uint8_t(t)) < state.world.nation_get_max_building_level(state.world.province_get_nation_from_province_ownership(for_province), uint8_t(t))) {
-				state.world.province_set_building_level(for_province, uint8_t(t), uint8_t(state.world.province_get_building_level(for_province, uint8_t(t)) + 1));
+			if(state.world.province_get_building_level(for_province, building) < state.world.nation_get_max_building_level(state.world.province_get_nation_from_province_ownership(for_province), building)) {
+				state.world.province_set_building_level(for_province, building, uint8_t(state.world.province_get_building_level(for_province, building) + 1));
 
-				if(t == province_building_type::railroad) {
+				if(t == uint8_t(province_building_type::railroad)) {
 					/* Notify the railroad mesh builder to update the railroads! */
 					state.railroad_built.store(true, std::memory_order::release);
 				}

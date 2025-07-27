@@ -125,6 +125,7 @@ void building_file::result(std::string_view name, building_definition&& res, err
 		else if(res.stored_type == economy::province_building_type::naval_base) {
 			context.state.economy_definitions.naval_base_building = new_building;
 		}
+		context.state.world.province_building_type_set_port_only(new_building, res.port);
 
 		//context.state.economy_definitions.building_definitions[int32_t(t)].defined = true; // Is defined now!
 
