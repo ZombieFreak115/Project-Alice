@@ -119,6 +119,12 @@ void building_file::result(std::string_view name, building_definition&& res, err
 		auto new_building = context.state.world.create_province_building_type();
 		auto t = res.stored_type;
 		context.state.world.province_building_type_set_type(new_building, uint8_t(res.stored_type));
+		if(res.stored_type == economy::province_building_type::railroad) {
+			context.state.economy_definitions.railroad_building = new_building;
+		}
+		else if(res.stored_type == economy::province_building_type::naval_base) {
+			context.state.economy_definitions.naval_base_building = new_building;
+		}
 
 		//context.state.economy_definitions.building_definitions[int32_t(t)].defined = true; // Is defined now!
 
@@ -147,6 +153,7 @@ void building_file::result(std::string_view name, building_definition&& res, err
 		context.state.world.province_building_type_set_max_level(new_building, uint8_t(res.max_level));
 		context.state.world.province_building_type_set_time(new_building, res.time);
 		context.state.world.province_building_type_set_name(new_building, text::find_or_add_key(context.state, name, false));
+		context.map_of_province_building_names.insert_or_assign(text::produce_simple_string(context.state, context.state.world.province_building_type_get_name(new_building)), new_building);
 		/*context.state.economy_definitions.building_definitions[int32_t(t)].infrastructure = res.infrastructure;
 		context.state.economy_definitions.building_definitions[int32_t(t)].max_level = res.max_level;
 		context.state.economy_definitions.building_definitions[int32_t(t)].time = res.time;

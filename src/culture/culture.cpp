@@ -195,12 +195,13 @@ void repopulate_technology_effects(sys::state& state) {
 		}
 		*/
 
-		for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-			if(tech_id.get_increase_building(t)) {
+		for(auto building : state.world.in_province_building_type) {
+			auto building_levels = tech_id.get_increase_building(building.id);
+			if(building_levels > 0) {
 				state.world.execute_serial_over_nation([&](auto nation_indices) {
 					auto has_tech_mask = state.world.nation_get_active_technologies(nation_indices, t_id);
-					auto old_rr_value = state.world.nation_get_max_building_level(nation_indices, uint8_t(t));
-					state.world.nation_set_max_building_level(nation_indices, uint8_t(t), ve::select(has_tech_mask, old_rr_value + 1, old_rr_value));
+					auto old_building_value = state.world.nation_get_max_building_level(nation_indices, building.id);
+					state.world.nation_set_max_building_level(nation_indices, building.id, ve::select(has_tech_mask, old_building_value + building_levels, old_building_value));
 				});
 			}
 		}
@@ -296,13 +297,13 @@ void repopulate_invention_effects(sys::state& state) {
 			}
 		}
 		*/
-
-		for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-			if(inv_id.get_increase_building(t)) {
+		for(auto building : state.world.in_province_building_type) {
+			auto building_levels = inv_id.get_increase_building(building.id);
+			if(building_levels > 0) {
 				state.world.execute_serial_over_nation([&](auto nation_indices) {
 					auto has_tech_mask = state.world.nation_get_active_inventions(nation_indices, i_id);
-					auto old_rr_value = state.world.nation_get_max_building_level(nation_indices, uint8_t(t));
-					state.world.nation_set_max_building_level(nation_indices, uint8_t(t), ve::select(has_tech_mask, old_rr_value + 1, old_rr_value));
+					auto old_building_value = state.world.nation_get_max_building_level(nation_indices, building.id);
+					state.world.nation_set_max_building_level(nation_indices, building.id, ve::select(has_tech_mask, old_building_value + building_levels, old_building_value));
 				});
 			}
 		}
@@ -527,10 +528,11 @@ void remove_technology(sys::state& state, dcon::nation_id target_nation, dcon::t
 	auto& plur = state.world.nation_get_plurality(target_nation);
 	state.world.nation_set_plurality(target_nation, std::clamp(plur - tech_id.get_plurality() * 100.0f, 0.0f, 100.0f));
 
-	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-		if(tech_id.get_increase_building(t)) {
-			auto& cur_max_size = state.world.nation_get_max_building_level(target_nation, uint8_t(t));
-			state.world.nation_set_max_building_level(target_nation, uint8_t(t), uint8_t(cur_max_size - 1));
+	for(auto building : state.world.in_province_building_type) {
+		auto building_levels = tech_id.get_increase_building(building.id);
+		if(building_levels > 0) {
+			auto& cur_max_size = state.world.nation_get_max_building_level(target_nation, building.id);
+			state.world.nation_set_max_building_level(target_nation, building.id, uint8_t(cur_max_size - building_levels));
 		}
 	}
 	auto& cur_colonial_pts = state.world.nation_get_permanent_colonial_points(target_nation);
@@ -605,10 +607,11 @@ void apply_invention(sys::state& state, dcon::nation_id target_nation, dcon::inv
 		}
 	}
 
-	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-		if(inv_id.get_increase_building(t)) {
-			auto& cur_max_size = state.world.nation_get_max_building_level(target_nation, uint8_t(t));
-			state.world.nation_set_max_building_level(target_nation, uint8_t(t), uint8_t(cur_max_size + 1));
+	for(auto building : state.world.in_province_building_type) {
+		auto building_levels = inv_id.get_increase_building(building.id);
+		if(building_levels > 0) {
+			auto& cur_max_size = state.world.nation_get_max_building_level(target_nation, building.id);
+			state.world.nation_set_max_building_level(target_nation, building.id, uint8_t(cur_max_size + building_levels));
 		}
 	}
 
@@ -724,11 +727,11 @@ void remove_invention(sys::state& state, dcon::nation_id target_nation,
 			state.world.nation_set_modifier_values(target_nation, fixed_offset, current_modifier_vals - modifier_amount);
 		}
 	}
-
-	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-		if(inv_id.get_increase_building(t)) {
-			auto& cur_max_size = state.world.nation_get_max_building_level(target_nation, uint8_t(t));
-			state.world.nation_set_max_building_level(target_nation, uint8_t(t), uint8_t(cur_max_size - 1));
+	for(auto building : state.world.in_province_building_type) {
+		auto building_levels = inv_id.get_increase_building(building.id);
+		if(building_levels > 0) {
+			auto& cur_max_size = state.world.nation_get_max_building_level(target_nation, building.id);
+			state.world.nation_set_max_building_level(target_nation, building.id, uint8_t(cur_max_size - building_levels));
 		}
 	}
 

@@ -1587,12 +1587,15 @@ void technology_contents::activate_unit(association_type, std::string_view value
 
 void technology_contents::activate_building(association_type, std::string_view value, error_handler& err, int32_t line,
 		tech_context& context) {
-	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-		if(std::string(value) == economy::province_building_type_get_name(t)) {
-			context.outer_context.state.world.technology_set_increase_building(context.id, t, true);
-			return;
-		}
+
+	auto building_name = std::string(value);
+	auto found_building = context.outer_context.map_of_province_building_names.find(building_name);
+	if(found_building != context.outer_context.map_of_province_building_names.end()) {
+		context.outer_context.state.world.technology_set_increase_building(context.id, found_building->second, 1);
+		return;
 	}
+
+
 
 	if(auto it = context.outer_context.map_of_factory_names.find(std::string(value));
 						it != context.outer_context.map_of_factory_names.end()) {
@@ -1605,16 +1608,17 @@ void technology_contents::activate_building(association_type, std::string_view v
 
 void technology_contents::any_value(std::string_view name, association_type, int32_t value, error_handler& err, int32_t line, tech_context& context) {
 	if(has_fixed_prefix_ci(name.data(), name.data() + name.length(), "max_")) {
-		for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-			if(std::string(name).substr(4) == economy::province_building_type_get_name(t)) {
-				if(value == 1) {
-					context.outer_context.state.world.technology_set_increase_building(context.id, t, true);
+		auto building_name = std::string(name).substr(4);
+		auto found_building = context.outer_context.map_of_province_building_names.find(building_name);
+			if(found_building != context.outer_context.map_of_province_building_names.end()) {
+				if(value > 0) {
+					context.outer_context.state.world.technology_set_increase_building(context.id, found_building->second, uint8_t(value));
 				} else {
-					err.accumulated_errors += "max_" + std::string(economy::province_building_type_get_name(t)) + " may only be 1 (" + err.file_name + " line " + std::to_string(line) + ")\n";
+					err.accumulated_errors += "max_" + building_name + " may not be negative (" + err.file_name + " line " + std::to_string(line) + ")\n";
 				}
 				return;
 			}
-		}
+		
 	}
 	err.accumulated_errors += "unknown technology key " + std::string(name) + " (" + err.file_name + " line " + std::to_string(line) + ")\n";//err.unhandled_association_key();
 }
@@ -1693,12 +1697,17 @@ void inv_effect::activate_unit(association_type, std::string_view value, error_h
 }
 
 void inv_effect::activate_building(association_type, std::string_view value, error_handler& err, int32_t line, invention_context& context) {
-	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-		if(std::string(value) == economy::province_building_type_get_name(t)) {
-			context.outer_context.state.world.invention_set_increase_building(context.id, t, true);
-			return;
-		}
+
+	auto building_name = std::string(value);
+	auto found_building = context.outer_context.map_of_province_building_names.find(building_name);
+	if(found_building != context.outer_context.map_of_province_building_names.end()) {
+		context.outer_context.state.world.invention_set_increase_building(context.id, found_building->second, 1);
+		return;
 	}
+
+
+
+
 
 	if(auto it = context.outer_context.map_of_factory_names.find(std::string(value));
 			it != context.outer_context.map_of_factory_names.end()) {
@@ -1711,16 +1720,17 @@ void inv_effect::activate_building(association_type, std::string_view value, err
 
 void inv_effect::any_value(std::string_view name, association_type, int32_t value, error_handler& err, int32_t line, invention_context& context) {
 	if(has_fixed_prefix_ci(name.data(), name.data() + name.length(), "max_")) {
-		for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-			if(std::string(name).substr(4) == economy::province_building_type_get_name(t)) {
-				if(value == 1) {
-					context.outer_context.state.world.invention_set_increase_building(context.id, t, true);
-				} else {
-					err.accumulated_errors += "max_" + std::string(economy::province_building_type_get_name(t)) + " may only be 1 (" + err.file_name + " line " + std::to_string(line) + ")\n";
-				}
-				return;
+		auto building_name = std::string(name).substr(4);
+		auto found_building = context.outer_context.map_of_province_building_names.find(building_name);
+		if(found_building != context.outer_context.map_of_province_building_names.end()) {
+			if(value > 0) {
+				context.outer_context.state.world.invention_set_increase_building(context.id, found_building->second, uint8_t(value));
+			} else {
+				err.accumulated_errors += "max_" + building_name + " may not be negative (" + err.file_name + " line " + std::to_string(line) + ")\n";
 			}
+			return;
 		}
+
 	}
 	err.accumulated_errors += "unknown technology key " + std::string(name) + " (" + err.file_name + " line " + std::to_string(line) + ")\n";//err.unhandled_association_key();
 }

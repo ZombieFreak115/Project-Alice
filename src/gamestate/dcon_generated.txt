@@ -3576,7 +3576,7 @@ object {
 	}
 	property {
 		name{ increase_building }
-		type{ array{economy::province_building_type}{bitfield} }
+		type{ array{province_building_type_id}{uint8_t} }
 		tag{ scenario }
 	}
 	property{
@@ -3639,7 +3639,7 @@ object {
 	}
 	property {
 		name{ increase_building }
-		type{ array{economy::province_building_type}{bitfield} }
+		type{ array{province_building_type_id}{uint8_t} }
 		tag{ scenario }
 	}
 	property{
@@ -3966,7 +3966,7 @@ object {
 	}
 	property {
 		name{ max_building_level }
-		type{ array{uint8_t}{uint8_t} }
+		type{ array{province_building_type_id}{uint8_t} }
 		
 	}
 	property {

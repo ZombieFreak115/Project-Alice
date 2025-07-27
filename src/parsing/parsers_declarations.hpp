@@ -382,6 +382,7 @@ struct scenario_building_context {
 	ankerl::unordered_dense::map<std::string, dcon::culture_id> map_of_culture_names;
 	ankerl::unordered_dense::map<std::string, dcon::culture_group_id> map_of_culture_group_names;
 	ankerl::unordered_dense::map<std::string, dcon::commodity_id> map_of_commodity_names;
+	ankerl::unordered_dense::map<std::string, dcon::province_building_type_id> map_of_province_building_names;
 	ankerl::unordered_dense::map<std::string, dcon::factory_type_id> map_of_production_types;
 	ankerl::unordered_dense::map<std::string, dcon::factory_type_id> map_of_factory_names;
 	ankerl::unordered_dense::map<std::string, pending_ideology_content> map_of_ideologies;

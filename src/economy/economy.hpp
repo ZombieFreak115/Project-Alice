@@ -105,6 +105,10 @@ struct global_economy_state {
 	float craftsmen_fraction = 0.8f;
 	dcon::modifier_id selector_modifier{};
 	dcon::modifier_id immigrator_modifier{};
+	dcon::province_building_type_id railroad_building;
+	dcon::province_building_type_id naval_base_building;
+	dcon::province_building_type_id fort_building;
+
 };
 static_assert(sizeof(global_economy_state) ==
 	sizeof(global_economy_state::building_definitions)
