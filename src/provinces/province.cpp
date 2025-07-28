@@ -1771,7 +1771,7 @@ bool can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definiti
 
 	if(!adjacent && coastal_target  && state.world.nation_get_central_ports(n) != 0) {
 		for(auto p : state.world.nation_get_province_ownership(n)) {
-			if(auto nb_level = p.get_province().get_building_level(ustate.economy_definitions.naval_base_building); nb_level > 0 && p.get_province().get_nation_from_province_control() == n) {
+			if(auto nb_level = p.get_province().get_building_level(state.economy_definitions.naval_base_building); nb_level > 0 && p.get_province().get_nation_from_province_control() == n) {
 				auto dist = province::direct_distance(state, p.get_province(), coastal_target);
 				auto arbitrary_circumference = state.map_state.map_data.world_circumference / 10.0f;
 				if(dist <= arbitrary_circumference * state.defines.alice_naval_base_to_colonial_distance_factor * nb_level) {

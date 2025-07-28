@@ -421,7 +421,7 @@ void execute_decrease_relations(sys::state& state, dcon::nation_id source, dcon:
 	});
 }
 
-void begin_province_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id prov, economy::province_building_type type) {
+void begin_province_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id prov, dcon::province_building_type_id type) {
 	payload p;
 	memset(&p, 0, sizeof(payload));
 	p.type = command_type::begin_province_building_construction;
@@ -447,16 +447,17 @@ bool can_begin_province_building_construction(sys::state& state, dcon::nation_id
 		return false;
 	}
 }
-void execute_begin_province_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id p, economy::province_building_type type) {
-	if(type == economy::province_building_type::naval_base) {
+void execute_begin_province_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id p, dcon::province_building_type_id type) {
+	auto subtype = state.world.province_building_type_get_type(type);
+	if(subtype == uint8_t(economy::province_building_type::naval_base)) {
 		auto si = state.world.province_get_state_membership(p);
 		if(si)
 			si.set_naval_base_is_taken(true);
 	}
 
-	if(type != economy::province_building_type::fort && type != economy::province_building_type::naval_base && source != state.world.province_get_nation_from_province_ownership(p)) {
+	if(subtype != uint8_t(economy::province_building_type::fort) && subtype != uint8_t(economy::province_building_type::naval_base) && source != state.world.province_get_nation_from_province_ownership(p)) {
 		float amount = 0.0f;
-		auto& base_cost = state.economy_definitions.building_definitions[int32_t(type)].cost;
+		auto& base_cost = state.world.province_building_type_get_cost(type);
 		for(uint32_t j = 0; j < economy::commodity_set::set_size; ++j) {
 			if(base_cost.commodity_type[j]) {
 				amount += base_cost.commodity_amounts[j] * state.world.commodity_get_cost(base_cost.commodity_type[j]); //base cost
@@ -469,7 +470,7 @@ void execute_begin_province_building_construction(sys::state& state, dcon::natio
 
 	auto new_rr = fatten(state.world, state.world.force_create_province_building_construction(p, source));
 	new_rr.set_is_pop_project(false);
-	new_rr.set_type(uint8_t(type));
+	new_rr.set_type(type);
 }
 
 

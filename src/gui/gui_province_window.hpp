@@ -784,13 +784,13 @@ public:
 	}
 };
 
-template<economy::province_building_type Value>
+template<dcon::province_building_type_id Value>
 class province_building_icon : public image_element_base {
 public:
 	void on_update(sys::state& state) noexcept override {
 		auto prov_id = retrieve<dcon::province_id>(state, parent);
 		auto fat_id = dcon::fatten(state.world, prov_id);
-		frame = fat_id.get_building_level(uint8_t(Value));
+		frame = fat_id.get_building_level(Value);
 	}
 
 	tooltip_behavior has_tooltip(sys::state& state) noexcept override {
@@ -802,7 +802,7 @@ public:
 		province_building_tooltip(state, contents, id, Value);
 	}
 };
-template<economy::province_building_type Value>
+template<dcon::province_building_type_id Value>
 class province_building_expand_button : public button_element_base {
 public:
 	void on_update(sys::state& state) noexcept override {
@@ -815,7 +815,7 @@ public:
 		command::begin_province_building_construction(state, state.local_player_nation, content, Value);
 	}
 	virtual void button_shift_action(sys::state& state) noexcept override {
-		if constexpr(Value == economy::province_building_type::naval_base) {
+		if (state.world.province_building_type_get_type( Value) == uint8_t(economy::province_building_type::naval_base)) {
 			button_action(state);
 		} else {
 			auto pid = retrieve<dcon::province_id>(state, parent);
@@ -1134,14 +1134,14 @@ class province_invest_railroad_button : public button_element_base {
 public:
 	void button_action(sys::state& state) noexcept override {
 		auto content = retrieve<dcon::province_id>(state, parent);
-		command::begin_province_building_construction(state, state.local_player_nation, content, economy::province_building_type::railroad);
+		command::begin_province_building_construction(state, state.local_player_nation, content, state.economy_definitions.railroad_building);
 	}
 	virtual void button_shift_action(sys::state& state) noexcept override {
 		auto pid = retrieve<dcon::province_id>(state, parent);
 		auto si = state.world.province_get_state_membership(pid);
 		if(si) {
 			province::for_each_province_in_state_instance(state, si, [&](dcon::province_id p) {
-				command::begin_province_building_construction(state, state.local_player_nation, p, economy::province_building_type::railroad);
+				command::begin_province_building_construction(state, state.local_player_nation, p, state.economy_definitions.railroad_building);
 			});
 		}
 	}
@@ -1149,13 +1149,13 @@ public:
 		auto pid = retrieve<dcon::province_id>(state, parent);
 		auto n = state.world.province_get_nation_from_province_ownership(pid);
 		for(auto p : state.world.nation_get_province_ownership(n)) {
-			command::begin_province_building_construction(state, state.local_player_nation, p.get_province(), economy::province_building_type::railroad);
+			command::begin_province_building_construction(state, state.local_player_nation, p.get_province(), state.economy_definitions.railroad_building);
 		}
 	}
 	void on_update(sys::state& state) noexcept override {
 		auto content = retrieve<dcon::province_id>(state, parent);
 		disabled = !command::can_begin_province_building_construction(state, state.local_player_nation, content,
-				economy::province_building_type::railroad);
+				state.economy_definitions.railroad_building);
 	}
 };
 
@@ -1166,7 +1166,7 @@ public:
 	}
 };
 
-template<economy::province_building_type Value>
+template<dcon::province_building_type_id Value>
 class province_view_foreign_building_icon : public province_building_icon<Value> {
 public:
 	tooltip_behavior has_tooltip(sys::state& state) noexcept override {
@@ -1174,7 +1174,7 @@ public:
 	}
 	void update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept override {
 		auto box = text::open_layout_box(contents, 0);
-		switch(Value) {
+		switch(economy::province_building_type(state.world.province_building_type_get_type( Value))) {
 		case economy::province_building_type::railroad:
 			text::localised_format_box(state, contents, box, std::string_view("pv_railroad"));
 			break;

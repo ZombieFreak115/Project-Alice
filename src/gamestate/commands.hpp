@@ -168,7 +168,7 @@ struct save_game_data {
 
 struct province_building_data {
 	dcon::province_id location;
-	economy::province_building_type type;
+	dcon::province_building_type_id type;
 };
 
 struct factory_building_data {
@@ -612,8 +612,8 @@ bool can_set_factory_type_priority(sys::state& state, dcon::nation_id source, dc
 void decrease_relations(sys::state& state, dcon::nation_id source, dcon::nation_id target);
 bool can_decrease_relations(sys::state& state, dcon::nation_id source, dcon::nation_id target);
 
-void begin_province_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id p, economy::province_building_type type);
-bool can_begin_province_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id p, economy::province_building_type type);
+void begin_province_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id p, dcon::province_building_type_id type);
+bool can_begin_province_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id p, dcon::province_building_type_id type);
 
 void begin_factory_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::factory_type_id type, bool is_upgrade, dcon::factory_type_id refit_target = dcon::factory_type_id{});
 bool can_begin_factory_building_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::factory_type_id type, bool is_upgrade, dcon::factory_type_id refit_target = dcon::factory_type_id{});

@@ -1767,8 +1767,8 @@ std::vector<full_construction_province> estimate_private_investment_province(sys
 		auto sid = state.world.province_get_state_membership(best_p.first);
 		auto market = state.world.state_instance_get_market_from_local_market(sid);
 
-		auto costs = state.economy_definitions.building_definitions[int32_t(province_building_type::railroad)].cost;
-		auto time = state.economy_definitions.building_definitions[int32_t(province_building_type::railroad)].time;
+		auto costs = state.world.province_building_type_get_cost(state.economy_definitions.railroad_building);
+		auto time = state.world.province_building_type_get_time(state.economy_definitions.railroad_building);
 		float added_cost = 0.0f;
 
 		for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
@@ -1787,7 +1787,7 @@ std::vector<full_construction_province> estimate_private_investment_province(sys
 			return res;
 		}
 
-		res.push_back({ added_cost, n, best_p.first , true, province_building_type::railroad });
+		res.push_back({ added_cost, n, best_p.first , true, state.economy_definitions.railroad_building });
 	}
 
 	return res;
@@ -1864,7 +1864,7 @@ void run_private_investment(sys::state& state) {
 					state.world.force_create_province_building_construction(r.province, r.nation)
 				);
 				new_rr.set_is_pop_project(r.is_pop_project);
-				new_rr.set_type(uint8_t(r.type));
+				new_rr.set_type(r.type);
 				est_private_const_spending += r.cost;
 			}
 

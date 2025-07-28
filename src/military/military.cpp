@@ -831,7 +831,7 @@ bool state_has_naval_base(sys::state const& state, dcon::state_instance_id si) {
 	auto def = state.world.state_instance_get_definition(si);
 	for(auto p : state.world.state_definition_get_abstract_state_membership(def)) {
 		if(p.get_province().get_nation_from_province_ownership() == owner) {
-			if(p.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base)) > 0)
+			if(p.get_province().get_building_level(state.economy_definitions.naval_base_building) > 0)
 				return true;
 		}
 	}
@@ -844,7 +844,7 @@ uint32_t state_naval_base_level(sys::state const& state, dcon::state_instance_id
 	auto def = state.world.state_instance_get_definition(si);
 	for(auto p : state.world.state_definition_get_abstract_state_membership(def)) {
 		if(p.get_province().get_nation_from_province_ownership() == owner) {
-			level += p.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base));
+			level += p.get_province().get_building_level(state.economy_definitions.naval_base_building);
 		}
 	}
 	return level;
@@ -856,7 +856,7 @@ uint32_t state_railroad_level(sys::state const& state, dcon::state_instance_id s
 	auto def = state.world.state_instance_get_definition(si);
 	for(auto p : state.world.state_definition_get_abstract_state_membership(def)) {
 		if(p.get_province().get_nation_from_province_ownership() == owner) {
-			level += p.get_province().get_building_level(uint8_t(economy::province_building_type::railroad));
+			level += p.get_province().get_building_level(state.economy_definitions.railroad_building);
 		}
 	}
 	return level;
@@ -9134,7 +9134,7 @@ void repair_ships(sys::state& state) {
 maximum-strength x (technology-repair-rate + provincial-modifier-to-repair-rate + 1) x (national-reinforce-speed-modifier + 1) x navy-supplies x DEFINE:REINFORCE_SPEED
 	*/
 	for(auto n : state.world.in_navy) {
-		auto nb_level = n.get_location_from_navy_location().get_building_level(uint8_t(economy::province_building_type::naval_base));
+		auto nb_level = n.get_location_from_navy_location().get_building_level(state.economy_definitions.naval_base_building);
 		if(!n.get_arrival_time() && nb_level > 0) {
 			auto in_nation = n.get_controller_from_navy_control();
 			auto combined = calculate_navy_combined_reinforce<reinforcement_estimation_type::today>(state, n);

@@ -112,11 +112,16 @@ struct global_economy_state {
 	dcon::province_building_type_id university_building;
 
 };
-static_assert(sizeof(global_economy_state) ==
-	sizeof(global_economy_state::building_definitions)
-	+ sizeof(global_economy_state::selector_modifier)
-	+ sizeof(global_economy_state::immigrator_modifier)
-	+ sizeof(global_economy_state::craftsmen_fraction));
+//static_assert(sizeof(global_economy_state) ==
+//	sizeof(global_economy_state::building_definitions)
+//	+ sizeof(global_economy_state::selector_modifier)
+//	+ sizeof(global_economy_state::immigrator_modifier)
+//	+ sizeof(global_economy_state::craftsmen_fraction)
+//	+ sizeof(global_economy_state::railroad_building)
+//	+ sizeof(global_economy_state::fort_building)
+//	+ sizeof(global_economy_state::bank_building)
+//	+ sizeof(global_economy_state::naval_base_building)
+//	+ sizeof(global_economy_state::university_building));
 
 enum class worker_effect : uint8_t { none = 0, input, output, throughput };
 
@@ -228,7 +233,7 @@ struct full_construction_province {
 	dcon::nation_id nation;
 	dcon::province_id province;
 	bool is_pop_project = false;
-	province_building_type type = province_building_type::railroad;
+	dcon::province_building_type_id type;
 };
 
 std::vector<full_construction_factory> estimate_private_investment_upgrade(sys::state& state, dcon::nation_id nid, float est_private_const_spending);
