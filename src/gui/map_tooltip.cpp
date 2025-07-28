@@ -931,10 +931,10 @@ void naval_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::
 	&& fat.get_nation_from_province_ownership().id.value == state.local_player_nation.value
 	&& fat.get_is_coast()) {
 		auto box = text::open_layout_box(contents);
-		if(fat.get_building_level(uint8_t(economy::province_building_type::naval_base)) == 0) {
+		if(fat.get_building_level(state.economy_definitions.naval_base_building) == 0) {
 			dcon::province_id navalprov{};
 			for(auto p : fat.get_state_from_abstract_state_membership().get_abstract_state_membership()) {
-				if(dcon::fatten(state.world, p).get_province().get_building_level(uint8_t(economy::province_building_type::naval_base)) != 0) {
+				if(dcon::fatten(state.world, p).get_province().get_building_level(state.economy_definitions.naval_base_building) != 0) {
 					navalprov = p.get_province().id;
 					break;
 				}
@@ -949,7 +949,7 @@ void naval_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::
 				}
 			}
 		} else {
-			text::localised_single_sub_box(state, contents, box, std::string_view("mapmode_naval_tooltip_level"), text::variable_type::lvl, fat.get_building_level(uint8_t(economy::province_building_type::naval_base)));
+			text::localised_single_sub_box(state, contents, box, std::string_view("mapmode_naval_tooltip_level"), text::variable_type::lvl, fat.get_building_level(state.economy_definitions.naval_base_building));
 			text::substitution_map sub;
 			text::add_to_substitution_map(sub, text::variable_type::cap, military::naval_supply_from_naval_base(state, prov, state.local_player_nation));
 			text::add_to_substitution_map(sub, text::variable_type::tot, military::naval_supply_points(state, state.local_player_nation));
@@ -1166,10 +1166,10 @@ void fort_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::p
 
 
 	if(prov.value < state.province_definitions.first_sea_province.value) {
-		if(fat.get_building_level(uint8_t(economy::province_building_type::fort)) > 0) {
+		if(fat.get_building_level(state.economy_definitions.fort_building) > 0) {
 			auto box = text::open_layout_box(contents);
 			text::localised_format_box(state, contents, box, std::string_view("mapmode_tooltip_fort_level"));
-			text::add_to_layout_box(state, contents, box, fat.get_building_level(uint8_t(economy::province_building_type::fort)), text::text_color::yellow);
+			text::add_to_layout_box(state, contents, box, fat.get_building_level(state.economy_definitions.fort_building), text::text_color::yellow);
 			text::close_layout_box(contents, box);
 		}
 		if(province::has_fort_being_built(state, fat.id)) {

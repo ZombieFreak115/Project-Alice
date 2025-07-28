@@ -192,7 +192,7 @@ void acting_modifiers_description_province(sys::state& state, text::layout_base&
 	}
 	if(state.national_definitions.infrastructure) {
 		active_single_modifier_description(state, layout, state.national_definitions.infrastructure, identation, header, nmid,
-				state.world.province_get_building_level(p, uint8_t(economy::province_building_type::railroad)) * state.economy_definitions.building_definitions[int32_t(economy::province_building_type::railroad)].infrastructure);
+				state.world.province_get_building_level(p, state.economy_definitions.railroad_building) * state.world.province_building_type_get_infrastructure(state.economy_definitions.railroad_building));
 	}
 	if(state.national_definitions.nationalism) {
 		active_single_modifier_description(state, layout, state.national_definitions.nationalism, identation, header, nmid,

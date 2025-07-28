@@ -426,9 +426,9 @@ void province_history_file::is_slave(association_type, bool value, error_handler
 
 void province_history_file::any_value(std::string_view name, association_type, uint32_t value, error_handler& err, int32_t line,
 			province_file_context& context) {
-	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-		if(name == economy::province_building_type_get_name(t)) {
-			context.outer_context.state.world.province_set_building_level(context.id, uint8_t(t), uint8_t(value));
+	for(auto building : context.outer_context.state.world.in_province_building_type) {
+		if(context.outer_context.state.lookup_key(name) == building.get_name()) {
+			context.outer_context.state.world.province_set_building_level(context.id, building, uint8_t(value));
 			return;
 		}
 	}

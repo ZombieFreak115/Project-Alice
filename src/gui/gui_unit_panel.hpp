@@ -2133,7 +2133,7 @@ class unit_type_listbox_entry_label : public button_element_base {
 					auto loc = fnid.get_location_from_navy_location();
 
 					// Ship requires naval base level for construction but province location doesn't have one
-					if(loc.get_building_level(uint8_t(economy::province_building_type::naval_base)) < ut.min_port_level) {
+					if(loc.get_building_level(state.economy_definitions.naval_base_building) < ut.min_port_level) {
 						any_breaking_navy_base_check = true;
 					}
 				}

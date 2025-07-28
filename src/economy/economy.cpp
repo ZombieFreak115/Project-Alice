@@ -4173,7 +4173,7 @@ void resolve_constructions(sys::state& state) {
 				}
 
 				if(state.world.province_building_construction_get_nation(c) == state.local_player_nation) {
-					switch(t) {
+					switch(province_building_type(t)) {
 					case province_building_type::naval_base:
 						notification::post(state, notification::message{ [](sys::state& state, text::layout_base& contents) {
 								text::add_line(state, contents, "amsg_naval_base_complete");

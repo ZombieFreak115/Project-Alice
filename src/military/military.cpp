@@ -1514,8 +1514,8 @@ int32_t naval_supply_points_used(sys::state& state, dcon::nation_id n) {
 }
 
 uint32_t naval_supply_from_naval_base(sys::state& state, dcon::province_id prov, dcon::nation_id nation) {
-	uint32_t supply = uint32_t(state.defines.naval_base_supply_score_base * (std::pow(2, (dcon::fatten(state.world, prov).get_building_level(uint8_t(economy::province_building_type::naval_base)) - 1))));
-	if(dcon::fatten(state.world, prov).get_building_level(uint8_t(economy::province_building_type::naval_base)) != 0) {
+	uint32_t supply = uint32_t(state.defines.naval_base_supply_score_base * (std::pow(2, (dcon::fatten(state.world, prov).get_building_level(state.economy_definitions.naval_base_building) - 1))));
+	if(dcon::fatten(state.world, prov).get_building_level(state.economy_definitions.naval_base_building) != 0) {
 		return supply;
 	} else {
 		for(auto c : dcon::fatten(state.world, prov).get_core()) {
@@ -1535,7 +1535,7 @@ naval_range_display_data closest_naval_range_port_with_distance(sys::state& stat
 	naval_range_display_data closest{ .closest_port = dcon::province_id{ }, .distance = 9999999.0f, .timestamp = state.current_date };
 	if(state.world.nation_get_province_control(nation).begin() != state.world.nation_get_province_control(nation).end()) {
 		for(auto p : state.world.nation_get_province_control(nation)) {
-			if(auto nb_level = p.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base)); nb_level > 0) {
+			if(auto nb_level = p.get_province().get_building_level(state.economy_definitions.naval_base_building); nb_level > 0) {
 				auto dist = province::naval_range_distance(state, p.get_province(), prov);
 				if(dist.is_reachable && dist.distance < closest.distance) {
 					closest.closest_port = p.get_province();
@@ -1569,7 +1569,7 @@ void update_naval_supply_points(sys::state& state) {
 						saw_coastal = true;
 						coast_was_core = coast_was_core || p.get_province().get_is_owner_core();
 					}
-					nb_level = std::max(nb_level, int32_t(p.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base))));
+					nb_level = std::max(nb_level, int32_t(p.get_province().get_building_level(state.economy_definitions.naval_base_building)));
 					if(nb_level > 0)
 						nb_was_core = p.get_province().get_is_owner_core();
 				}
@@ -2123,11 +2123,11 @@ int32_t province_point_cost(sys::state& state, dcon::province_id p, dcon::nation
 	*/
 	int32_t total = 1;
 	if(!state.world.province_get_is_colonial(p)) {
-		total += state.world.province_get_building_level(p, uint8_t(economy::province_building_type::naval_base));
+		total += state.world.province_get_building_level(p, state.economy_definitions.naval_base_building);
 	}
 	auto fac_range = state.world.province_get_factory_location(p);
 	total += int32_t(fac_range.end() - fac_range.begin());
-	total += state.world.province_get_building_level(p, uint8_t(economy::province_building_type::fort));
+	total += state.world.province_get_building_level(p, state.economy_definitions.fort_building);
 
 	auto owner_cap = state.world.nation_get_capital(n);
 	auto overseas = (state.world.province_get_continent(p) != state.world.province_get_continent(owner_cap)) &&
@@ -3469,7 +3469,7 @@ void implement_war_goal(sys::state& state, dcon::war_id war, dcon::cb_type_id wa
 		if((bits & cb_flag::all_allowed_states) == 0) {
 			for(auto prov : state.world.state_definition_get_abstract_state_membership(wargoal_state)) {
 				if(prov.get_province().get_nation_from_province_ownership() == target) {
-					prov.get_province().set_building_level(uint8_t(economy::province_building_type::fort), 0);
+					prov.get_province().set_building_level(state.economy_definitions.fort_building, 0);
 				}
 			}
 		} else if(auto allowed_states = state.world.cb_type_get_allowed_states(wargoal); allowed_states) {
@@ -3477,7 +3477,7 @@ void implement_war_goal(sys::state& state, dcon::war_id war, dcon::cb_type_id wa
 				if(trigger::evaluate(state, allowed_states, trigger::to_generic(si.get_state().id), trigger::to_generic(from),
 					trigger::to_generic(from))) {
 					province::for_each_province_in_state_instance(state, si.get_state(),
-							[&](dcon::province_id prov) { state.world.province_set_building_level(prov, uint8_t(economy::province_building_type::fort), 0); });
+							[&](dcon::province_id prov) { state.world.province_set_building_level(prov, state.economy_definitions.fort_building, 0); });
 				}
 			}
 		}
@@ -3488,7 +3488,7 @@ void implement_war_goal(sys::state& state, dcon::war_id war, dcon::cb_type_id wa
 		if((bits & cb_flag::all_allowed_states) == 0) {
 			for(auto prov : state.world.state_definition_get_abstract_state_membership(wargoal_state)) {
 				if(prov.get_province().get_nation_from_province_ownership() == target) {
-					prov.get_province().set_building_level(uint8_t(economy::province_building_type::naval_base), 0);
+					prov.get_province().set_building_level(state.economy_definitions.naval_base_building, 0);
 				}
 			}
 		} else if(auto allowed_states = state.world.cb_type_get_allowed_states(wargoal); allowed_states) {
@@ -3496,7 +3496,7 @@ void implement_war_goal(sys::state& state, dcon::war_id war, dcon::cb_type_id wa
 				if(trigger::evaluate(state, allowed_states, trigger::to_generic(si.get_state().id), trigger::to_generic(from),
 					trigger::to_generic(from))) {
 					province::for_each_province_in_state_instance(state, si.get_state(),
-							[&](dcon::province_id prov) { state.world.province_set_building_level(prov, uint8_t(economy::province_building_type::naval_base), 0); });
+							[&](dcon::province_id prov) { state.world.province_set_building_level(prov, state.economy_definitions.naval_base_building, 0); });
 				}
 			}
 		}
@@ -6120,26 +6120,8 @@ float relative_attrition_amount(sys::state& state, dcon::navy_id a, dcon::provin
 		return 0.01f + (state.world.navy_get_months_outside_naval_range(a) * 0.02f);
 	}
 
-	/*bool any_adj_land_prov = false;
-	for(auto adj : state.world.province_get_province_adjacency(prov)) {
-		auto indx = adj.get_connected_provinces(0).id != prov ? 0 : 1;
-		auto adj_prov = adj.get_connected_provinces(indx);
-		if(adj_prov.id.index() < state.province_definitions.first_sea_province.index()) {
-			any_adj_land_prov = true;
-			auto controller = state.world.province_get_nation_from_province_control(adj_prov);
-			if(navy_controller == controller || nations::are_allied(state, navy_controller, controller) || military::are_in_common_war(state, navy_controller, controller)) {
-				return 0.0f;
-			}
-		}
-	}
-	if(province::sea_province_is_adjacent_to_accessible_coast(state, prov, navy_controller)) {
-		return 0.0f;
-	}
-	if(!any_adj_land_prov) {
-		return 0.01f + (state.world.navy_get_months_outside_naval_range(a) * 0.02f);
-	}*/
 	for(auto p : state.world.nation_get_province_control(navy_controller)) {
-		if(auto nb_level = p.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base)); nb_level > 0) {
+		if(auto nb_level = p.get_province().get_building_level(state.economy_definitions.naval_base_building); nb_level > 0) {
 			auto dist = province::naval_range_distance(state, p.get_province(), prov);
 			if(dist.is_reachable && dist.distance <= state.defines.supply_range * (1.0f + state.world.nation_get_modifier_values(navy_controller, sys::national_mod_offsets::supply_range))) {
 				return 0.0f;
@@ -6230,7 +6212,7 @@ float relative_attrition_amount(sys::state& state, dcon::army_id a, dcon::provin
 	auto supply_limit = supply_limit_in_province(state, army_controller, prov);
 	auto attrition_mods = std::max( 1.0f + army_controller.get_modifier_values(sys::national_mod_offsets::land_attrition) + state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::attrition), 0.0f);
 
-	float hostile_fort = state.world.province_get_building_level(prov, uint8_t(economy::province_building_type::fort));
+	float hostile_fort = state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::fort_level);
 
 	auto max_attrition = state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::max_attrition);
 	float siege_attrition = 0.0f;
@@ -6597,11 +6579,11 @@ int32_t get_effective_fort_level(sys::state& state, dcon::province_id location, 
 		define:ENGINEER_UNIT_RATIO) / define:ENGINEER_UNIT_RATIO, reducing it to a minimum of 0.
 		*/
 
-	return std::clamp(state.world.province_get_building_level(location, uint8_t(economy::province_building_type::fort)) -
+	return std::clamp(state.world.province_get_modifier_values(location, sys::provincial_mod_offsets::fort_level) -
 									 int32_t(max_siege_value *
 										 std::min(strength_siege_units / total_strength, state.defines.engineer_unit_ratio) /
 										 state.defines.engineer_unit_ratio),
-				0, 9);
+				0.0f, 9.0f);
 
 }
 // gets the fort level for combat in the specified province, taking all of the units in the province into account
@@ -9219,7 +9201,7 @@ void start_mobilization(sys::state& state, dcon::nation_id n) {
 		*/
 		auto province_speed = state.defines.mobilization_speed_base *
 			float(1.0f + state.defines.mobilization_speed_rails_mult *
-											 (state.world.province_get_building_level(schedule_array[count].where, uint8_t(economy::province_building_type::railroad))) / 5.0f);
+											 (state.world.province_get_building_level(schedule_array[count].where, state.economy_definitions.railroad_building)) / 5.0f);
 		auto days = std::max(1, int32_t(1.0f / province_speed));
 		delay += days;
 		schedule_array[count].when = state.current_date + delay;

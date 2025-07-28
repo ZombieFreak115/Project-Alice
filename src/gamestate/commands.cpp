@@ -766,7 +766,7 @@ bool can_start_naval_unit_construction(sys::state& state, dcon::nation_id source
 		auto overseas_allowed = state.military_definitions.unit_base_definitions[type].can_build_overseas;
 		auto level_req = state.military_definitions.unit_base_definitions[type].min_port_level;
 
-		if(state.world.province_get_building_level(location, uint8_t(economy::province_building_type::naval_base)) < level_req)
+		if(state.world.province_get_building_level(location, state.economy_definitions.naval_base_building) < level_req)
 			return false;
 
 		if(!overseas_allowed && province::is_overseas(state, location))
@@ -4432,7 +4432,7 @@ bool can_change_unit_type(sys::state& state, dcon::nation_id source, dcon::regim
 			auto loc = fnid.get_location_from_navy_location();
 
 			// Ship requires naval base level for construction but province location doesn't have one
-			if(loc.get_building_level(uint8_t(economy::province_building_type::naval_base)) < ut.min_port_level) {
+			if(loc.get_building_level(state.economy_definitions.naval_base_building) < ut.min_port_level) {
 				return false;
 			}
 		}

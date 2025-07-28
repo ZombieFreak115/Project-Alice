@@ -2132,7 +2132,7 @@ public:
 
 			if(!adjacent && coastal_target && state.world.nation_get_central_ports(state.local_player_nation) != 0) {
 				for(auto p : state.world.nation_get_province_ownership(state.local_player_nation)) {
-					if(auto nb_level = p.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base)); nb_level > 0 && p.get_province().get_nation_from_province_control() == state.local_player_nation) {
+					if(auto nb_level = p.get_province().get_building_level(state.economy_definitions.naval_base_building); nb_level > 0 && p.get_province().get_nation_from_province_control() == state.local_player_nation) {
 						auto arbitrary_circumference = state.map_state.map_data.world_circumference / 10.0f;
 						if(province::direct_distance(state, p.get_province(), coastal_target) <= arbitrary_circumference * 0.075f * nb_level) {
 							reachable_by_sea = true;

@@ -197,7 +197,7 @@ json format_state(sys::state& state, dcon::state_instance_id stid) {
 	float total = 0.0f;
 	float p_total = 0.0f;
 	province::for_each_province_in_state_instance(state, stid, [&](dcon::province_id p) {
-		total += state.economy_definitions.building_definitions[int32_t(economy::province_building_type::railroad)].infrastructure * float(state.world.province_get_building_level(p, uint8_t(economy::province_building_type::railroad)));
+		total += state.world.province_building_type_get_infrastructure(state.economy_definitions.railroad_building) * float(state.world.province_get_building_level(p, state.economy_definitions.railroad_building));
 		p_total += 1.0f;
 	});
 	j["infastructure"] = (p_total > 0) ? total / p_total : 0.0f;

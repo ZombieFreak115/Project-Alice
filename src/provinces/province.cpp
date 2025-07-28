@@ -697,11 +697,11 @@ void restore_unsaved_values(sys::state& state) {
 
 	for(auto si : state.world.in_state_instance) {
 		province::for_each_province_in_state_instance(state, si, [&](dcon::province_id p) {
-			if(state.world.province_get_building_level(p, uint8_t(economy::province_building_type::naval_base)) > 0) {
+			if(state.world.province_get_building_level(p, state.economy_definitions.naval_base_building) > 0) {
 				state.world.state_instance_set_naval_base_is_taken(si, true);
 			} else {
 				for(auto pc : state.world.province_get_province_building_construction(p)) {
-					if(pc.get_type() == uint8_t(economy::province_building_type::naval_base))
+					if(pc.get_type() == state.economy_definitions.naval_base_building)
 						state.world.state_instance_set_naval_base_is_taken(si, true);
 				}
 			}
@@ -1071,11 +1071,11 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 		&& state.world.nation_get_is_civilized(new_owner) == true)
 		|| (!old_owner);
 	if(old_si) {
-		if(state.world.province_get_building_level(id, uint8_t(economy::province_building_type::naval_base)) > 0) {
+		if(state.world.province_get_building_level(id, state.economy_definitions.naval_base_building) > 0) {
 			state.world.state_instance_set_naval_base_is_taken(old_si, false);
 		} else {
 			for(auto pc : state.world.province_get_province_building_construction(id)) {
-				if(pc.get_type() == uint8_t(economy::province_building_type::naval_base)) {
+				if(pc.get_type() == state.economy_definitions.naval_base_building) {
 					state.world.state_instance_set_naval_base_is_taken(old_si, false);
 				}
 			}
@@ -1114,7 +1114,7 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 			state.world.province_set_is_slave(id, false);
 			if(will_be_colonial)
 				state.world.nation_set_is_colonial_nation(new_owner, true);
-			if(state.world.province_get_building_level(id, uint8_t(economy::province_building_type::naval_base)) > 0)
+			if(state.world.province_get_building_level(id, state.economy_definitions.naval_base_building) > 0)
 				state.world.state_instance_set_naval_base_is_taken(new_si, true);
 
 			auto new_market = state.world.create_market();
@@ -1172,9 +1172,9 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 			auto sc = state.world.state_instance_get_capital(new_si);
 			state.world.province_set_is_colonial(id, state.world.province_get_is_colonial(sc));
 			state.world.province_set_is_slave(id, state.world.province_get_is_slave(sc));
-			if(state.world.province_get_building_level(id, uint8_t(economy::province_building_type::naval_base)) > 0) {
+			if(state.world.province_get_building_level(id, state.economy_definitions.naval_base_building) > 0) {
 				if(state.world.state_instance_get_naval_base_is_taken(new_si)) {
-					state.world.province_set_building_level(id, uint8_t(economy::province_building_type::naval_base), 0);
+					state.world.province_set_building_level(id, state.economy_definitions.naval_base_building, 0);
 				} else {
 					state.world.state_instance_set_naval_base_is_taken(new_si, true);
 				}
@@ -1280,8 +1280,8 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 		state.world.nation_set_owned_province_count(new_owner, uint16_t(state.world.nation_get_owned_province_count(new_owner) + uint16_t(1)));
 	} else {
 		state.world.province_set_state_membership(id, dcon::state_instance_id{});
-		for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-			state.world.province_set_building_level(id, uint8_t(t), uint8_t(0));
+		for(auto building : state.world.in_province_building_type) {
+			state.world.province_set_building_level(id, building, uint8_t(0));
 		}
 
 		auto province_fac_range = state.world.province_get_factory_location(id);
@@ -1771,7 +1771,7 @@ bool can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definiti
 
 	if(!adjacent && coastal_target  && state.world.nation_get_central_ports(n) != 0) {
 		for(auto p : state.world.nation_get_province_ownership(n)) {
-			if(auto nb_level = p.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base)); nb_level > 0 && p.get_province().get_nation_from_province_control() == n) {
+			if(auto nb_level = p.get_province().get_building_level(ustate.economy_definitions.naval_base_building); nb_level > 0 && p.get_province().get_nation_from_province_control() == n) {
 				auto dist = province::direct_distance(state, p.get_province(), coastal_target);
 				auto arbitrary_circumference = state.map_state.map_data.world_circumference / 10.0f;
 				if(dist <= arbitrary_circumference * state.defines.alice_naval_base_to_colonial_distance_factor * nb_level) {
@@ -1877,7 +1877,7 @@ bool fast_can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_def
 
 	if(!adjacent && coastal_target && state.world.nation_get_central_ports(n) != 0) {
 		for(auto p : state.world.nation_get_province_ownership(n)) {
-			if(auto nb_level = p.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base)); nb_level > 0 && p.get_province().get_nation_from_province_control() == n) {
+			if(auto nb_level = p.get_province().get_building_level(state.economy_definitions.naval_base_building); nb_level > 0 && p.get_province().get_nation_from_province_control() == n) {
 				auto dist = province::direct_distance(state, p.get_province(), coastal_target);
 				auto arbitrary_circumference = state.map_state.map_data.world_circumference / 10.0f;
 				if(dist <= arbitrary_circumference * 0.04f * nb_level) {
@@ -2489,7 +2489,7 @@ std::vector<dcon::province_id> make_unowned_path(sys::state& state, dcon::provin
 		auto nearest = path_heap.back();
 		path_heap.pop_back();
 
-		auto railroad_origin = state.world.province_get_building_level(nearest.province, uint8_t(economy::province_building_type::railroad));
+		auto railroad_origin = state.world.province_get_building_level(nearest.province, state.economy_definitions.railroad_building);
 
 		for(auto adj : state.world.province_get_province_adjacency(nearest.province)) {
 			auto other_prov =
@@ -2497,7 +2497,7 @@ std::vector<dcon::province_id> make_unowned_path(sys::state& state, dcon::provin
 			auto bits = adj.get_type();
 
 			auto distance = adj.get_distance();
-			auto railroad_target = state.world.province_get_building_level(other_prov, uint8_t(economy::province_building_type::railroad));
+			auto railroad_target = state.world.province_get_building_level(other_prov, state.economy_definitions.railroad_building);
 			if(railroad_origin > 0 && railroad_target > 0) {
 				distance = distance / 2.f;
 			}

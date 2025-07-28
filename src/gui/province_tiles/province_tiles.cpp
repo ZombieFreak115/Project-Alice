@@ -96,8 +96,8 @@ std::vector<province_tile> retrieve_province_tiles(sys::state& state, dcon::prov
 			}
 		}
 
-		if (state.world.province_get_building_level(p, uint8_t(economy::province_building_type::naval_base)) > 0) {
-			tiles[curind].province_building = economy::province_building_type::naval_base;
+		if (state.world.province_get_building_level(p, state.economy_definitions.naval_base_building) > 0) {
+			tiles[curind].province_building = state.economy_definitions.naval_base_building;
 			tiles[curind].empty = false;
 			tiles[curind].has_province_building = true;
 			tiles[curind].province = p;
@@ -106,15 +106,15 @@ std::vector<province_tile> retrieve_province_tiles(sys::state& state, dcon::prov
 
 		// if(state.world.province_get_building_level(p, uint8_t(economy::province_building_type::railroad) > 0) {
 		{
-			tiles[curind].province_building = economy::province_building_type::railroad;
+			tiles[curind].province_building = state.economy_definitions.railroad_building;
 			tiles[curind].empty = false;
 			tiles[curind].has_province_building = true;
 			tiles[curind].province = p;
 			curind++;
 		}
 
-		if(state.world.province_get_building_level(p, uint8_t(economy::province_building_type::fort)) > 0) {
-			tiles[curind].province_building = economy::province_building_type::fort;
+		if(state.world.province_get_building_level(p, state.economy_definitions.fort_building) > 0) {
+			tiles[curind].province_building = state.economy_definitions.fort_building;
 			tiles[curind].empty = false;
 			tiles[curind].has_province_building = true;
 			tiles[curind].province = p;

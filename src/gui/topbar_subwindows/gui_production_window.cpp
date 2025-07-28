@@ -74,13 +74,13 @@ void populate_production_states_list(sys::state& state, std::vector<dcon::provin
 		float atotal = 0.0f;
 		float ap_total = 0.0f;
 		province::for_each_province_in_state_instance(state, state.world.province_get_state_membership(a), [&](dcon::province_id p) {
-			atotal += float(state.world.province_get_building_level(p, uint8_t(economy::province_building_type::railroad)));
+			atotal += float(state.world.province_get_building_level(p, state.economy_definitions.railroad_building));
 			ap_total += 1.0f;
 		});
 		float btotal = 0.0f;
 		float bp_total = 0.0f;
 		province::for_each_province_in_state_instance(state, state.world.province_get_state_membership(b), [&](dcon::province_id p) {
-			btotal += float(state.world.province_get_building_level(p, uint8_t(economy::province_building_type::railroad)));
+			btotal += float(state.world.province_get_building_level(p, state.economy_definitions.railroad_building));
 			bp_total += 1.0f;
 		});
 		return atotal / ap_total > btotal / bp_total;
