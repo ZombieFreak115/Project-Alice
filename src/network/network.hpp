@@ -17,6 +17,7 @@
 #include "container_types.hpp"
 #include "commands.hpp"
 #include "SHA512.hpp"
+#include <bitset>
 
 namespace sys {
 struct state;
@@ -25,6 +26,9 @@ struct state;
 namespace network {
 
 inline constexpr short default_server_port = 1984;
+inline constexpr uint32_t MAX_PLAYERS = 256;
+
+typedef std::bitset<MAX_PLAYERS> chat_message_receiver_mask;
 
 #ifdef _WIN64
 typedef SOCKET socket_t;
@@ -79,7 +83,7 @@ struct network_state {
 	sys::checksum_key current_mp_state_checksum;
 	struct sockaddr_storage address;
 	rigtorp::SPSCQueue<command::payload> outgoing_commands;
-	std::array<client_data, 128> clients;
+	std::array<client_data, MAX_PLAYERS> clients;
 	std::vector<struct in6_addr> v6_banlist;
 	std::vector<struct in_addr> v4_banlist;
 	std::string ip_address = "127.0.0.1";
@@ -132,7 +136,7 @@ dcon::mp_player_id create_mp_player(sys::state& state, sys::player_name& name, s
 void notify_player_is_loading(sys::state& state, sys::player_name name, dcon::nation_id nation, bool execute_self); // wrapper for notiying clients are loading
 dcon::mp_player_id load_mp_player(sys::state& state, sys::player_name& name, sys::player_password_hash& password_hash, sys::player_password_salt& password_salt);
 void update_mp_player_password(sys::state& state, dcon::mp_player_id player_id, sys::player_name& password);
-dcon::mp_player_id find_mp_player(sys::state& state, sys::player_name name);
+dcon::mp_player_id find_mp_player(sys::state& state, const sys::player_name& name);
 std::vector<dcon::mp_player_id> find_country_players(sys::state& state, dcon::nation_id nation);
 void set_no_ai_nations_after_reload(sys::state& state, std::vector<dcon::nation_id>& no_ai_nations, dcon::nation_id old_local_player_nation); // places the players back on their nations, or new ones if the old ones are no longer valid
 bool any_player_oos(sys::state& state);

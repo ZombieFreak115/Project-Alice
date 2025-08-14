@@ -5890,8 +5890,9 @@ object {
 
 object{
 	name{ mp_player }
-	storage_type{ erasable }
+	storage_type{ compactable }
 	size{ 200 }
+	hook{ move }
 	tag { keep_after_state_reload }
 	tag { mp_checksum_excluded }
 

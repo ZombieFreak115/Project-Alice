@@ -773,9 +773,9 @@ void update_mp_player_password(sys::state& state, dcon::mp_player_id player_id, 
 	state.world.mp_player_set_password_salt(player_id, salt.data);
 }
 
-dcon::mp_player_id find_mp_player(sys::state& state, sys::player_name name) {
+dcon::mp_player_id find_mp_player(sys::state& state, const sys::player_name& name) {
 	for(const auto p : state.world.in_mp_player) {
-		auto nickname = p.get_nickname();
+		const auto& nickname = p.get_nickname();
 
 		if(std::equal(std::begin(nickname), std::end(nickname), std::begin(name.data))) {
 			return p;
@@ -1529,6 +1529,18 @@ void broadcast_to_clients(sys::state& state, command::payload& c) {
 
 	if(c.type == command::command_type::notify_player_joins) {
 		c.data.notify_join.player_password = sys::player_password_raw{}; // Never send password to clients
+	}
+	// if chat message, only propagate to the clients which are recipients
+	else if(c.type == command::command_type::chat_message) {
+		for(auto& client : state.network_state.clients) {
+			if(client.is_active()) {
+				auto mp_player = find_mp_player(state, client.hshake_buffer.nickname);
+				if(bool(mp_player)) {
+
+				}
+				socket_add_to_send_queue(client.send_buffer, &c, sizeof(c));
+			}
+		}
 	}
 	/* Propagate to all the clients */
 	for(auto& client : state.network_state.clients) {

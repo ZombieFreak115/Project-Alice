@@ -5371,46 +5371,40 @@ void execute_use_nation_button(sys::state& state, dcon::nation_id source, dcon::
 }
 
 void post_chat_message(sys::state& state, ui::chat_message& m) {
-	// Private message
-	bool can_see = true;
-	if(bool(m.target)) {
-		can_see = state.local_player_nation == m.source || state.local_player_nation == m.target;
-	}
-	if(can_see) {
-		state.ui_state.chat_messages[state.ui_state.chat_messages_index++] = m;
-		if(state.ui_state.chat_messages_index >= state.ui_state.chat_messages.size())
-			state.ui_state.chat_messages_index = 0;
-		notification::post(state, notification::message{
-			[m](sys::state& state, text::layout_base& contents) {
-				text::add_line(state, contents, "msg_chat_message_1", text::variable_type::x, m.source);
-				text::add_line(state, contents, "msg_chat_message_2", text::variable_type::x, m.body);
-			},
-			"msg_chat_message_title",
-			m.source, dcon::nation_id{}, dcon::nation_id{},
-			sys::message_base_type::chat_message
-		});
-	}
+	// private messages are now handled by the sever, and the message command is only sent out to intended recipients
+	state.ui_state.chat_messages[state.ui_state.chat_messages_index++] = m;
+	if(state.ui_state.chat_messages_index >= state.ui_state.chat_messages.size())
+		state.ui_state.chat_messages_index = 0;
+	notification::post(state, notification::message{
+		[m](sys::state& state, text::layout_base& contents) {
+			text::add_line(state, contents, "msg_chat_message_1", text::variable_type::x, m.source);
+			text::add_line(state, contents, "msg_chat_message_2", text::variable_type::x, m.body);
+		},
+		"msg_chat_message_title",
+		m.source, dcon::nation_id{}, dcon::nation_id{},
+		sys::message_base_type::chat_message
+	});
+	
 }
 
-void chat_message(sys::state& state, dcon::nation_id source, std::string_view body, dcon::nation_id target, sys::player_name& sender) {
+void chat_message(sys::state& state, dcon::nation_id source, std::string_view body, network::chat_message_receiver_mask receivers, const sys::player_name& sender) {
 	payload p;
 	memset(&p, 0, sizeof(payload));
 	p.type = command_type::chat_message;
 	p.source = source;
-	p.data.chat_message.target = target;
+	p.data.chat_message.receivers = receivers;
 	memcpy(p.data.chat_message.body, std::string(body).c_str(), std::min<size_t>(body.length() + 1, size_t(ui::max_chat_message_len)));
 	p.data.chat_message.body[ui::max_chat_message_len - 1] = '\0';
 	p.data.chat_message.sender = sender;
 	add_to_command_queue(state, p);
 }
-bool can_chat_message(sys::state& state, dcon::nation_id source, std::string_view body, dcon::nation_id target, sys::player_name& sender) {
+bool can_chat_message(sys::state& state, dcon::nation_id source, std::string_view body, network::chat_message_receiver_mask receivers, const sys::player_name& sender) {
 	// TODO: bans, kicks, mutes?
 	return true;
 }
-void execute_chat_message(sys::state& state, dcon::nation_id source, std::string_view body, dcon::nation_id target, sys::player_name& sender) {
+void execute_chat_message(sys::state& state, dcon::nation_id source, std::string_view body, const sys::player_name& sender) {
 	ui::chat_message m{};
 	m.source = source;
-	m.target = target;
 	m.body = std::string(body);
 	m.set_sender_name(sender.data);
 	post_chat_message(state, m);
@@ -6261,7 +6255,7 @@ bool can_perform_command(sys::state& state, payload& c) {
 			if(c.data.chat_message.body[count] == '\0')
 
 				std::string_view sv(c.data.chat_message.body, c.data.chat_message.body + count);
-		return can_chat_message(state, c.source, c.data.chat_message.body, c.data.chat_message.target, c.data.chat_message.sender);
+		return can_chat_message(state, c.source, c.data.chat_message.body, c.data.chat_message.receivers, c.data.chat_message.sender);
 
 	}
 	case command_type::notify_player_ban:
@@ -6662,7 +6656,7 @@ bool execute_command(sys::state& state, payload& c) {
 			if(c.data.chat_message.body[count] == '\0')
 				break;
 		std::string_view sv(c.data.chat_message.body, c.data.chat_message.body + count);
-		execute_chat_message(state, c.source, c.data.chat_message.body, c.data.chat_message.target, c.data.chat_message.sender);
+		execute_chat_message(state, c.source, c.data.chat_message.body, c.data.chat_message.sender);
 		break;
 	}
 	case command_type::notify_player_ban:
