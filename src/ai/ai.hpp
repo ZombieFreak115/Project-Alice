@@ -12,6 +12,49 @@ struct ai_path_length {
 
 };
 
+enum class army_state : uint8_t {
+	free = 0, // dosen't do anything
+	protect_battles = 1, //will reinforce and protect battles from being encircled
+	attack_land = 2, //will attack enemies on land
+	attack_naval_invasion = 3, // will attack from the sea via naval invasion
+	recover_strength = 4, // will try to recover strength & org
+	advance = 5, // try advance and siege enemy provinces
+	guard_border = 6, // will guard enemey borders, will not advance past
+	retreat = 7, // will retreat battle
+};
+
+struct army_state_data {
+	dcon::army_id actor;
+};
+
+struct army_state_basic_check_data {
+	bool check_passed;
+	army_state new_state;
+};
+
+army_state get_next_army_ai_state(const sys::state& state, army_state current, const army_state_data& data) {
+	auto basic_check = army_basic_check(state, data);
+	if(!basic_check.check_passed) {
+		return basic_check.new_state;
+	}
+
+}
+
+// State functions
+
+army_state army_state_free(const sys::state& state, const army_state_data& data);
+army_state army_state_protect_battles(const sys::state& state, const army_state_data& data);
+army_state army_state_attack_land(const sys::state& state, const army_state_data& data);
+army_state army_state_attack_naval_invasion(const sys::state& state, const army_state_data& data);
+army_state army_state_recover_strength(const sys::state& state, const army_state_data& data);
+army_state army_state_advance(const sys::state& state, const army_state_data& data);
+army_state army_state_guard_border(const sys::state& state, const army_state_data& data);
+army_state army_state_retreat(const sys::state& state, const army_state_data& data);
+
+
+army_state_basic_check_data army_basic_check(const sys::state& state, const army_state_data& data);
+
+
 void take_ai_decisions(sys::state& state);
 void update_ai_ruling_party(sys::state& state);
 void update_ai_colonial_investment(sys::state& state);

@@ -19,6 +19,26 @@
 
 namespace ai {
 
+
+army_state_basic_check_data army_basic_check(const sys::state& state, const army_state_data& data) {
+	if(state.world.army_get_black_flag(data.actor)) {
+		return army_state_basic_check_data{ false, army_state::free };
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void take_ai_decisions(sys::state& state) {
 	using decision_nation_pair = std::pair<dcon::decision_id, dcon::nation_id>;
 	concurrency::combinable<std::vector<decision_nation_pair, dcon::cache_aligned_allocator<decision_nation_pair>>> decisions_taken;
