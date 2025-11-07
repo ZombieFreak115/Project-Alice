@@ -1982,6 +1982,105 @@ object {
 	}
 }
 
+
+
+object {
+	name { army_supply_depot }
+	storage_type{ erasable }
+	size{ 6000 }
+	tag{ save }
+
+	property {
+		name{ stockpile }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+
+}
+
+
+object {
+	name { naval_supply_depot }
+	storage_type{ erasable }
+	size{ 6000 }
+	tag{ save }
+
+	property {
+		name{ stockpile }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+
+}
+
+
+relationship{
+	name{ army_depot_location }
+	tag{ save }
+
+	link{
+		object{ state_instance }
+		name{ location }
+		type{ unique }
+	}
+	link{
+		object{ army_supply_depot }
+		name{ depot }
+		type{ unique }
+	}
+}
+
+relationship{
+	name{ naval_depot_location }
+	tag{ save }
+
+	link{
+		object{ state_instance }
+		name{ location }
+		type{ unique }
+	}
+	link{
+		object{ naval_supply_depot }
+		name{ depot }
+		type{ unique }
+	}
+}
+
+
+relationship{
+	name{ naval_depot_navies }
+	tag{ save }
+
+	link{
+		object{ navy }
+		name{ navies }
+		type{ many }
+	}
+	link{
+		object{ naval_supply_depot }
+		name{ depot }
+		type{ unique }
+	}
+}
+
+relationship{
+	name{ army_depot_armies }
+	tag{ save }
+
+	link{
+		object{ army }
+		name{ armies }
+		type{ many }
+	}
+	link{
+		object{ army_supply_depot }
+		name{ depot }
+		type{ unique }
+	}
+}
+
+
+
 object {
 	name { automated_army_group }
 	storage_type{ erasable }
