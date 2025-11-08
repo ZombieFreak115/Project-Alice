@@ -896,6 +896,64 @@ void render_ui_ingame(sys::state& state) {
 				);
 			});
 		}
+		else if(state.map_state.active_map_mode == map_mode::mode::supply) {
+
+
+			state.world.for_each_army_supply_depot([&](auto depot) {
+				auto state_instance = state.world.army_supply_depot_get_location_from_army_depot_location(depot);
+				assert(state_instance);
+				auto capital = state.world.state_instance_get_capital(state_instance);
+				auto& midpoint = state.world.province_get_mid_point(capital);
+				auto map_pos = state.map_state.normalize_map_coord(midpoint);
+				glm::vec2 screen_pos{};
+				if(!state.map_state.map_to_screen(state, map_pos, screen_size, screen_pos, { 200.f, 200.f })) {
+					return;
+				}
+				screen_pos.y += 40.f;
+				iui::move_to(
+					label_rect,
+					screen_pos.x - label_rect.w / 2.f, screen_pos.y - label_rect.h / 2.f
+				);
+				iui::move_to(
+					label_text_rect,
+					screen_pos.x - label_text_rect.w / 2.f, screen_pos.y - label_text_rect.h / 2.f + 2.f
+				);
+				state.iui_state.panel_textured(state, label_rect, state.iui_state.map_label.texture_handle);
+				state.iui_state.localized_string(
+					state, capital.id.index(),
+					label_text_rect,
+					text::produce_simple_string(state, state.world.province_get_name(capital))
+				);
+			});
+
+
+			state.world.for_each_naval_supply_depot([&](auto depot) {
+				auto state_instance = state.world.naval_supply_depot_get_location_from_naval_depot_location(depot);
+				assert(state_instance);
+				auto capital = state.world.state_instance_get_capital(state_instance);
+				auto& midpoint = state.world.province_get_mid_point(capital);
+				auto map_pos = state.map_state.normalize_map_coord(midpoint);
+				glm::vec2 screen_pos{};
+				if(!state.map_state.map_to_screen(state, map_pos, screen_size, screen_pos, { 200.f, 200.f })) {
+					return;
+				}
+				screen_pos.y += 40.f;
+				iui::move_to(
+					label_rect,
+					screen_pos.x - label_rect.w / 2.f, screen_pos.y - label_rect.h / 2.f
+				);
+				iui::move_to(
+					label_text_rect,
+					screen_pos.x - label_text_rect.w / 2.f, screen_pos.y - label_text_rect.h / 2.f + 2.f
+				);
+				state.iui_state.panel_textured(state, label_rect, state.iui_state.map_label.texture_handle);
+				state.iui_state.localized_string(
+					state, capital.id.index(),
+					label_text_rect,
+					text::produce_simple_string(state, state.world.province_get_name(capital))
+				);
+			});
+		}
 
 		if(!state.ui_state.ctrl_held_down) {
 			if(state.ui_state.rgos_root

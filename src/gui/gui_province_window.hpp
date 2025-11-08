@@ -522,6 +522,92 @@ public:
 	}
 };
 
+
+class province_toggle_army_depot_button : public button_element_base {
+public:
+	void on_update(sys::state& state) noexcept override {
+		auto p = retrieve<dcon::province_id>(state, parent);
+		auto state_instance = state.world.province_get_state_membership(p);
+		if(!state_instance) {
+			disabled = true;
+			return;
+		}
+		auto existing_depot = state.world.state_instance_get_depot_from_army_depot_location(state_instance);
+		if(existing_depot) {
+			disabled = !command::can_delete_army_supply_depot(state, state.local_player_nation, existing_depot);
+		}
+		else {
+			disabled = !command::can_create_army_supply_depot(state, state.local_player_nation, state_instance);
+		}
+	}
+
+	void button_action(sys::state& state) noexcept override {
+		auto p = retrieve<dcon::province_id>(state, parent);
+		auto state_instance = state.world.province_get_state_membership(p);
+		if(!state_instance) {
+			return;
+		}
+		auto existing_depot = state.world.state_instance_get_depot_from_army_depot_location(state_instance);
+		if(existing_depot) {
+			command::queue_delete_army_supply_depot(state, existing_depot);
+		} else {
+			command::queue_create_army_supply_depot(state, state_instance);
+		}
+	}
+
+	tooltip_behavior has_tooltip(sys::state& state) noexcept override {
+		return tooltip_behavior::variable_tooltip;
+	}
+
+	void update_tooltip(sys::state& state, int32_t x, int32_t t, text::columnar_layout& contents) noexcept override {
+	}
+};
+
+
+class province_toggle_naval_depot_button : public button_element_base {
+public:
+	void on_update(sys::state& state) noexcept override {
+		auto p = retrieve<dcon::province_id>(state, parent);
+		auto state_instance = state.world.province_get_state_membership(p);
+		if(!state_instance) {
+			disabled = true;
+			return;
+		}
+		auto existing_depot = state.world.state_instance_get_depot_from_naval_depot_location(state_instance);
+		if(existing_depot) {
+			disabled = !command::can_delete_naval_supply_depot(state, state.local_player_nation, existing_depot);
+		} else {
+			disabled = !command::can_create_naval_supply_depot(state, state.local_player_nation, state_instance);
+		}
+	}
+
+	void button_action(sys::state& state) noexcept override {
+		auto p = retrieve<dcon::province_id>(state, parent);
+		auto state_instance = state.world.province_get_state_membership(p);
+		if(!state_instance) {
+			return;
+		}
+		auto existing_depot = state.world.state_instance_get_depot_from_naval_depot_location(state_instance);
+		if(existing_depot) {
+			command::queue_delete_naval_supply_depot(state, existing_depot);
+		} else {
+			command::queue_create_naval_supply_depot(state, state_instance);
+		}
+	}
+
+	tooltip_behavior has_tooltip(sys::state& state) noexcept override {
+		return tooltip_behavior::variable_tooltip;
+	}
+
+	void update_tooltip(sys::state& state, int32_t x, int32_t t, text::columnar_layout& contents) noexcept override {
+	}
+};
+
+
+
+
+
+
 class province_take_province_button : public button_element_base {
 public:
 	void on_update(sys::state& state) noexcept override {
@@ -745,7 +831,12 @@ public:
 			return make_element_by_type<state_aristocrat_presence_text>(state, id);
 		} else if(name == "liferating") {
 			return make_element_by_type<province_liferating>(state, id);
-		} else {
+		} else if(name == "alice_toggle_army_depot") {
+			return make_element_by_type<province_toggle_army_depot_button>(state, id);
+		} else if(name == "alice_toggle_naval_depot") {
+			return make_element_by_type<province_toggle_naval_depot_button>(state, id);
+		}
+		else {
 			return nullptr;
 		}
 	}

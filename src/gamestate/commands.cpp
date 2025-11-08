@@ -229,6 +229,13 @@ void execute_set_national_focus(sys::state& state, dcon::nation_id source, dcon:
 	}
 }
 
+void queue_create_army_supply_depot(sys::state& state, dcon::state_instance_id state_instance) {
+	command_data p{ command_type::create_army_supply_depot, state.local_player_id };
+	auto data = create_supply_depot_data{ state_instance };
+	p << data;
+	add_to_command_queue(state, p);
+}
+
 void execute_create_army_supply_depot(sys::state& state, dcon::nation_id nation, dcon::state_instance_id state_instance) {
 	military::create_army_supply_depot(state, nation, state_instance);
 
@@ -248,6 +255,13 @@ bool can_create_army_supply_depot(sys::state& state, dcon::nation_id source, dco
 	}
 
 	return true;
+}
+
+void queue_delete_army_supply_depot(sys::state& state, dcon::army_supply_depot_id depot) {
+	command_data p{ command_type::delete_army_supply_depot, state.local_player_id };
+	auto data = delete_army_supply_depot_data{ depot };
+	p << data;
+	add_to_command_queue(state, p);
 }
 
 
@@ -272,6 +286,13 @@ bool can_delete_army_supply_depot(sys::state& state, dcon::nation_id source, dco
 }
 
 
+void queue_create_naval_supply_depot(sys::state& state, dcon::state_instance_id state_instance) {
+	command_data p{ command_type::create_naval_supply_depot, state.local_player_id };
+	auto data = create_supply_depot_data{ state_instance };
+	p << data;
+	add_to_command_queue(state, p);
+}
+
 void execute_create_naval_supply_depot(sys::state& state, dcon::nation_id nation, dcon::state_instance_id state_instance) {
 	military::create_naval_supply_depot(state, nation, state_instance);
 }
@@ -293,6 +314,13 @@ bool can_create_naval_supply_depot(sys::state& state, dcon::nation_id source, dc
 	}
 
 	return true;
+}
+
+void queue_delete_naval_supply_depot(sys::state& state, dcon::naval_supply_depot_id depot) {
+	command_data p{ command_type::delete_naval_supply_depot, state.local_player_id };
+	auto data = delete_naval_supply_depot_data{ depot };
+	p << data;
+	add_to_command_queue(state, p);
 }
 
 void execute_delete_naval_supply_depot(sys::state& state, dcon::nation_id source, dcon::naval_supply_depot_id depot) {

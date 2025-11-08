@@ -1238,6 +1238,18 @@ void send_peace_offer(sys::state& state, dcon::nation_id source);
 bool can_send_peace_offer(sys::state& state, dcon::nation_id source);
 void execute_send_peace_offer(sys::state& state, dcon::nation_id source);
 
+void queue_create_army_supply_depot(sys::state& state, dcon::state_instance_id state_instance);
+bool can_create_army_supply_depot(sys::state& state, dcon::nation_id source, dcon::state_instance_id state_instance);
+
+void queue_delete_army_supply_depot(sys::state& state, dcon::army_supply_depot_id depot);
+bool can_delete_army_supply_depot(sys::state& state, dcon::nation_id source, dcon::army_supply_depot_id depot);
+
+void queue_create_naval_supply_depot(sys::state& state, dcon::state_instance_id state_instance);
+bool can_create_naval_supply_depot(sys::state& state, dcon::nation_id source, dcon::state_instance_id state_instance);
+
+void queue_delete_naval_supply_depot(sys::state& state, dcon::naval_supply_depot_id depot);
+bool can_delete_naval_supply_depot(sys::state& state, dcon::nation_id source, dcon::naval_supply_depot_id depot);
+
 // CRISIS PEACE OFFER COMMANDS
 
 void start_crisis_peace_offer(sys::state& state, dcon::nation_id source, bool is_concession);

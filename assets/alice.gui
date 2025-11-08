@@ -5244,6 +5244,20 @@ guiTypes = {
 		quadTextureSprite = "GFX_local_admin"	
 	}
 	
+	guiButtonType = {
+		name = "alice_toggle_army_depot"
+		extends = "province_view_header"
+		position = { x = 326 y = 43 }
+		quadTextureSprite = "GFX_local_admin"	
+	}
+	
+	guiButtonType = {
+		name = "alice_toggle_naval_depot"
+		extends = "province_view_header"
+		position = { x = 306 y = 43 }
+		quadTextureSprite = "GFX_local_admin"	
+	}
+	
 	iconType = {
 		name ="province_victory_points_icon"
 		extends = "province_view_header"

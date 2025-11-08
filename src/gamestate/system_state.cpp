@@ -3573,6 +3573,8 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	nations::generate_initial_state_instances(*this);
 	world.nation_resize_stockpiles(world.commodity_size());
 	world.nation_resize_variables(uint32_t(national_definitions.num_allocated_national_variables));
+	world.army_supply_depot_resize_stockpile(world.commodity_size());
+	world.naval_supply_depot_resize_stockpile(world.commodity_size());
 	world.pop_resize_udemographics(pop_demographics::size(*this));
 	national_definitions.global_flag_variables.resize((national_definitions.num_allocated_global_flags + 7) / 8, dcon::bitfield_type{ 0 });
 
@@ -4189,6 +4191,20 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	});
 
 	economy::sanity_check(*this);
+
+	// create starting military supply depots
+	for(auto nation : world.in_nation) {
+		if(nation.is_valid()) {
+			auto best_army_depot_state = military::get_best_state_for_army_supply_depot(*this, nation);
+			if(best_army_depot_state) {
+				military::create_army_supply_depot(*this, nation, best_army_depot_state);
+			}
+			auto best_naval_depot_state = military::get_best_state_for_naval_supply_depot(*this, nation);
+			if(best_naval_depot_state) {
+				military::create_naval_supply_depot(*this, nation, best_naval_depot_state);
+			}
+		}
+	}
 
 	nations::generate_initial_trade_routes(*this);
 
