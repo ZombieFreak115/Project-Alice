@@ -1696,6 +1696,14 @@ bool state_borders_nation(sys::state& state, dcon::nation_id n, dcon::state_inst
 	return false;
 }
 
+bool is_colony(sys::state& state, dcon::province_id p) {
+	return state.world.province_get_is_colonial(p);
+}
+
+bool is_colony(sys::state& state, dcon::state_instance_id s) {
+	return state.world.province_get_is_colonial(state.world.state_instance_get_capital(s));
+}
+
 bool can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d) {
 	if(state.world.state_definition_get_colonization_stage(d) > uint8_t(1))
 		return false; // too late

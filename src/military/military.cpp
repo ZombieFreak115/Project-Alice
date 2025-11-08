@@ -9170,6 +9170,46 @@ void increase_dig_in(sys::state& state) {
 	}
 }
 
+dcon::state_instance_id get_best_state_for_army_supply_depot(sys::state& state, dcon::nation_id nation) {
+	float best_score = -1.0f;
+	dcon::state_instance_id best_state;
+	for(auto state_ownership : state.world.nation_get_state_ownership(nation)) {
+		auto state_instance = state_ownership.get_state();
+		float colonial_modifier = (province::is_colony(state, state_instance.id) ? 0.0001f : 1.0f);
+		// accepted pops count for more than unaccepted, and literacy acts as a multiplier. Meant to approximate the potential for a industrial base
+		float score = (state.world.state_instance_get_demographics(state_instance, demographics::total) + state.world.state_instance_get_demographics(state_instance, demographics::primary_or_accepted) * 4.0f)
+			* ( 0.2f + state.world.state_instance_get_demographics(state_instance, demographics::literacy)) * colonial_modifier;
+		if(score > best_score) {
+			best_score = score;
+			best_state = state_instance.id;
+		}
+	}
+	return best_state;
+}
+
+
+dcon::state_instance_id get_best_state_for_naval_supply_depot(sys::state& state, dcon::nation_id nation) {
+	float best_score = -1.0f;
+	dcon::state_instance_id best_state;
+	for(auto state_ownership : state.world.nation_get_state_ownership(nation)) {
+		auto state_instance = state_ownership.get_state();
+		if(!province::state_is_coastal(state, state_instance.id)) {
+			continue;
+		}
+		float colonial_modifier = (province::is_colony(state, state_instance.id) ? 0.0001f : 1.0f);
+		// accepted pops count for more than unaccepted, and literacy acts as a multiplier. Meant to approximate the potential for a industrial base
+		float score = (state.world.state_instance_get_demographics(state_instance, demographics::total) + state.world.state_instance_get_demographics(state_instance, demographics::primary_or_accepted) * 4.0f)
+			* (0.2f + state.world.state_instance_get_demographics(state_instance, demographics::literacy)) * colonial_modifier;
+		if(score > best_score) {
+			best_score = score;
+			best_state = state_instance.id;
+		}
+	}
+	return best_state;
+}
+
+
+
 economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id owner, dcon::army_id army) {
 	uint32_t total_commodities = state.world.commodity_size();
 

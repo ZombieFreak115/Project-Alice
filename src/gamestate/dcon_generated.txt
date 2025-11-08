@@ -2055,6 +2055,7 @@ relationship{
 		object{ navy }
 		name{ navies }
 		type{ many }
+		index_storage{array}
 	}
 	link{
 		object{ naval_supply_depot }
@@ -2071,6 +2072,7 @@ relationship{
 		object{ army }
 		name{ armies }
 		type{ many }
+		index_storage{array}
 	}
 	link{
 		object{ army_supply_depot }

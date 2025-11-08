@@ -44,7 +44,7 @@ bool factory_refit_button_active(sys::state& state, dcon::factory_id fid, dcon::
 		return false;
 	}
 
-	if(economy::is_colony(state, sid) && !economy::can_build_factory_type_in_colony(state, sid, type))
+	if(province::is_colony(state, sid) && !economy::can_build_factory_type_in_colony(state, sid, type))
 		return false;
 
 	return true;
