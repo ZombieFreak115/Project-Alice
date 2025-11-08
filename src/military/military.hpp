@@ -627,6 +627,14 @@ dcon::regiment_id get_land_combat_target(sys::state& state, dcon::regiment_id da
 void apply_attrition_to_army(sys::state& state, dcon::army_id army);
 void apply_attrition(sys::state& state);
 void increase_dig_in(sys::state& state);
+
+dcon::state_instance_id get_best_state_for_army_supply_depot(sys::state& state, dcon::nation_id nation);
+dcon::state_instance_id get_best_state_for_naval_supply_depot(sys::state& state, dcon::nation_id nation);
+void create_army_supply_depot(sys::state& state, dcon::nation_id nation, dcon::state_instance_id state_instance);
+void delete_army_supply_depot(sys::state& state, dcon::army_supply_depot_id depot);
+void create_naval_supply_depot(sys::state& state, dcon::nation_id nation, dcon::state_instance_id state_instance);
+void delete_naval_supply_depot(sys::state& state, dcon::naval_supply_depot_id depot);
+
 economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id owner, dcon::army_id army);
 economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id owner, dcon::navy_id navy);
 void recover_org(sys::state& state);

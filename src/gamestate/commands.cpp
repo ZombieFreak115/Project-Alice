@@ -229,6 +229,96 @@ void execute_set_national_focus(sys::state& state, dcon::nation_id source, dcon:
 	}
 }
 
+void execute_create_army_supply_depot(sys::state& state, dcon::nation_id nation, dcon::state_instance_id state_instance) {
+	military::create_army_supply_depot(state, nation, state_instance);
+
+}
+
+
+bool can_create_army_supply_depot(sys::state& state, dcon::nation_id source, dcon::state_instance_id state_instance) {
+	if(!bool(source) || !bool(state_instance)) {
+		return false;
+	}
+	if(state.world.state_instance_get_nation_from_state_ownership(state_instance) != source) {
+		return false;
+	}
+	// only one army depot per state
+	if(bool(state.world.state_instance_get_depot_from_army_depot_location(state_instance))) {
+		return false;
+	}
+
+	return true;
+}
+
+
+void execute_delete_army_supply_depot(sys::state& state, dcon::nation_id source, dcon::army_supply_depot_id depot) {
+	military::delete_army_supply_depot(state, depot);
+
+}
+
+bool can_delete_army_supply_depot(sys::state& state, dcon::nation_id source, dcon::army_supply_depot_id depot) {
+	if(!bool(source) || !bool(depot)) {
+		return false;
+	}
+	if(state.world.army_supply_depot_get_controller_from_army_depot_controller(depot) != source) {
+		return false;
+	}
+	// cannot delete the last supply depot
+	auto nation_depots = state.world.nation_get_army_depot_controller(source);
+	if((nation_depots.end() - nation_depots.begin()) == 1) {
+		return false;
+	}
+	return true;
+}
+
+
+void execute_create_naval_supply_depot(sys::state& state, dcon::nation_id nation, dcon::state_instance_id state_instance) {
+	military::create_naval_supply_depot(state, nation, state_instance);
+}
+
+
+bool can_create_naval_supply_depot(sys::state& state, dcon::nation_id source, dcon::state_instance_id state_instance) {
+	if(!bool(source) || !bool(state_instance)) {
+		return false;
+	}
+	if(state.world.state_instance_get_nation_from_state_ownership(state_instance) != source) {
+		return false;
+	}
+	if(!province::state_is_coastal(state, state_instance)) {
+		return false;
+	}
+	// only one naval depot per state
+	if(bool(state.world.state_instance_get_depot_from_naval_depot_location(state_instance))) {
+		return false;
+	}
+
+	return true;
+}
+
+void execute_delete_naval_supply_depot(sys::state& state, dcon::nation_id source, dcon::naval_supply_depot_id depot) {
+	military::delete_naval_supply_depot(state, depot);
+
+}
+
+bool can_delete_naval_supply_depot(sys::state& state, dcon::nation_id source, dcon::naval_supply_depot_id depot) {
+	if(!bool(source) || !bool(depot)) {
+		return false;
+	}
+	if(state.world.naval_supply_depot_get_controller_from_naval_depot_controller(depot) != source) {
+		return false;
+	}
+	// cannot delete the last supply depot
+	auto nation_depots = state.world.nation_get_naval_depot_controller(source);
+	if((nation_depots.end() - nation_depots.begin()) == 1) {
+		return false;
+	}
+	return true;
+}
+
+
+
+
+
 void start_research(sys::state& state, dcon::nation_id source, dcon::technology_id tech) {
 
 	command_data p{ command_type::start_research, state.local_player_id };
@@ -6776,6 +6866,26 @@ bool can_perform_command(sys::state& state, command_data& c) {
 	{
 		return can_notify_mp_data(state, c);
 	}
+	case command_type::create_army_supply_depot:
+	{
+		auto& data = c.get_payload<create_supply_depot_data>();
+		return can_create_army_supply_depot(state, source, data.location);
+	}
+	case command_type::create_naval_supply_depot:
+	{
+		auto& data = c.get_payload<create_supply_depot_data>();
+		return can_create_naval_supply_depot(state, source, data.location);
+	}
+	case command_type::delete_army_supply_depot:
+	{
+		auto& data = c.get_payload<delete_army_supply_depot_data>();
+		return can_delete_army_supply_depot(state, source, data.depot);
+	}
+	case command_type::delete_naval_supply_depot:
+	{
+		auto& data = c.get_payload<delete_naval_supply_depot_data>();
+		return can_delete_naval_supply_depot(state, source, data.depot);
+	}
 	}
 	return false;
 }
@@ -7578,6 +7688,30 @@ bool execute_command(sys::state& state, command_data& c) {
 	{
 		auto& data = c.get_payload<notify_mp_data_data_recv>();
 		execute_notify_mp_data(state, data);
+		break;
+	}
+	case command_type::create_army_supply_depot:
+	{
+		auto& data = c.get_payload<create_supply_depot_data>();
+		execute_create_army_supply_depot(state, source_nation, data.location);
+		break;
+	}
+	case command_type::create_naval_supply_depot:
+	{
+		auto& data = c.get_payload<create_supply_depot_data>();
+		execute_create_naval_supply_depot(state, source_nation, data.location);
+		break;
+	}
+	case command_type::delete_army_supply_depot:
+	{
+		auto& data = c.get_payload<delete_army_supply_depot_data>();
+		execute_delete_army_supply_depot(state, source_nation, data.depot);
+		break;
+	}
+	case command_type::delete_naval_supply_depot:
+	{
+		auto& data = c.get_payload<delete_naval_supply_depot_data>();
+		execute_delete_naval_supply_depot(state, source_nation, data.depot);
 		break;
 	}
 	}

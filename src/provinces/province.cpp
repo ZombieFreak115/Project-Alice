@@ -1357,6 +1357,15 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 			}
 			auto local_market = state.world.state_instance_get_market_from_local_market(old_si);
 
+			auto army_depot = state.world.state_instance_get_depot_from_army_depot_location(old_si);
+			if(bool(army_depot)) {
+				military::delete_army_supply_depot(state, army_depot);
+			}
+			auto naval_depot = state.world.state_instance_get_depot_from_naval_depot_location(old_si);
+			if(bool(naval_depot)) {
+				military::delete_naval_supply_depot(state, naval_depot);
+			}
+
 			state.world.delete_market(local_market);
 			state.world.delete_state_instance(old_si);
 		} else if(state.world.state_instance_get_capital(old_si) == id) {

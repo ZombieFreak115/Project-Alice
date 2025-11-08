@@ -2081,6 +2081,40 @@ relationship{
 	}
 }
 
+relationship{
+	name{ army_depot_controller }
+	tag{ save }
+
+	link{
+		object{ nation }
+		name{ controller }
+		type{ many }
+		index_storage{array}
+	}
+	link{
+		object{ army_supply_depot }
+		name{ depot }
+		type{ unique }
+	}
+}
+
+relationship{
+	name{ naval_depot_controller }
+	tag{ save }
+
+	link{
+		object{ nation }
+		name{ controller }
+		type{ many }
+		index_storage{array}
+	}
+	link{
+		object{ naval_supply_depot }
+		name{ depot }
+		type{ unique }
+	}
+}
+
 
 
 object {

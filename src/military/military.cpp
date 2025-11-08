@@ -9208,6 +9208,30 @@ dcon::state_instance_id get_best_state_for_naval_supply_depot(sys::state& state,
 	return best_state;
 }
 
+void create_army_supply_depot(sys::state& state, dcon::nation_id nation, dcon::state_instance_id state_instance) {
+	auto depot = state.world.create_army_supply_depot();
+	state.world.force_create_army_depot_location(state_instance, depot);
+	state.world.force_create_army_depot_controller(nation, depot);
+
+}
+
+void delete_army_supply_depot(sys::state& state, dcon::army_supply_depot_id depot) {
+	state.world.delete_army_supply_depot(depot);
+
+}
+
+void create_naval_supply_depot(sys::state& state, dcon::nation_id nation, dcon::state_instance_id state_instance) {
+	auto depot = state.world.create_naval_supply_depot();
+	state.world.force_create_naval_depot_location(state_instance, depot);
+	state.world.force_create_naval_depot_controller(nation, depot);
+
+}
+
+void delete_naval_supply_depot(sys::state& state, dcon::naval_supply_depot_id depot) {
+	state.world.delete_naval_supply_depot(depot);
+
+}
+
 
 
 economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id owner, dcon::army_id army) {

@@ -2110,6 +2110,16 @@ void run_gc(sys::state& state) {
 void cleanup_nation(sys::state& state, dcon::nation_id n) {
 	auto old_ident = state.world.nation_get_identity_from_identity_holder(n);
 
+	auto army_depots = state.world.nation_get_army_depot_controller(n);
+	while(army_depots.begin() != army_depots.end()) {
+		military::delete_army_supply_depot(state,(*army_depots.begin()).get_depot());
+	}
+
+	auto naval_depots = state.world.nation_get_naval_depot_controller(n);
+	while(army_depots.begin() != army_depots.end()) {
+		military::delete_naval_supply_depot(state, (*naval_depots.begin()).get_depot());
+	}
+
 	auto control = state.world.nation_get_province_control(n);
 	while(control.begin() != control.end()) {
 		province::set_province_controller(state, (*control.begin()).get_province(), (*control.begin()).get_province().get_nation_from_province_ownership());

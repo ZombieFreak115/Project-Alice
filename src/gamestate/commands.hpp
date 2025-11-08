@@ -21,19 +21,19 @@ enum class command_type : uint8_t {
 	delete_factory = 11,
 	make_vassal = 12,
 	release_and_play_nation = 13,
-	war_subsidies = 14,
-	cancel_war_subsidies = 15,
-	change_budget = 16,
-	start_election = 17,
-	change_influence_priority = 18,
-	discredit_advisors = 19,
-	expel_advisors = 20,
-	ban_embassy = 21,
-	increase_opinion = 22,
-	decrease_opinion = 23,
-	add_to_sphere = 24,
-	remove_from_sphere = 25,
-	upgrade_colony_to_state = 26,
+		war_subsidies = 14,
+		cancel_war_subsidies = 15,
+		change_budget = 16,
+		start_election = 17,
+		change_influence_priority = 18,
+		discredit_advisors = 19,
+		expel_advisors = 20,
+		ban_embassy = 21,
+		increase_opinion = 22,
+		decrease_opinion = 23,
+		add_to_sphere = 24,
+		remove_from_sphere = 25,
+		upgrade_colony_to_state = 26,
 		invest_in_colony = 27,
 		abandon_colony = 28,
 		finish_colonization = 29,
@@ -120,6 +120,10 @@ enum class command_type : uint8_t {
 		command_units = 111,
 		give_back_units = 112,
 		change_game_rule_setting = 113,
+		create_army_supply_depot = 114,
+		create_naval_supply_depot = 115,
+		delete_army_supply_depot = 116,
+		delete_naval_supply_depot = 117,
 
 		// network
 		notify_mp_data = 235, // notify client that MP data (not save) is here and should be loaded
@@ -561,6 +565,16 @@ struct notify_mp_data_data_recv {
 	uint8_t mp_data[1];
 };
 
+struct create_supply_depot_data {
+	dcon::state_instance_id location;
+};
+struct delete_army_supply_depot_data {
+	dcon::army_supply_depot_id depot;
+};
+struct delete_naval_supply_depot_data {
+	dcon::naval_supply_depot_id depot;
+};
+
 
 static ankerl::unordered_dense::map<command::command_type, command::command_type_data> command_type_handlers = {
 	{command_type::change_nat_focus, command_type_data{ sizeof(command::national_focus_data), sizeof(command::national_focus_data) } },
@@ -675,6 +689,10 @@ static ankerl::unordered_dense::map<command::command_type, command::command_type
 	{ command_type::command_units, command_type_data{ sizeof(command::command_units_data), sizeof(command::command_units_data) } },
 	{ command_type::give_back_units, command_type_data{ sizeof(command::command_units_data), sizeof(command::command_units_data) } },
 	{ command_type::change_game_rule_setting, command_type_data{ sizeof(command::change_gamerule_setting_data), sizeof(command::change_gamerule_setting_data) } },
+	{ command_type::create_army_supply_depot, command_type_data{ sizeof(create_supply_depot_data), sizeof(create_supply_depot_data) } },
+	{ command_type::create_naval_supply_depot, command_type_data{ sizeof(create_supply_depot_data), sizeof(create_supply_depot_data) } },
+	{ command_type::delete_army_supply_depot, command_type_data{ sizeof(delete_army_supply_depot_data), sizeof(delete_army_supply_depot_data) } },
+	{ command_type::delete_naval_supply_depot, command_type_data{ sizeof(delete_naval_supply_depot_data), sizeof(delete_naval_supply_depot_data) } },
 
 	// network
 	{ command_type::notify_player_ban, command_type_data{ sizeof(command::notify_player_ban_data), sizeof(command::notify_player_ban_data) } },
