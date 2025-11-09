@@ -8376,6 +8376,23 @@ uint8_t make_dice_rolls(sys::state& state, uint32_t seed) {
 	return uint8_t((high_roll << 4) | low_roll);
 }
 
+bool is_depot_enabled(const sys::state& state, dcon::army_supply_depot_id depot) {
+	assert(depot);
+	auto state_instance = state.world.army_supply_depot_get_location_from_army_depot_location(depot);
+	assert(state_instance);
+	auto state_capital = state.world.state_instance_get_capital(state_instance);
+	// depot is eabled if the controller of the state capital is the same as the owner of the supply depot
+	return state.world.province_get_nation_from_province_control(state_capital) == state.world.army_supply_depot_get_controller_from_army_depot_controller(depot);
+}
+bool is_depot_enabled(const sys::state& state, dcon::naval_supply_depot_id depot) {
+	assert(depot);
+	auto state_instance = state.world.naval_supply_depot_get_location_from_naval_depot_location(depot);
+	assert(state_instance);
+	auto state_capital = state.world.state_instance_get_capital(state_instance);
+	// depot is eabled if the controller of the state capital is the same as the owner of the supply depot
+	return state.world.province_get_nation_from_province_control(state_capital) == state.world.naval_supply_depot_get_controller_from_naval_depot_controller(depot);
+}
+
 void navy_arrives_in_province(sys::state& state, dcon::navy_id n, dcon::province_id p, dcon::naval_battle_id from) {
 	assert(state.world.navy_is_valid(n));
 	assert(!state.world.navy_get_battle_from_navy_battle_participation(n));
