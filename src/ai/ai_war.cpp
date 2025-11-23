@@ -3,6 +3,7 @@
 #include "prng.hpp"
 #include "demographics.hpp"
 #include "triggers.hpp"
+#include "ai_types.hpp"
 
 namespace ai {
 

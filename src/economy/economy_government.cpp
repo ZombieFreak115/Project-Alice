@@ -1,11 +1,7 @@
-#include "dcon_generated.hpp"
 #include "system_state.hpp"
-
-#include "demographics.hpp"
 #include "economy.hpp"
 #include "economy_government.hpp"
 #include "economy_stats.hpp"
-#include "province_templates.hpp"
 
 namespace economy {
 

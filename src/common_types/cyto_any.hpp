@@ -32,14 +32,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <exception>
 #include <initializer_list>
-#include <new>
 #include <type_traits>
-#include <typeinfo>
 #include <utility>
 
-#include <string.h>
 
 #ifndef _MSC_VER
 #ifndef ANY_ALWAYS_INLINE

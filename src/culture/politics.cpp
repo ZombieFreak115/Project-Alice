@@ -1,5 +1,4 @@
 #include "politics.hpp"
-#include "dcon_generated.hpp"
 #include "demographics.hpp"
 #include "effects.hpp"
 #include "prng.hpp"

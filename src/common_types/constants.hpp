@@ -1,6 +1,4 @@
 #pragma once
-#include <stdint.h>
-#include <iterator>	
 
 namespace sys {
 enum class virtual_key : uint8_t {

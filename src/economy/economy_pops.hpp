@@ -3,7 +3,6 @@
 #include "system_state.hpp"
 #include "advanced_province_buildings.hpp"
 #include "demographics.hpp"
-#include "adaptive_ve.hpp"
 
 namespace economy {
 

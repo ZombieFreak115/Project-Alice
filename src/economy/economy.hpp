@@ -2,7 +2,10 @@
 
 #include "container_types.hpp"
 #include "dcon_generated.hpp"
-#include "commands.hpp"
+
+namespace command {
+struct budget_settings_data;
+}
 
 namespace economy {
 

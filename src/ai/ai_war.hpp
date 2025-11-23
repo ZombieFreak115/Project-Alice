@@ -1,6 +1,10 @@
 #pragma once
 #include "dcon_generated.hpp"
-#include "ai_types.hpp"
+
+namespace ai {
+	struct possible_cb;
+	struct weighted_state_instance;
+}
 
 namespace sys {
 struct state;

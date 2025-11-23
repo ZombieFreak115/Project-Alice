@@ -1,9 +1,12 @@
 #pragma once
-
-#include "date_interface.hpp"
 #include "dcon_generated.hpp"
-#include "system_state.hpp"
-#include <string_view>
+
+
+namespace sys {
+struct state;
+class date;
+}
+
 
 namespace politics {
 
