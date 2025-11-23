@@ -3,6 +3,7 @@
 #include "price.hpp"
 #include "province_templates.hpp"
 #include "demographics.hpp"
+#include "economy_stats.hpp"
 
 namespace economy {
 namespace pops {

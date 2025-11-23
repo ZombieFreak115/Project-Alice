@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
 
 #include "window.hpp"
 #include "constants.hpp"
@@ -29,7 +28,6 @@
 #include "SPSCQueue.h"
 #include "commands.hpp"
 #include "diplomatic_messages.hpp"
-#include "events.hpp"
 #include "notifications.hpp"
 #include "network.hpp"
 #include "fif.hpp"

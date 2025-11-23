@@ -1,7 +1,5 @@
 #pragma once
 
-#include "economy_stats.hpp"
-
 // this .cpp and .hpp pair of files contains:
 // - employment updates of productive forces
 // - consumption updates of productive forces

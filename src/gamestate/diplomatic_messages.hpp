@@ -1,8 +1,11 @@
 #pragma once
 
 #include "dcon_generated.hpp"
-#include "system_state.hpp"
-#include "container_types.hpp"
+
+
+namespace sys {
+struct state;
+}
 
 namespace diplomatic_message {
 

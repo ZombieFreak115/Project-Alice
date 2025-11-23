@@ -1,7 +1,5 @@
 #pragma once
 
-#include "container_types.hpp"
-#include "text.hpp"
 
 namespace notification {
 

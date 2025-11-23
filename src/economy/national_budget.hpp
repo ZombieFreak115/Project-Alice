@@ -1,6 +1,7 @@
 #pragma once
-#include "system_state_forward.hpp"
-
+namespace sys {
+struct state;
+}
 namespace economy {
 
 namespace national_budget {

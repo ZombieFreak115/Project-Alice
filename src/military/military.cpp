@@ -13,6 +13,7 @@
 #include "triggers.hpp"
 #include "container_types.hpp"
 #include "math_fns.hpp"
+#include "economy_stats.hpp"
 
 namespace military {
 

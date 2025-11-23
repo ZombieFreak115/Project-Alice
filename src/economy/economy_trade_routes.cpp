@@ -3,10 +3,9 @@
 #include "economy_stats.hpp"
 #include "system_state.hpp"
 #include "economy_government.hpp"
-#include "adaptive_ve.hpp"
 #include "province_templates.hpp"
 #include "advanced_province_buildings.hpp"
-
+#include "economy_templates.hpp"
 // implements trade routes
 // when changing logic of trade routes please update it everywhere
 // due to performance reasons we have to duplicate it

@@ -4,7 +4,6 @@
 #include "economy_stats.hpp"
 #include "construction.hpp"
 #include "effects.hpp"
-#include "gui_event.hpp"
 #include "serialization.hpp"
 #include "system_state.hpp"
 #include "nations.hpp"

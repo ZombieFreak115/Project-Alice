@@ -1,6 +1,5 @@
 #pragma once
 #include "dcon_generated.hpp"
-#include "effects.hpp"
 
 namespace sys {
 	struct state;

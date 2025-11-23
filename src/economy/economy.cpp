@@ -14,6 +14,7 @@
 #include "price.hpp"
 #include "economy_pops.hpp"
 #include "commodities.hpp"
+#include "economy_templates.hpp"
 
 namespace economy {
 

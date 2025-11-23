@@ -2,7 +2,6 @@
 #include "system_state.hpp"
 #include "commands.hpp"
 #include "nations.hpp"
-#include "ai_campaign.hpp"
 #include "ai_war.hpp"
 #include "ai_types.hpp"
 #include "ai_campaign_values.hpp"
