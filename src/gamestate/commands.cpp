@@ -3336,107 +3336,17 @@ void declare_war(sys::state& state, dcon::nation_id source, dcon::nation_id targ
 	add_to_command_queue(state, p);
 }
 
-bool can_declare_war(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb,
-		dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation) {
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
+bool can_declare_war(sys::state& state, dcon::nation_id source, command_data& command) {
 
-	if(!military::can_attack(state, source, target)) {
-		return false;
-	}
-	// check CB validity
-	if(!military::cb_instance_conditions_satisfied(state, source, target, primary_cb, cb_state, cb_tag, cb_secondary_nation))
-		return false;
-
-	return true;
+	auto& data = command.get_payload<command::new_war_data>();
+	return military::can_declare_war<command::actor::player>(state, source, data.target, data.primary_cb, data.cb_state,
+			data.cb_tag, data.cb_secondary_nation);
 }
 
-void execute_declare_war(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb,
-		dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation, bool call_attacker_allies, bool run_conference) {
-	auto& current_diplo = state.world.nation_get_diplomatic_points(source);
-	state.world.nation_set_diplomatic_points(source, current_diplo - state.defines.declarewar_diplomatic_cost);
-	nations::adjust_relationship(state, source, target, state.defines.declarewar_relation_on_accept);
-
-	dcon::nation_id real_target = target;
-
-	auto target_ol_rel = state.world.nation_get_overlord_as_subject(target);
-	if(state.world.overlord_get_ruler(target_ol_rel) && state.world.overlord_get_ruler(target_ol_rel) != source)
-		real_target = state.world.overlord_get_ruler(target_ol_rel);
-
-	// Infamy, militancy and prestige loss for truce break
-	if(military::has_truce_with(state, source, real_target)) {
-		auto cb_infamy = military::truce_break_cb_infamy(state, primary_cb, target);
-		auto cb_militancy = military::truce_break_cb_militancy(state, primary_cb);
-		auto cb_prestige_loss = military::truce_break_cb_prestige_cost(state, primary_cb);
-
-		auto& current_infamy = state.world.nation_get_infamy(source);
-		state.world.nation_set_infamy(source, current_infamy + cb_infamy);
-		nations::adjust_prestige(state, source, cb_prestige_loss);
-
-		for(auto prov : state.world.nation_get_province_ownership(source)) {
-			for(auto pop : prov.get_province().get_pop_location()) {
-				auto mil = pop_demographics::get_militancy(state, pop.get_pop());
-				pop_demographics::set_militancy(state, pop.get_pop().id, std::min(mil + cb_militancy, 10.0f));
-			}
-		}
-	}
-	// Infamy for war declaration when applicable
-	else {
-		auto cb_infamy = military::war_declaration_infamy_cost(state, primary_cb, source, target, cb_state);
-		auto& current_infamy = state.world.nation_get_infamy(source);
-		state.world.nation_set_infamy(source, current_infamy + cb_infamy);
-	}
-
-	// remove used cb
-	auto current_cbs = state.world.nation_get_available_cbs(source);
-	for(uint32_t i = current_cbs.size(); i-- > 0;) {
-		if(current_cbs[i].cb_type == primary_cb && current_cbs[i].target == target) {
-			current_cbs.remove_at(i);
-			break;
-		}
-	}
-
-	if(run_conference && state.current_crisis_state == sys::crisis_state::inactive) {
-		nations::cleanup_crisis(state);
-
-		nations::crisis_add_wargoal(state.crisis_attacker_wargoals, sys::full_wg{
-					source,
-						target,
-						cb_secondary_nation,
-						cb_tag,
-						cb_state,
-						primary_cb
-		});
-
-		state.crisis_defender = target;
-		state.crisis_attacker = source;
-		if(state.world.nation_get_is_great_power(target)) {
-			state.primary_crisis_defender = target;
-		}
-		if(state.world.nation_get_is_great_power(source)) {
-			state.primary_crisis_attacker = source;
-		}
-
-		notification::post(state, notification::message{
-			[st = cb_state](sys::state& state, text::layout_base& contents) {
-				text::add_line(state, contents, "msg_new_crisis_1", text::variable_type::x, st);
-			},
-			"msg_new_crisis_title",
-			state.local_player_nation, dcon::nation_id{}, dcon::nation_id{},
-			sys::message_base_type::crisis_starts
-		});
-
-		state.last_crisis_end_date = state.current_date;
-		nations::crisis_state_transition(state, sys::crisis_state::finding_attacker);
-	}
-	else {
-		auto war = military::create_war(state, source, target, primary_cb, cb_state, cb_tag, cb_secondary_nation);
-		military::call_defender_allies(state, war);
-		if(call_attacker_allies) {
-			military::call_attacker_allies(state, war);
-		}
-	}
+void execute_declare_war(sys::state& state, dcon::nation_id source, command_data& command) {
+	auto& data = command.get_payload<new_war_data>();
+	military::declare_war<command::actor::player>(state, source, data.target, data.primary_cb, data.cb_state,
+			data.cb_tag, data.cb_secondary_nation, data.call_attacker_allies, data.run_conference);
 }
 
 void add_war_goal(sys::state& state, dcon::nation_id source, dcon::war_id w, dcon::nation_id target, dcon::cb_type_id cb_type,
@@ -6261,12 +6171,16 @@ void execute_load_save_game(sys::state& state, std::string_view filename, bool i
 		}
 	}();
 	if(loaded_save) {
+		// Set player nation to rebel nation instead of invalid nation. Makes things abit smoother later
+		if(!state.local_player_nation) {
+			state.set_local_player_nation(state.world.national_identity_get_nation_from_identity_holder( state.national_definitions.rebel_id));
+		}
 		network::set_no_ai_nations_after_reload(state, no_ai_nations);
 		if(state.network_mode == sys::network_mode_type::single_player) {
 			nations::switch_all_players(state, state.local_player_nation, old_local_player_nation);
 		}
 		else if(state.network_mode == sys::network_mode_type::host) {
-			state.local_player_nation = old_local_player_nation;
+			state.set_local_player_nation(old_local_player_nation);
 		}
 		state.fill_unsaved_data();
 	}
@@ -6678,9 +6592,7 @@ bool can_perform_command(sys::state& state, command_data& c) {
 
 	case command_type::declare_war:
 	{
-		auto& data = c.get_payload<command::new_war_data>();
-		return can_declare_war(state, source, data.target, data.primary_cb, data.cb_state,
-				data.cb_tag, data.cb_secondary_nation);
+		return command::can_declare_war(state, source, c);
 	}
 
 	case command_type::add_war_goal:
@@ -7446,9 +7358,7 @@ void execute_command(sys::state& state, command_data& c) {
 	}
 	case command_type::declare_war:
 	{
-		auto& data = c.get_payload<new_war_data>();
-		execute_declare_war(state, source_nation, data.target, data.primary_cb, data.cb_state,
-				data.cb_tag, data.cb_secondary_nation, data.call_attacker_allies, data.run_conference);
+		execute_declare_war(state, source_nation, c);
 		break;
 	}
 	case command_type::add_war_goal:

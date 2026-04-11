@@ -1552,7 +1552,6 @@ void sort_available_cbs(std::vector<possible_cb>& result, sys::state& state, dco
 }
 
 void sort_available_declaration_cbs(std::vector<possible_cb>& result, sys::state& state, dcon::nation_id n, dcon::nation_id target) {
-	result.clear();
 
 	// Justified CBs
 	auto other_cbs = state.world.nation_get_available_cbs(n);
@@ -2027,16 +2026,25 @@ bool will_accept_peace_offer(sys::state& state, dcon::nation_id n, dcon::nation_
 
 
 void make_war_decs(sys::state& state) {
-	auto targets = ve::vectorizable_buffer<dcon::nation_id, dcon::nation_id>(state.world.nation_size());
+	static auto targets = ve::vectorizable_buffer<dcon::nation_id, dcon::nation_id>(uint32_t(1));
+	static uint32_t old_count = 1;
+	auto new_count = state.world.nation_size();
+	if(new_count > old_count) {
+		targets = ve::vectorizable_buffer<dcon::nation_id, dcon::nation_id>(state.world.nation_size());
+		old_count = new_count;
+	}
 	concurrency::parallel_for(uint32_t(0), state.world.nation_size(), [&](uint32_t i) {
 		dcon::nation_id n{ dcon::nation_id::value_base_t(i) };
+		targets.set(n, dcon::nation_id{ }); // clear buffer
 
-		// are we truly free or our actions are determined by factors outside of our control?
+
+
+		// are we truly free or our actions are determined by factors outside of our control? 
 		if(state.world.nation_get_is_player_controlled(n))
 			return;
 
-		// is it possible?
-		if(!military::can_attack(state, n))
+		// Are we allowed to declare war?
+		if(!military::can_declare_war_nation_checks<command::actor::ai>(state, n))
 			return;		
 
 		// is it desirable?		
@@ -2059,8 +2067,8 @@ void make_war_decs(sys::state& state) {
 					real_target = overlord;
 				}
 
-				// is it possible?
-				if(!military::can_attack_ai(state, n, target))
+				// Are we allowed to declare war?
+				if(!military::can_declare_war_target_checks<command::actor::ai>(state, n, target))
 					continue;
 
 				// is it desirable?
@@ -2095,7 +2103,8 @@ void make_war_decs(sys::state& state) {
 		for(auto adj : state.world.nation_get_nation_adjacency(n)) {
 			auto other = adj.get_connected_nations(0) != n ? adj.get_connected_nations(0) : adj.get_connected_nations(1);
 			auto real_target = other.get_overlord_as_subject().get_ruler() ? other.get_overlord_as_subject().get_ruler() : other;
-			if(!military::can_attack_ai(state, n, other))
+			// Are we allowed to declare war?
+			if(!military::can_declare_war_target_checks<command::actor::ai>(state, n, other))
 				continue;
 			
 			if(!state.world.get_nation_adjacency_by_nation_adjacency_pair(n, other) && !does_have_naval_supremacy(state, n, other))
@@ -2113,7 +2122,8 @@ void make_war_decs(sys::state& state) {
 				auto reduced_value = rng::reduce(uint32_t(rvalue), state.world.nation_size());
 				dcon::nation_id other{ dcon::nation_id::value_base_t(reduced_value) };
 				auto real_target = fatten(state.world, other).get_overlord_as_subject().get_ruler() ? fatten(state.world, other).get_overlord_as_subject().get_ruler() : fatten(state.world, other);
-				if(!military::can_attack_ai(state, n, other))
+				/// Do target-checks if we are allowed to declare war on the target
+				if(!military::can_declare_war_target_checks<command::actor::ai>(state, n, other))
 					continue;
 
 				// do not even try
@@ -2132,12 +2142,17 @@ void make_war_decs(sys::state& state) {
 		}
 	});
 	for(auto n : state.world.in_nation) {
-		if(n.get_is_at_war() == false && targets.get(n)) {
-			static std::vector<possible_cb> potential;
-			sort_available_declaration_cbs(potential, state, n, targets.get(n));
-			if(!potential.empty()) {
-				assert(command::can_declare_war(state, n, targets.get(n), potential[0].cb, potential[0].state_def, potential[0].associated_tag, potential[0].secondary_nation));
-				command::execute_declare_war(state, n, targets.get(n), potential[0].cb, potential[0].state_def, potential[0].associated_tag, potential[0].secondary_nation, true, false);
+		if(targets.get(n)) {
+			static std::vector<possible_cb> potential_cbs;
+			potential_cbs.clear();
+			sort_available_declaration_cbs(potential_cbs, state, n, targets.get(n));
+			for(auto potential_cb : potential_cbs) {
+				// Are we allowed to declare war with this CB instance?
+				if(military::can_declare_war_cb_checks(state, n, targets.get(n), potential_cb.cb, potential_cb.state_def, potential_cb.associated_tag, potential_cb.secondary_nation)) {
+					assert(military::can_declare_war<command::actor::ai>(state, n, targets.get(n), potential_cb.cb, potential_cb.state_def, potential_cb.associated_tag, potential_cb.secondary_nation));
+					military::declare_war<command::actor::ai>(state, n, targets.get(n), potential_cb.cb, potential_cb.state_def, potential_cb.associated_tag, potential_cb.secondary_nation, true, false);
+					break;
+				}
 			}
 		}
 	}

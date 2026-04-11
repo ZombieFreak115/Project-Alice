@@ -10601,6 +10601,8 @@ void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id) {
 
 
 
+
+
 template<command::actor Actor>
 bool can_split_navy(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, std::span<const dcon::ship_id> ships_to_split) {
 	if constexpr(Actor == command::actor::player) {
@@ -10909,17 +10911,39 @@ bool can_change_naval_unit_type(const sys::state& state, dcon::nation_id source,
 template bool can_change_naval_unit_type<command::actor::ai>(const sys::state& state, dcon::nation_id source, dcon::ship_id ship, dcon::unit_type_id new_type);
 template bool can_change_naval_unit_type<command::actor::player>(const sys::state& state, dcon::nation_id source, dcon::ship_id ship, dcon::unit_type_id new_type);
 
-bool can_attack(sys::state& state, dcon::nation_id n) {
-	// nations without land are not supported yet
-	if(state.world.nation_get_owned_province_count(n) == 0)
+
+
+
+template<command::actor Actor>
+bool can_declare_war(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb,
+		dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation) {
+	if constexpr(Actor == command::actor::player) {
+		if(!state.current_scene.game_in_progress) {
+			return false;
+		}
+	}
+
+	if(!military::can_declare_war_nation_checks<Actor>(state, source)) {
+		return false;
+	}
+
+	if(!military::can_declare_war_target_checks<Actor>(state, source, target)) {
+		return false;
+	}
+	// check CB validity
+	if(!military::can_declare_war_cb_checks(state, source, target, primary_cb, cb_state, cb_tag, cb_secondary_nation))
 		return false;
 
 	return true;
 }
 
+template bool can_declare_war<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation);
+template bool can_declare_war<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation);
+
 // used by both functions
 // attempts to be cheap...
-bool can_attack_internal(sys::state& state, dcon::nation_id n, dcon::nation_id target) {	
+bool can_declare_war_cheap_target_checks(sys::state& state, dcon::nation_id n, dcon::nation_id target) {
+
 	if(target == n)
 		return false;	
 
@@ -10966,11 +10990,11 @@ bool can_attack_ai(sys::state& state, dcon::nation_id n, dcon::nation_id target)
 	auto overlord = state.world.overlord_get_ruler(state.world.nation_get_overlord_as_subject(target));
 	// we do not check can_attack(state, source) because it is checked during iteration over source
 	// common checks, both for player and AI
-	if(!can_attack_internal(state, n, target)) {
+	if(!can_declare_war_cheap_target_checks(state, n, target)) {
 		return false;
 	}
 	if(overlord) {
-		if(!can_attack_internal(state, n, overlord)) {
+		if(!can_declare_war_cheap_target_checks(state, n, overlord)) {
 			return false;
 		}
 	}
@@ -10983,37 +11007,63 @@ bool can_attack_ai(sys::state& state, dcon::nation_id n, dcon::nation_id target)
 }
 
 // we can allow expensive logic there
-bool can_attack_expensive_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target) {
-	if(military::are_allied_in_war(state, source, target) || military::are_at_war(state, source, target))
-		return false;
+template<command::actor Actor>
+bool can_declare_war_expensive_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target) {
+	// we skip this check on ai as earlier it is already checked that the ai nation must not be at war to declare
+	if constexpr(Actor == command::actor::player) {
+		if(military::are_allied_in_war(state, source, target) || military::are_at_war(state, source, target))
+			return false;
+	}
 	return true;
 }
 
-bool can_attack(sys::state& state, dcon::nation_id source, dcon::nation_id target) {
+template bool can_declare_war_expensive_target_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id target);
+template bool can_declare_war_expensive_target_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id target);
+
+template<command::actor Actor>
+bool can_declare_war_nation_checks(const sys::state& state, dcon::nation_id source) {
+	if(state.world.nation_get_owned_province_count(source) == 0) {
+		return false;
+	}
+	// AI cannot declare war if already in a war, it means we can skip a later expensive check which checks war allies & war enemies
+	if constexpr(Actor == command::actor::ai) {
+		if(state.world.nation_get_is_at_war(source)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+template bool can_declare_war_nation_checks<command::actor::ai>(const sys::state& state, dcon::nation_id source);
+template bool can_declare_war_nation_checks<command::actor::player>(const sys::state& state, dcon::nation_id source);
+
+
+template<command::actor Actor>
+bool can_declare_war_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target) {
 	auto overlord = state.world.overlord_get_ruler(state.world.nation_get_overlord_as_subject(target));
 
-	if(!can_attack(state, source)) {
-		return false;
-	}
 
-	if(!can_attack_internal(state, source, target)) {
+	if(!can_declare_war_cheap_target_checks(state, source, target)) {
 		return false;
 	}
-	if(!can_attack_expensive_checks(state, source, target)) {
+	if(!can_declare_war_expensive_target_checks<Actor>(state, source, target)) {
 		return false;
 	}
 	if(overlord) {
-		if(!can_attack_internal(state, source, overlord)) {
+		if(!can_declare_war_cheap_target_checks(state, source, overlord)) {
 			return false;
 		}
-		if(!can_attack_expensive_checks(state, source, overlord)) {
+		if(!can_declare_war_expensive_target_checks<Actor>(state, source, overlord)) {
 			return false;
 		}
 	}
 
 	// anti player bias
-	if(state.world.nation_get_is_player_controlled(source) && state.world.nation_get_diplomatic_points(source) < state.defines.declarewar_diplomatic_cost)
-		return false;
+	if constexpr(Actor == command::actor::player) {
+		if(state.world.nation_get_diplomatic_points(source) < state.defines.declarewar_diplomatic_cost) {
+			return false;
+		}
+	 }
 
 	// have to check only against target
 	if(!military::can_use_cb_against(state, source, target))
@@ -11021,5 +11071,106 @@ bool can_attack(sys::state& state, dcon::nation_id source, dcon::nation_id targe
 
 	return true;
 }
+
+template bool can_declare_war_target_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id target);
+template bool can_declare_war_target_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id target);
+
+
+bool can_declare_war_cb_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb,
+		dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation) {
+	// check CB validity
+	return military::cb_instance_conditions_satisfied(state, source, target, primary_cb, cb_state, cb_tag, cb_secondary_nation);
+}
+template<command::actor Actor>
+void declare_war(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb,
+		dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation, bool call_attacker_allies, bool run_conference) {
+	auto& current_diplo = state.world.nation_get_diplomatic_points(source);
+	state.world.nation_set_diplomatic_points(source, std::max(current_diplo - state.defines.declarewar_diplomatic_cost, 0.0f));
+	nations::adjust_relationship(state, source, target, state.defines.declarewar_relation_on_accept);
+
+	dcon::nation_id real_target = target;
+
+	auto target_ol_rel = state.world.nation_get_overlord_as_subject(target);
+	if(state.world.overlord_get_ruler(target_ol_rel) && state.world.overlord_get_ruler(target_ol_rel) != source)
+		real_target = state.world.overlord_get_ruler(target_ol_rel);
+
+	// Infamy, militancy and prestige loss for truce break
+	if(military::has_truce_with(state, source, real_target)) {
+		auto cb_infamy = military::truce_break_cb_infamy(state, primary_cb, target);
+		auto cb_militancy = military::truce_break_cb_militancy(state, primary_cb);
+		auto cb_prestige_loss = military::truce_break_cb_prestige_cost(state, primary_cb);
+
+		auto& current_infamy = state.world.nation_get_infamy(source);
+		state.world.nation_set_infamy(source, current_infamy + cb_infamy);
+		nations::adjust_prestige(state, source, cb_prestige_loss);
+
+		for(auto prov : state.world.nation_get_province_ownership(source)) {
+			for(auto pop : prov.get_province().get_pop_location()) {
+				auto mil = pop_demographics::get_militancy(state, pop.get_pop());
+				pop_demographics::set_militancy(state, pop.get_pop().id, std::min(mil + cb_militancy, 10.0f));
+			}
+		}
+	}
+	// Infamy for war declaration when applicable
+	else {
+		auto cb_infamy = military::war_declaration_infamy_cost(state, primary_cb, source, target, cb_state);
+		auto& current_infamy = state.world.nation_get_infamy(source);
+		state.world.nation_set_infamy(source, current_infamy + cb_infamy);
+	}
+
+	// remove used cb
+	auto current_cbs = state.world.nation_get_available_cbs(source);
+	for(uint32_t i = current_cbs.size(); i-- > 0;) {
+		if(current_cbs[i].cb_type == primary_cb && current_cbs[i].target == target) {
+			current_cbs.remove_at(i);
+			break;
+		}
+	}
+
+	if(run_conference && state.current_crisis_state == sys::crisis_state::inactive) {
+		nations::cleanup_crisis(state);
+
+		nations::crisis_add_wargoal(state.crisis_attacker_wargoals, sys::full_wg{
+					source,
+						target,
+						cb_secondary_nation,
+						cb_tag,
+						cb_state,
+						primary_cb
+		});
+
+		state.crisis_defender = target;
+		state.crisis_attacker = source;
+		if(state.world.nation_get_is_great_power(target)) {
+			state.primary_crisis_defender = target;
+		}
+		if(state.world.nation_get_is_great_power(source)) {
+			state.primary_crisis_attacker = source;
+		}
+
+		notification::post(state, notification::message{
+			[st = cb_state](sys::state& state, text::layout_base& contents) {
+				text::add_line(state, contents, "msg_new_crisis_1", text::variable_type::x, st);
+			},
+			"msg_new_crisis_title",
+			state.local_player_nation, dcon::nation_id{}, dcon::nation_id{},
+			sys::message_base_type::crisis_starts
+		});
+
+		state.last_crisis_end_date = state.current_date;
+		nations::crisis_state_transition(state, sys::crisis_state::finding_attacker);
+	} else {
+		auto war = military::create_war(state, source, target, primary_cb, cb_state, cb_tag, cb_secondary_nation);
+		military::call_defender_allies(state, war);
+		if(call_attacker_allies) {
+			military::call_attacker_allies(state, war);
+		}
+	}
+}
+
+template void declare_war<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation, bool call_attacker_allies, bool run_conference);
+template void declare_war<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation, bool call_attacker_allies, bool run_conference);
+
+
 
 } // namespace military

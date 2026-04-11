@@ -657,7 +657,7 @@ public:
 			disabled = !command::can_add_war_goal(state, state.local_player_nation, w, n, c, s, ni,
 					state.world.national_identity_get_nation_from_identity_holder(ni));
 		} else {
-			disabled = !command::can_declare_war(state, state.local_player_nation, n, c, s, ni,
+			disabled = !military::can_declare_war<command::actor::player>(state, state.local_player_nation, n, c, s, ni,
 					state.world.national_identity_get_nation_from_identity_holder(ni));
 		}
 	}
@@ -698,7 +698,7 @@ public:
 		dcon::national_identity_id ni = retrieve<dcon::national_identity_id>(state, parent);
 		dcon::cb_type_id c = retrieve<dcon::cb_type_id>(state, parent);
 
-		if(command::can_declare_war(state, state.local_player_nation, n, c, s, ni,
+		if(military::can_declare_war<command::actor::player>(state, state.local_player_nation, n, c, s, ni,
 			state.world.national_identity_get_nation_from_identity_holder(ni))) {
 			auto box = text::open_layout_box(contents, 0);
 			text::localised_format_box(state, contents, box, std::string_view("valid_wartarget"));

@@ -572,9 +572,7 @@ template<regiment_dmg_source damage_source>
 void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id);
 
 
-bool can_attack(sys::state& state, dcon::nation_id n);
 bool can_attack_ai(sys::state& state, dcon::nation_id source, dcon::nation_id target);
-bool can_attack(sys::state& state, dcon::nation_id source, dcon::nation_id target);
 
 template<command::actor Actor>
 bool can_change_land_unit_type(const sys::state& state, dcon::nation_id source, dcon::regiment_id regiment, dcon::unit_type_id new_type);
@@ -592,6 +590,18 @@ template<command::actor Actor>
 bool can_split_navy(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, std::span<const dcon::ship_id> ships_to_split);
 template<command::actor Actor>
 void split_navy(sys::state& state, dcon::nation_id source, dcon::navy_id navy, std::span<const dcon::ship_id> ships_to_split, fixed_bool_t select_both_navies = false);
+
+
+template<command::actor Actor>
+bool can_declare_war(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation);
+template<command::actor Actor>
+bool can_declare_war_nation_checks(const sys::state& state, dcon::nation_id source);
+template<command::actor Actor>
+bool can_declare_war_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target);
+bool can_declare_war_cb_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation);
+template<command::actor Actor>
+void declare_war(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation, bool call_attacker_allies, bool run_conference);
+
 
 
 } // namespace military
