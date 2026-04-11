@@ -104,7 +104,7 @@ public:
 		row_contents.clear();
 		dcon::nation_id content = retrieve<dcon::nation_id>(state, parent);
 		state.world.for_each_cb_type([&](dcon::cb_type_id cb) {
-			if(command::can_fabricate_cb(state, state.local_player_nation, content, cb))
+			if(nations::can_fabricate_cb<command::actor::player>(state, state.local_player_nation, content, cb))
 				row_contents.push_back(cb);
 		});
 		update(state);
@@ -131,7 +131,7 @@ public:
 		auto content = retrieve<dcon::cb_type_id>(state, parent);
 		auto target_nation = retrieve<dcon::nation_id>(state, parent);
 		auto target_state = retrieve<dcon::state_definition_id>(state, parent);
-		disabled = !command::can_fabricate_cb(state, state.local_player_nation, target_nation, content, target_state);
+		disabled = !nations::can_fabricate_cb<command::actor::player>(state, state.local_player_nation, target_nation, content, target_state);
 	}
 };
 

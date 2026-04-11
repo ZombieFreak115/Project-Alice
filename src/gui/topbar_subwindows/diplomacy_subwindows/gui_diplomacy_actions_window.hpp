@@ -1293,7 +1293,7 @@ class diplomacy_action_justify_war_button : public diplomacy_action_btn_logic {
 	bool has_any_justifiable_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target) noexcept {
 		auto res = false;
 		state.world.for_each_cb_type([&](dcon::cb_type_id cb) {
-			if(command::can_fabricate_cb(state, source, target, cb))
+			if(nations::can_fabricate_cb<command::actor::player>(state, source, target, cb))
 				res = true;
 		});
 

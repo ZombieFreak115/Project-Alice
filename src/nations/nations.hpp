@@ -334,4 +334,20 @@ void run_gc(sys::state& state);
 float control_shift_weight_mult(sys::state& state, dcon::province_adjacency_id adj);
 float desire_score_province(sys::state& state, dcon::province_id pid);
 
+// fabricate_cb functions
+
+template<command::actor Actor>
+bool can_fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state = dcon::state_definition_id{ });
+template<command::actor Actor>
+bool can_fabricate_cb_source_checks(sys::state& state, dcon::nation_id source);
+template<command::actor Actor>
+bool can_fabricate_cb_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target);
+template<command::actor Actor>
+bool can_fabricate_cb_cb_type_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type);
+template<command::actor Actor>
+bool can_fabricate_cb_cb_state_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state);
+template<command::actor Actor>
+bool can_fabricate_cb_global_checks(sys::state& state);
+void fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state = dcon::state_definition_id{});
+
 } // namespace nations

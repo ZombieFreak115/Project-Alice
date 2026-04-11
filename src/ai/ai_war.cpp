@@ -755,7 +755,7 @@ void prepare_list_of_targets_for_cb(
 							continue;
 						}
 
-						assert(military::cb_conditions_satisfied(state, attacker, target, cb));
+						//assert(military::cb_conditions_satisfied(state, attacker, target, cb));
 
 						auto duplicated = military::war_goal_would_be_duplicate(
 							state,
@@ -782,7 +782,7 @@ void prepare_list_of_targets_for_cb(
 						});
 					}
 				} else {
-					assert(military::cb_conditions_satisfied(state, attacker, target, cb));
+					//assert(military::cb_conditions_satisfied(state, attacker, target, cb));
 
 					auto expectation = utility_of_states_trigger(state, target, liberated, state_instance_trigger)
 						* multiplier
@@ -835,7 +835,7 @@ void prepare_list_of_targets_for_cb(
 							continue;
 						}
 
-						assert(military::cb_conditions_satisfied(state, attacker, target, cb));
+						//assert(military::cb_conditions_satisfied(state, attacker, target, cb));
 
 						auto duplicated = military::war_goal_would_be_duplicate(
 							state,
@@ -862,7 +862,7 @@ void prepare_list_of_targets_for_cb(
 						});
 					}
 				} else {
-					assert(military::cb_conditions_satisfied(state, attacker, target, cb));
+					//assert(military::cb_conditions_satisfied(state, attacker, target, cb));
 
 					auto expectation = utility_of_states_trigger(state, target, liberated, state_instance_trigger)
 						* multiplier
@@ -1315,19 +1315,17 @@ void update_war_intervention(sys::state& state) {
 
 
 void sort_possible_justification_cbs(std::vector<possible_cb>& result, sys::state& state, dcon::nation_id n, dcon::nation_id target) {
-	result.clear();
 
-	// AI can go after po_demand_state and po_annex and po_transfer_provinces
+	// AI will go after po_demand_state and po_annex and po_transfer_provinces
 	for(auto cb : state.world.in_cb_type) {
 		auto bits = state.world.cb_type_get_type_bits(cb);
 		if((bits & (military::cb_flag::po_demand_state | military::cb_flag::po_annex | military::cb_flag::po_transfer_provinces)) == 0)
 			continue;
 
-		if(!military::cb_conditions_satisfied(state, n, target, cb))
+		// Can we use this cb type?
+		if(!nations::can_fabricate_cb_cb_type_checks<command::actor::ai>(state, n, target, cb)) {
 			continue;
-		auto sl = state.world.nation_get_in_sphere_of(target);
-		if(sl == n)
-			continue;
+		}
 
 		prepare_list_of_targets_for_cb(state, result, n, target, cb, dcon::war_id{ });
 	}
@@ -1338,6 +1336,7 @@ void sort_possible_justification_cbs(std::vector<possible_cb>& result, sys::stat
 
 possible_cb pick_fabrication_type(sys::state& state, dcon::nation_id from, dcon::nation_id target) {
 	static std::vector<possible_cb> possibilities;
+	possibilities.clear();
 
 	sort_possible_justification_cbs(possibilities, state, from, target);
 	// Uncivilized nations are more aggressive to westernize faster
@@ -1409,44 +1408,49 @@ bool valid_construction_target(sys::state& state, dcon::nation_id from, dcon::na
 }
 
 void update_cb_fabrication(sys::state& state) {
+	// Check if any nation can justify
+	if(!nations::can_fabricate_cb_global_checks<command::actor::ai>(state)) {
+		return;
+	}
 	for(auto nid : state.nations_by_rank) {
 		if(!nid) {
 			break;
 		}
 		auto n = dcon::fatten(state.world, nid);
 
-		if(!n.get_is_player_controlled() && n.get_owned_province_count() > 0) {
+		if(!n.get_is_player_controlled()) {
+			// Can we even justfy any cbs?
+			if(!nations::can_fabricate_cb_source_checks<command::actor::ai>(state, n)) {
+				continue;
+			}
+			// Do we want to justify?
 			if(n.get_is_at_war())
 				continue;
 			// Uncivilized nations are more aggressive to westernize faster
 			float infamy_limit = state.world.nation_get_is_civilized(n) ? state.defines.badboy_limit / 2.f : state.defines.badboy_limit;
 			if(n.get_infamy() > infamy_limit)
 				continue;
-			if(n.get_constructing_cb_type())
-				continue;
 			auto ol = n.get_overlord_as_subject().get_ruler().id;
-			if(n.get_ai_rival()
-				&& n.get_ai_rival().get_in_sphere_of() != n
-				&& (!ol || ol == n.get_ai_rival())
-				&& !military::are_at_war(state, n, n.get_ai_rival())
-				&& !military::can_use_cb_against(state, n, n.get_ai_rival())
-				&& !military::has_truce_with(state, n, n.get_ai_rival())) {
-
+			// Can we justify on the target?
+			if(n.get_ai_rival() && nations::can_fabricate_cb_target_checks<command::actor::ai>(state, n, n.get_ai_rival())) {
+				// This call will return a cb which we are allowed and want to justify, or none
 				auto cb = pick_fabrication_type(state, n, n.get_ai_rival());
-				if(cb.cb) {
+				// Can we use the cb on this specific state?
+				if(cb.cb && nations::can_fabricate_cb_cb_state_checks<command::actor::ai>(state, n, n.get_ai_rival(), cb.cb, cb.state_def)) {
 					n.set_constructing_cb_target(n.get_ai_rival());
 					n.set_constructing_cb_type(cb.cb);
 					n.set_constructing_cb_target_state(cb.state_def);
 					continue;
 				}
+				
 			}
 
 			static std::vector<std::pair<dcon::nation_id, float>> possible_targets;
 			possible_targets.clear();
 			float total_weight = 0.f;
 			for(auto i : state.world.in_nation) {
-				if(valid_construction_target(state, n, i)
-				&& !military::has_truce_with(state, n, i)) {
+				// Can we justify on the target?
+				if(nations::can_fabricate_cb_target_checks<command::actor::ai>(state, n, i)) {
 					auto weight = 1.f / (province::direct_distance(
 						state,
 						state.world.nation_get_capital(n),
@@ -1488,10 +1492,11 @@ void update_cb_fabrication(sys::state& state) {
 					}
 				}
 				if(target) {
-					if(auto pcb = pick_fabrication_type(state, n, target); pcb.cb) {
-						n.set_constructing_cb_target(target);
-						n.set_constructing_cb_type(pcb.cb);
-						n.set_constructing_cb_target_state(pcb.state_def);
+					// already checked the if the target is allowed earlier, so just need to check CBs
+					auto possible_cb = pick_fabrication_type(state, n, target);
+					if(possible_cb.cb && nations::can_fabricate_cb_cb_state_checks<command::actor::ai>(state, n, target, possible_cb.cb, possible_cb.state_def)) {
+						assert(nations::can_fabricate_cb<command::actor::ai>(state, n, target, possible_cb.cb, possible_cb.state_def));
+						nations::fabricate_cb(state, n, target, possible_cb.cb, possible_cb.state_def);
 						continue;
 					}
 				}

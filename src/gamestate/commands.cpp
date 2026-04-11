@@ -2433,112 +2433,14 @@ void fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id tar
 	add_to_command_queue(state, p);
 }
 
-bool valid_target_state_for_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state)
-{
-	auto actor = state.local_player_nation;
-	dcon::cb_type_id cb = type;
-	auto war = military::find_war_between(state, actor, target);
-	auto allowed_substate_regions = state.world.cb_type_get_allowed_substate_regions(cb);
-	if(allowed_substate_regions) {
-		for(auto v : state.world.nation_get_overlord_as_ruler(target)) {
-			if(v.get_subject().get_is_substate()) {
-				for(auto si : state.world.nation_get_state_ownership(target)) {
-					if(trigger::evaluate(state, allowed_substate_regions, trigger::to_generic(si.get_state().id), trigger::to_generic(actor), trigger::to_generic(actor))) {
-						auto def = si.get_state().get_definition().id;
-						if(!military::war_goal_would_be_duplicate(state, state.local_player_nation, war, v.get_subject(), cb, def, dcon::national_identity_id{}, dcon::nation_id{})) {
-							return true;
-						}
-					}
-				}
-			}
-		}
-	} else {
-		auto allowed_states = state.world.cb_type_get_allowed_states(cb);
-		if(auto ac = state.world.cb_type_get_allowed_countries(cb); ac) {
-			auto in_nation = target;
-			auto target_identity = state.world.nation_get_identity_from_identity_holder(target);
-			for(auto si : state.world.nation_get_state_ownership(target)) {
-				if(trigger::evaluate(state, allowed_states, trigger::to_generic(si.get_state().id), trigger::to_generic(actor), trigger::to_generic(in_nation))) {
-					auto def = si.get_state().get_definition().id;
-					if(!military::war_goal_would_be_duplicate(state, state.local_player_nation, war, target, cb, def, target_identity, dcon::nation_id{})) {
-						return true;
-					}
-				}
-			}
-		} else {
-			for(auto si : state.world.nation_get_state_ownership(target)) {
-				if(trigger::evaluate(state, allowed_states, trigger::to_generic(si.get_state().id), trigger::to_generic(actor), trigger::to_generic(actor))) {
-					auto def = si.get_state().get_definition().id;
-					if(!military::war_goal_would_be_duplicate(state, state.local_player_nation, war, target, cb, def, dcon::national_identity_id{}, dcon::nation_id{})) {
-						return true;
-					}
-				}
-			}
-		}
-	}
-
-	return false;
-}
-bool can_fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state) {
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	if(source == target)
-		return false;
-
-	if(!type) {
-		return false;
-	}
-
-	if(state.world.nation_get_constructing_cb_type(source))
-		return false;
-
-	/*
-	Can't fabricate on someone you are at war with. Requires
-	defines:MAKE_CB_DIPLOMATIC_COST diplomatic points. Can't fabricate on your sphere members
-	*/
-
-	// Allow subjects to declare wars if can_use of CB definition allows for that as per Vanilla logic.
-	auto ol = state.world.nation_get_overlord_as_subject(source);
-	if(state.defines.alice_allow_subjects_declare_wars < 1 && state.world.overlord_get_ruler(ol) && state.world.overlord_get_ruler(ol) != target)
-		return false;
-
-	if(state.world.nation_get_in_sphere_of(target) == source)
-		return false;
-
-	if(state.world.nation_get_is_player_controlled(source) && state.world.nation_get_diplomatic_points(source) < state.defines.make_cb_diplomatic_cost)
-		return false;
-
-	if(military::are_at_war(state, target, source))
-		return false;
-
-	if(military::has_truce_with(state, source, target))
-		return false;
-
-	/*
-	must be able to fabricate cb
-	*/
-
-	auto bits = state.world.cb_type_get_type_bits(type);
-	if((bits & (military::cb_flag::always | military::cb_flag::is_not_constructing_cb)) != 0)
-		return false;
-
-	if(!military::cb_conditions_satisfied(state, source, target, type))
-		return false;
-
-	if(military::cb_requires_selection_of_a_state(state, type) && target_state && !valid_target_state_for_cb(state, source, target, type, target_state)) {
-		return false;
-	}
-
-	return true;
+bool can_fabricate_cb(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::cb_fabrication_data>();
+	return nations::can_fabricate_cb<command::actor::player>(state, source, data.target, data.type, data.target_state);
 }
 
-void execute_fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state = dcon::state_definition_id{}) {
-	state.world.nation_set_constructing_cb_target(source, target);
-	state.world.nation_set_constructing_cb_type(source, type);
-	state.world.nation_set_constructing_cb_target_state(source, target_state);
-	auto& current_diplo = state.world.nation_get_diplomatic_points(source);
-	state.world.nation_set_diplomatic_points(source, current_diplo - state.defines.make_cb_diplomatic_cost);
+void execute_fabricate_cb(sys::state& state, dcon::nation_id source, command_data& command) {
+	auto& data = command.get_payload<cb_fabrication_data>();
+	nations::fabricate_cb(state, source, data.target, data.type, data.target_state);
 }
 
 bool can_cancel_cb_fabrication(sys::state& state, dcon::nation_id source) {
@@ -6171,14 +6073,17 @@ void execute_load_save_game(sys::state& state, std::string_view filename, bool i
 		}
 	}();
 	if(loaded_save) {
-		// Set player nation to rebel nation instead of invalid nation. Makes things abit smoother later
-		if(!state.local_player_nation) {
-			state.set_local_player_nation(state.world.national_identity_get_nation_from_identity_holder( state.national_definitions.rebel_id));
-		}
 		network::set_no_ai_nations_after_reload(state, no_ai_nations);
+		// in singleplayer, set the player to the local_player_nation from the savefile. If the local_player_nation is invalid, then set it to the rebel nation (observer)
 		if(state.network_mode == sys::network_mode_type::single_player) {
+			// Set player nation to rebel nation instead of invalid nation. Makes things abit smoother later
+			if(!state.local_player_nation) {
+				state.set_local_player_nation(state.world.national_identity_get_nation_from_identity_holder(state.national_definitions.rebel_id));
+			}
+
 			nations::switch_all_players(state, state.local_player_nation, old_local_player_nation);
 		}
+		// In MP, keep the same nation as before
 		else if(state.network_mode == sys::network_mode_type::host) {
 			state.set_local_player_nation(old_local_player_nation);
 		}
@@ -6527,8 +6432,7 @@ bool can_perform_command(sys::state& state, command_data& c) {
 
 	case command_type::fabricate_cb:
 	{
-		auto& data = c.get_payload<command::cb_fabrication_data>();
-		return can_fabricate_cb(state, source, data.target, data.type);
+		return can_fabricate_cb(state, source, c);
 	}
 
 	case command_type::ask_for_military_access:
@@ -7292,8 +7196,7 @@ void execute_command(sys::state& state, command_data& c) {
 	}
 	case command_type::fabricate_cb:
 	{
-		auto& data = c.get_payload<cb_fabrication_data>();
-		execute_fabricate_cb(state, source_nation, data.target, data.type, data.target_state);
+		execute_fabricate_cb(state, source_nation, c);
 		break;
 	}
 	case command_type::ask_for_military_access:

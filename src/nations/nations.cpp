@@ -4347,4 +4347,171 @@ void enact_issue(sys::state& state, dcon::nation_id source, dcon::issue_option_i
 	state.world.nation_set_last_issue_or_reform_change(source, state.current_date);
 }
 
+bool valid_target_state_for_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state) {
+	auto actor = source;
+	dcon::cb_type_id cb = type;
+	auto war = military::find_war_between(state, actor, target);
+	auto allowed_substate_regions = state.world.cb_type_get_allowed_substate_regions(cb);
+	if(allowed_substate_regions) {
+		for(auto v : state.world.nation_get_overlord_as_ruler(target)) {
+			if(v.get_subject().get_is_substate()) {
+				for(auto si : state.world.nation_get_state_ownership(target)) {
+					if(trigger::evaluate(state, allowed_substate_regions, trigger::to_generic(si.get_state().id), trigger::to_generic(actor), trigger::to_generic(actor))) {
+						auto def = si.get_state().get_definition().id;
+						if(!military::war_goal_would_be_duplicate(state, state.local_player_nation, war, v.get_subject(), cb, def, dcon::national_identity_id{}, dcon::nation_id{})) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+	} else {
+		auto allowed_states = state.world.cb_type_get_allowed_states(cb);
+		if(auto ac = state.world.cb_type_get_allowed_countries(cb); ac) {
+			auto in_nation = target;
+			auto target_identity = state.world.nation_get_identity_from_identity_holder(target);
+			for(auto si : state.world.nation_get_state_ownership(target)) {
+				if(trigger::evaluate(state, allowed_states, trigger::to_generic(si.get_state().id), trigger::to_generic(actor), trigger::to_generic(in_nation))) {
+					auto def = si.get_state().get_definition().id;
+					if(!military::war_goal_would_be_duplicate(state, state.local_player_nation, war, target, cb, def, target_identity, dcon::nation_id{})) {
+						return true;
+					}
+				}
+			}
+		} else {
+			for(auto si : state.world.nation_get_state_ownership(target)) {
+				if(trigger::evaluate(state, allowed_states, trigger::to_generic(si.get_state().id), trigger::to_generic(actor), trigger::to_generic(actor))) {
+					auto def = si.get_state().get_definition().id;
+					if(!military::war_goal_would_be_duplicate(state, state.local_player_nation, war, target, cb, def, dcon::national_identity_id{}, dcon::nation_id{})) {
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+
+
+template<command::actor Actor>
+bool can_fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state) {
+	if(!can_fabricate_cb_global_checks<Actor>(state)) {
+		return false;
+	}
+
+	if(!can_fabricate_cb_source_checks<Actor>(state, source)) {
+		return false;
+	}
+	if(!can_fabricate_cb_target_checks<Actor>(state, source, target)) {
+		return false;
+	}
+	if(!can_fabricate_cb_cb_type_checks<Actor>(state, source, target, type)) {
+		return false;
+	}
+	if(!can_fabricate_cb_cb_state_checks<Actor>(state, source, target, type, target_state)) {
+		return false;
+	}
+
+
+	return true;
+}
+
+template<command::actor Actor>
+bool can_fabricate_cb_source_checks(sys::state& state, dcon::nation_id source) {
+	if constexpr(Actor == command::actor::player) {
+		if(state.world.nation_get_diplomatic_points(source) < state.defines.make_cb_diplomatic_cost)
+			return false;
+	}
+	if(state.world.nation_get_owned_province_count(source) == 0) {
+		return false;
+	}
+	if(state.world.nation_get_constructing_cb_type(source))
+		return false;
+
+	return true;
+}
+
+template<command::actor Actor>
+bool can_fabricate_cb_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target) {
+	if(state.world.nation_get_owned_province_count(target) == 0) {
+		return false;
+	}
+	if(source == target)
+		return false;
+
+	if(military::are_at_war(state, target, source))
+		return false;
+
+	if(military::has_truce_with(state, source, target))
+		return false;
+
+	/*
+	Can't fabricate on someone you are at war with. Requires
+	defines:MAKE_CB_DIPLOMATIC_COST diplomatic points. Can't fabricate on your sphere members
+	*/
+
+	// Allow subjects to declare wars if can_use of CB definition allows for that as per Vanilla logic.
+	auto ol = state.world.nation_get_overlord_as_subject(source);
+	if(state.defines.alice_allow_subjects_declare_wars < 1 && state.world.overlord_get_ruler(ol) && state.world.overlord_get_ruler(ol) != target)
+		return false;
+
+	if(state.world.nation_get_in_sphere_of(target) == source)
+		return false;
+
+	return true;
+
+}
+
+template<command::actor Actor>
+bool can_fabricate_cb_cb_type_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type) {
+	if(!type) {
+		return false;
+	}
+	/*
+	must be able to fabricate cb
+	*/
+
+	auto bits = state.world.cb_type_get_type_bits(type);
+	if((bits & (military::cb_flag::always | military::cb_flag::is_not_constructing_cb)) != 0)
+		return false;
+
+	if(!military::cb_conditions_satisfied(state, source, target, type))
+		return false;
+	return true;
+
+}
+
+template<command::actor Actor>
+bool can_fabricate_cb_cb_state_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state) {
+
+	if(military::cb_requires_selection_of_a_state(state, type) && target_state && !valid_target_state_for_cb(state, source, target, type, target_state)) {
+		return false;
+	}
+	return true;
+
+}
+template<command::actor Actor>
+bool can_fabricate_cb_global_checks(sys::state& state) {
+
+	if constexpr(Actor == command::actor::player) {
+		if(!state.current_scene.game_in_progress) {
+			return false;
+		}
+	}
+	return true;
+
+}
+
+
+void fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state) {
+	state.world.nation_set_constructing_cb_target(source, target);
+	state.world.nation_set_constructing_cb_type(source, type);
+	state.world.nation_set_constructing_cb_target_state(source, target_state);
+	auto& current_diplo = state.world.nation_get_diplomatic_points(source);
+	state.world.nation_set_diplomatic_points(source, std::max(current_diplo - state.defines.make_cb_diplomatic_cost, 0.0f));
+}
+
+
 } // namespace nations
