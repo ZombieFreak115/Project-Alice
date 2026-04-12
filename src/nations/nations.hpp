@@ -150,6 +150,7 @@ inline bool is_influence_level_greater_or_equal(int32_t l, int32_t r) {
 }
 int32_t get_level(sys::state& state, dcon::nation_id gp, dcon::nation_id target);
 
+
 } // namespace influence
 
 std::vector<dcon::nation_id> nation_get_subjects(sys::state& state, dcon::nation_id n);
@@ -349,5 +350,19 @@ bool can_fabricate_cb_cb_state_checks(sys::state& state, dcon::nation_id source,
 template<command::actor Actor>
 bool can_fabricate_cb_global_checks(sys::state& state);
 void fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state = dcon::state_definition_id{});
+
+// change_influence_priority functions
+
+template<command::actor Actor>
+bool can_change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+template<command::actor Actor>
+bool can_change_influence_priority_global_checks(sys::state& state);
+template<command::actor Actor>
+bool can_change_influence_priority_source_checks(sys::state& state, dcon::nation_id source);
+template<command::actor Actor>
+bool can_change_influence_priority_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+void change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, uint8_t priority);
+template<uint8_t priority>
+void change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
 
 } // namespace nations

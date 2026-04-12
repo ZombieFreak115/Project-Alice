@@ -4514,4 +4514,97 @@ void fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id tar
 }
 
 
+template<command::actor Actor>
+bool can_change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
+	if(!can_change_influence_priority_global_checks<Actor>(state)) {
+		return false;
+	}
+	if(!can_change_influence_priority_source_checks<Actor>(state, source)) {
+		return false;
+	}
+	if(!can_change_influence_priority_target_checks<Actor>(state, source, influence_target)) {
+		return false;
+	}
+	return true;
+}
+
+template<command::actor Actor>
+bool can_change_influence_priority_global_checks(sys::state& state) {
+	if constexpr(Actor == command::actor::player) {
+		if(!state.current_scene.game_in_progress) {
+			return false;
+		}
+	}
+	return true;
+}
+template<command::actor Actor>
+bool can_change_influence_priority_source_checks(sys::state& state, dcon::nation_id source) {
+	// Source nation must exist
+	if(state.world.nation_get_owned_province_count(source) == 0) {
+		return false;
+	}
+	// The source must be a great power. If its ai we skip this check as we iterate over great nations directly, so this check is not needed.
+	if constexpr(Actor == command::actor::player) {
+		return state.world.nation_get_is_great_power(source);
+	}
+	else {
+		return true;
+	}
+}
+template<command::actor Actor>
+bool can_change_influence_priority_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
+	// the target must not be a great power.
+	if(state.world.nation_get_is_great_power(influence_target)) {
+		return false;
+	}
+	// must exist
+	if(state.world.nation_get_owned_province_count(influence_target) == 0) {
+		return false;
+	}
+	return true;
+}
+
+template<uint8_t priority>
+void change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
+
+	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
+	if(!rel) {
+		rel = state.world.force_create_gp_relationship(influence_target, source);
+	}
+	auto flags = state.world.gp_relationship_get_status(rel);
+	if constexpr(priority == 0) {
+		state.world.gp_relationship_set_status(rel, uint8_t((flags & ~nations::influence::priority_mask) | nations::influence::priority_zero));
+	} else if constexpr(priority == 1) {
+		state.world.gp_relationship_set_status(rel, uint8_t((flags & ~nations::influence::priority_mask) | nations::influence::priority_one));
+	} else if constexpr(priority == 2) {
+		state.world.gp_relationship_set_status(rel, uint8_t((flags & ~nations::influence::priority_mask) | nations::influence::priority_two));
+	} else if constexpr(priority == 3) {
+		state.world.gp_relationship_set_status(rel, uint8_t((flags & ~nations::influence::priority_mask) | nations::influence::priority_three));
+	}
+
+}
+
+void change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, uint8_t priority) {
+
+	switch(priority) {
+	case 0:
+		change_influence_priority<0>(state, source, influence_target);
+		break;
+	case 1:
+		change_influence_priority<1>(state, source, influence_target);
+		break;
+	case 2:
+		change_influence_priority<2>(state, source, influence_target);
+		break;
+	case 3:
+		change_influence_priority<3>(state, source, influence_target);
+		break;
+	default:
+		break;
+	}
+}
+
+
+
+
 } // namespace nations

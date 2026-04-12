@@ -652,19 +652,19 @@ public:
 		switch(rel_flags & nations::influence::priority_mask) {
 		case nations::influence::priority_zero:
 			frame = 0;
-			disabled = !command::can_change_influence_priority(state, state.local_player_nation, nation_id, 1);
+			disabled = !nations::can_change_influence_priority<command::actor::player>(state, state.local_player_nation, nation_id);
 			break;
 		case nations::influence::priority_one:
 			frame = 1;
-			disabled = !command::can_change_influence_priority(state, state.local_player_nation, nation_id, 2);
+			disabled = !nations::can_change_influence_priority<command::actor::player>(state, state.local_player_nation, nation_id);
 			break;
 		case nations::influence::priority_two:
 			frame = 2;
-			disabled = !command::can_change_influence_priority(state, state.local_player_nation, nation_id, 3);
+			disabled = !nations::can_change_influence_priority<command::actor::player>(state, state.local_player_nation, nation_id);
 			break;
 		case nations::influence::priority_three:
 			frame = 3;
-			disabled = !command::can_change_influence_priority(state, state.local_player_nation, nation_id, 0);
+			disabled = !nations::can_change_influence_priority<command::actor::player>(state, state.local_player_nation, nation_id);
 			break;
 		default:
 			break;

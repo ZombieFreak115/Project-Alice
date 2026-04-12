@@ -11,16 +11,23 @@ void update_influence_priorities(sys::state& state) {
 		dcon::nation_id id;
 		float weight = 0.0f;
 	};
-	static std::vector<weighted_nation> targets;
+	if(!nations::can_change_influence_priority_global_checks<command::actor::ai>(state)) {
+		return;
+	}
 
 	for(auto gprl : state.world.in_gp_relationship) {
 		if(gprl.get_great_power().get_is_player_controlled()) {
 			// nothing -- player GP
 		} else {
-			auto& status = gprl.get_status();
-			gprl.set_status(uint8_t(status & ~nations::influence::priority_mask));
-			if((status & nations::influence::level_mask) == nations::influence::level_in_sphere) {
-				gprl.set_status(uint8_t(status | nations::influence::priority_one));
+			// If we are allowed to, set all influence priorities to 0, except for spherelings which is set to 1
+			if(nations::can_change_influence_priority_source_checks<command::actor::ai>(state, gprl.get_great_power()) && nations::can_change_influence_priority_target_checks<command::actor::ai>(state, gprl.get_great_power(), gprl.get_influence_target())) {
+				auto status = gprl.get_status();
+				if((status & nations::influence::level_mask) == nations::influence::level_in_sphere) {
+					nations::change_influence_priority<1>(state, gprl.get_great_power(), gprl.get_influence_target());
+				}
+				else {
+					nations::change_influence_priority<0>(state, gprl.get_great_power(), gprl.get_influence_target());
+				}
 			}
 		}
 	}
@@ -28,13 +35,18 @@ void update_influence_priorities(sys::state& state) {
 	for(auto& n : state.great_nations) {
 		if(state.world.nation_get_is_player_controlled(n.nation))
 			continue;
-
+		// Can this nation influence anyone?
+		if(!nations::can_change_influence_priority_source_checks<command::actor::ai>(state, n.nation)) {
+			continue;
+		}
+		static std::vector<weighted_nation> targets;
 		targets.clear();
 		for(auto t : state.world.in_nation) {
-			if(t.get_is_great_power())
+			// Can we influence this nation?
+			if(!nations::can_change_influence_priority_target_checks<command::actor::ai>(state, n.nation, t)) {
 				continue;
-			if(t.get_owned_province_count() == 0)
-				continue;
+			}
+			// Would we like to influence this nation?
 			if(t.get_in_sphere_of() == n.nation)
 				continue;
 			if(t.get_demographics(demographics::total) > state.defines.large_population_limit)
@@ -132,25 +144,13 @@ void update_influence_priorities(sys::state& state) {
 
 		uint32_t i = 0;
 		for(; i < 2 && i < targets.size(); ++i) {
-			auto rel = state.world.get_gp_relationship_by_gp_influence_pair(targets[i].id, n.nation);
-			if(!rel)
-				rel = state.world.force_create_gp_relationship(targets[i].id, n.nation);
-			auto& cur_status = state.world.gp_relationship_get_status(rel);
-			state.world.gp_relationship_set_status(rel, uint8_t(cur_status | nations::influence::priority_three));
+			nations::change_influence_priority<3>(state, n.nation, targets[i].id);
 		}
 		for(; i < 4 && i < targets.size(); ++i) {
-			auto rel = state.world.get_gp_relationship_by_gp_influence_pair(targets[i].id, n.nation);
-			if(!rel)
-				rel = state.world.force_create_gp_relationship(targets[i].id, n.nation);
-			auto& cur_status = state.world.gp_relationship_get_status(rel);
-			state.world.gp_relationship_set_status(rel, uint8_t(cur_status | nations::influence::priority_two));
+			nations::change_influence_priority<2>(state, n.nation, targets[i].id);
 		}
 		for(; i < 6 && i < targets.size(); ++i) {
-			auto rel = state.world.get_gp_relationship_by_gp_influence_pair(targets[i].id, n.nation);
-			if(!rel)
-				rel = state.world.force_create_gp_relationship(targets[i].id, n.nation);
-			auto& cur_status = state.world.gp_relationship_get_status(rel);
-			state.world.gp_relationship_set_status(rel, uint8_t(cur_status | nations::influence::priority_one));
+			nations::change_influence_priority<1>(state, n.nation, targets[i].id);
 		}
 	}
 }

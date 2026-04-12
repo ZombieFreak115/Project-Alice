@@ -1220,35 +1220,14 @@ void change_influence_priority(sys::state& state, dcon::nation_id source, dcon::
 	add_to_command_queue(state, p);
 
 }
-bool can_change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, uint8_t priority) {
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	// The source must be a great power, while the target must not be a great power.
-	return state.world.nation_get_is_great_power(source) && !state.world.nation_get_is_great_power(influence_target);
+bool can_change_influence_priority(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::influence_priority_data>();
+	return nations::can_change_influence_priority<command::actor::player>(state, source, data.influence_target);
 }
-void execute_change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, uint8_t priority) {
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	if(!rel) {
-		rel = state.world.force_create_gp_relationship(influence_target, source);
-	}
-	auto& flags = state.world.gp_relationship_get_status(rel);
-	switch(priority) {
-	case 0:
-		state.world.gp_relationship_set_status(rel, uint8_t((flags & ~nations::influence::priority_mask) | nations::influence::priority_zero));
-		break;
-	case 1:
-		state.world.gp_relationship_set_status(rel, uint8_t((flags & ~nations::influence::priority_mask) | nations::influence::priority_one));
-		break;
-	case 2:
-		state.world.gp_relationship_set_status(rel, uint8_t((flags & ~nations::influence::priority_mask) | nations::influence::priority_two));
-		break;
-	case 3:
-		state.world.gp_relationship_set_status(rel, uint8_t((flags & ~nations::influence::priority_mask) | nations::influence::priority_three));
-		break;
-	default:
-		break;
-	}
+void execute_change_influence_priority(sys::state& state, dcon::nation_id source, command_data& command) {
+
+	const auto& data = command.get_payload<influence_priority_data>();
+	nations::change_influence_priority(state, source, data.influence_target, data.priority);
 }
 
 void discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
@@ -6274,9 +6253,7 @@ bool can_perform_command(sys::state& state, command_data& c) {
 
 	case command_type::change_influence_priority:
 	{
-		auto& data = c.get_payload<command::influence_priority_data>();
-		return can_change_influence_priority(state, source, data.influence_target,
-				data.priority);
+		return can_change_influence_priority(state, source, c);
 	}
 
 	case command_type::expel_advisors:
@@ -7035,9 +7012,7 @@ void execute_command(sys::state& state, command_data& c) {
 	}
 	case command_type::change_influence_priority:
 	{
-		auto& data = c.get_payload<influence_priority_data>();
-		execute_change_influence_priority(state, source_nation, data.influence_target,
-				data.priority);
+		execute_change_influence_priority(state, source_nation, c);
 		break;
 	}
 	case command_type::expel_advisors:
