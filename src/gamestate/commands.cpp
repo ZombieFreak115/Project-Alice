@@ -1238,76 +1238,13 @@ void discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nation_
 	add_to_command_queue(state, p);
 
 }
-bool can_discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
-	/*
-	The source must be a great power. The source must have define:DISCREDIT_INFLUENCE_COST influence points. The source may not be
-	currently banned with the direct target or currently on the opposite side of a war involving them. Only a great power can be a
-	secondary target for this action. To discredit a nation, you must have an opinion of at least "opposed" with the influenced
-	nation and you must have a an equal or better opinion level with the influenced nation than the nation you are discrediting
-	does.
-	*/
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	if(!state.world.nation_get_is_great_power(source) || !state.world.nation_get_is_great_power(affected_gp) ||
-			state.world.nation_get_is_great_power(influence_target))
-		return false;
-
-	if(source == affected_gp)
-		return false;
-
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	if(!rel)
-		return false;
-
-	if(state.world.gp_relationship_get_influence(rel) < state.defines.discredit_influence_cost)
-		return false;
-
-	if((state.world.gp_relationship_get_status(rel) & nations::influence::is_banned) != 0)
-		return false;
-
-	if(military::are_at_war(state, source, influence_target))
-		return false;
-
-	auto clevel = (nations::influence::level_mask & state.world.gp_relationship_get_status(rel));
-	if(clevel == nations::influence::level_hostile)
-		return false;
-
-	auto orel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, affected_gp);
-	if((state.world.gp_relationship_get_status(orel) & nations::influence::is_banned) != 0)
-		return false;
-
-	return nations::influence::is_influence_level_greater_or_equal(clevel,
-			nations::influence::get_level(state, affected_gp, influence_target));
+bool can_discredit_advisors(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::influence_action_data>();
+	return nations::can_discredit_advisors<command::actor::player>(state, source, data.influence_target, data.gp_target);
 }
-void execute_discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
-	/*
-	A nation is discredited for define:DISCREDIT_DAYS. Being discredited twice does not add these durations together; it just
-	resets the timer from the current day. Discrediting a nation "increases" your relationship with them by
-	define:DISCREDIT_RELATION_ON_ACCEPT. Discrediting costs define:DISCREDIT_INFLUENCE_COST influence points.
-	*/
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	auto orel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, affected_gp);
-	if(!orel)
-		orel = state.world.force_create_gp_relationship(influence_target, affected_gp);
-
-	auto& current_influence = state.world.gp_relationship_get_influence(rel);
-	state.world.gp_relationship_set_influence(rel, current_influence - state.defines.discredit_influence_cost);
-
-	nations::adjust_relationship(state, source, affected_gp, state.defines.discredit_relation_on_accept);
-	auto& current_status = state.world.gp_relationship_get_status(orel);
-	state.world.gp_relationship_set_status(orel, uint8_t(current_status | nations::influence::is_discredited));
-	state.world.gp_relationship_set_penalty_expires_date(orel, state.current_date + int32_t(state.defines.discredit_days));
-
-	notification::post(state, notification::message{
-		[source, influence_target, affected_gp, enddate = state.current_date + int32_t(state.defines.discredit_days)](sys::state& state, text::layout_base& contents) {
-			text::add_line(state, contents, "msg_discredit_1", text::variable_type::x, source, text::variable_type::y, influence_target, text::variable_type::val, affected_gp);
-			text::add_line(state, contents, "msg_discredit_2", text::variable_type::x, enddate);
-		},
-		"msg_discredit_title",
-		source, affected_gp, influence_target,
-		sys::message_base_type::discredit, dcon::province_id{ }
-	});
+void execute_discredit_advisors(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<influence_action_data>();
+	nations::discredit_advisors(state, source, data.influence_target, data.gp_target);
 }
 
 void expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
@@ -1316,71 +1253,14 @@ void expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id i
 	p << data;
 	add_to_command_queue(state, p);
 }
-bool can_expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
-	/*
-	The source must be a great power. The source must have define:EXPELADVISORS_INFLUENCE_COST influence points. The source may
-	not be currently banned with the direct target or currently on the opposite side of a war involving them. Only a great power
-	can be a secondary target for this action. To expel advisors you must have at least neutral opinion with the influenced nation
-	and an equal or better opinion level than that of the nation you are expelling.
-	*/
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	if(!state.world.nation_get_is_great_power(source) || !state.world.nation_get_is_great_power(affected_gp) ||
-			state.world.nation_get_is_great_power(influence_target))
-		return false;
+bool can_expel_advisors(sys::state& state, dcon::nation_id source, command_data& command) {
 
-	if(source == affected_gp)
-		return false;
-
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	if(!rel)
-		return false;
-
-	if(state.world.gp_relationship_get_influence(rel) < state.defines.expeladvisors_influence_cost)
-		return false;
-
-	if((state.world.gp_relationship_get_status(rel) & nations::influence::is_banned) != 0)
-		return false;
-
-	if(military::are_at_war(state, source, influence_target))
-		return false;
-
-	auto clevel = (nations::influence::level_mask & state.world.gp_relationship_get_status(rel));
-	if(clevel == nations::influence::level_hostile || clevel == nations::influence::level_opposed)
-		return false;
-
-	return nations::influence::is_influence_level_greater_or_equal(clevel,
-			nations::influence::get_level(state, affected_gp, influence_target));
+	const auto& data = command.get_payload<command::influence_action_data>();
+	return nations::can_expel_advisors<command::actor::player>(state, source, data.influence_target, data.gp_target);
 }
-void execute_expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
-	/*
-	Expelling a nation's advisors "increases" your relationship with them by define:EXPELADVISORS_RELATION_ON_ACCEPT. This action
-	costs define:EXPELADVISORS_INFLUENCE_COST influence points. Being expelled cancels any ongoing discredit effect. Being
-	expelled reduces your influence to zero.
-	*/
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	auto orel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, affected_gp);
-
-	auto& current_influence = state.world.gp_relationship_get_influence(rel);
-	state.world.gp_relationship_set_influence(rel, current_influence - state.defines.expeladvisors_influence_cost);
-
-	nations::adjust_relationship(state, source, affected_gp, state.defines.expeladvisors_relation_on_accept);
-
-	if(orel) {
-		state.world.gp_relationship_set_influence(orel, 0.0f);
-		auto& current_status = state.world.gp_relationship_get_status(orel);
-		state.world.gp_relationship_set_status(orel, uint8_t(current_status & ~nations::influence::is_discredited));
-	}
-
-	notification::post(state, notification::message{
-		[source, influence_target, affected_gp](sys::state& state, text::layout_base& contents) {
-			text::add_line(state, contents, "msg_expel_1", text::variable_type::x, source, text::variable_type::y, influence_target, text::variable_type::val, affected_gp);
-		},
-		"msg_expel_title",
-		source, affected_gp, influence_target,
-		sys::message_base_type::expell, dcon::province_id{ }
-	});
+void execute_expel_advisors(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<influence_action_data>();
+	nations::expel_advisors(state, source, data.influence_target, data.gp_target);
 }
 
 void ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
@@ -1390,72 +1270,14 @@ void ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id infl
 	p << data;
 	add_to_command_queue(state, p);
 }
-bool can_ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
-	/*
-	The source must be a great power. The source must have define:BANEMBASSY_INFLUENCE_COST influence points. The source may not
-	be currently banned with the direct target or currently on the opposite side of a war involving them. Only a great power can
-	be a secondary target for this action. To ban a nation you must be at least friendly with the influenced nation and have an
-	equal or better opinion level than that of the nation you are expelling.
-	*/
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
+bool can_ban_embassy(sys::state& state, dcon::nation_id source, command_data& command) {
 
-	if(!state.world.nation_get_is_great_power(source) || !state.world.nation_get_is_great_power(affected_gp) ||
-			state.world.nation_get_is_great_power(influence_target))
-		return false;
-
-	if(source == affected_gp)
-		return false;
-
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	if(!rel)
-		return false;
-
-	if(state.world.gp_relationship_get_influence(rel) < state.defines.banembassy_influence_cost)
-		return false;
-
-	if((state.world.gp_relationship_get_status(rel) & nations::influence::is_banned) != 0)
-		return false;
-
-	if(military::are_at_war(state, source, influence_target))
-		return false;
-
-	auto clevel = (nations::influence::level_mask & state.world.gp_relationship_get_status(rel));
-	if(clevel != nations::influence::level_friendly && clevel != nations::influence::level_in_sphere)
-		return false;
-
-	return nations::influence::is_influence_level_greater_or_equal(clevel,
-			nations::influence::get_level(state, affected_gp, influence_target));
+	const auto& data = command.get_payload<command::influence_action_data>();
+	return nations::can_ban_embassy<command::actor::player>(state, source, data.influence_target, data.gp_target);
 }
-void execute_ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
-	/*
-	Banning a nation's embassy "increases" your relationship with them by define:BANEMBASSY_RELATION_ON_ACCEPT. This action costs
-	define:BANEMBASSY_INFLUENCE_COST influence points. The ban embassy effect lasts for define:BANEMBASSY_DAYS. If you are already
-	banned, being banned again simply restarts the timer. Being banned cancels out any ongoing discredit effect.
-	*/
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	auto orel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, affected_gp);
-	if(!orel)
-		orel = state.world.force_create_gp_relationship(influence_target, affected_gp);
-
-	auto& current_influence = state.world.gp_relationship_get_influence(rel);
-	state.world.gp_relationship_set_influence(rel, current_influence - state.defines.banembassy_influence_cost);
-	nations::adjust_relationship(state, source, affected_gp, state.defines.banembassy_relation_on_accept);
-	auto& current_status = state.world.gp_relationship_get_status(orel);
-	state.world.gp_relationship_set_status(orel, uint8_t(current_status | nations::influence::is_banned));
-	state.world.gp_relationship_set_influence(orel, 0.0f);
-	state.world.gp_relationship_set_penalty_expires_date(orel, state.current_date + int32_t(state.defines.banembassy_days));
-
-	notification::post(state, notification::message{
-		[source, influence_target, affected_gp, enddate = state.current_date + int32_t(state.defines.banembassy_days)](sys::state& state, text::layout_base& contents) {
-			text::add_line(state, contents, "msg_ban_1", text::variable_type::x, source, text::variable_type::y, influence_target, text::variable_type::val, affected_gp);
-			text::add_line(state, contents, "msg_ban_2", text::variable_type::x, enddate);
-		},
-		"msg_ban_title",
-		source, affected_gp, influence_target,
-		sys::message_base_type::ban, dcon::province_id{ }
-	});
+void execute_ban_embassy(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<influence_action_data>();
+	nations::ban_embassy(state, source, data.influence_target, data.gp_target);
 }
 
 void increase_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
@@ -1467,58 +1289,13 @@ void increase_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id
 	add_to_command_queue(state, p);
 
 }
-bool can_increase_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
-	/*
-	The source must be a great power. The source must have define:INCREASEOPINION_INFLUENCE_COST influence points. The source may
-	not be currently banned with the direct target or currently on the opposite side of a war involving them. Only a great power
-	can be a secondary target for this action. Your current opinion must be less than friendly
-	*/
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	if(!state.world.nation_get_is_great_power(source) || state.world.nation_get_is_great_power(influence_target))
-		return false;
-
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	if(!rel)
-		return false;
-
-	if(state.world.gp_relationship_get_influence(rel) < state.defines.increaseopinion_influence_cost)
-		return false;
-
-	if((state.world.gp_relationship_get_status(rel) & nations::influence::is_banned) != 0)
-		return false;
-
-	if(military::are_at_war(state, source, influence_target))
-		return false;
-
-	auto clevel = (nations::influence::level_mask & state.world.gp_relationship_get_status(rel));
-	if(clevel == nations::influence::level_friendly || clevel == nations::influence::level_in_sphere)
-		return false;
-
-	return true;
+bool can_increase_opinion(sys::state& state,dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::influence_action_data>();
+	return nations::can_increase_opinion<command::actor::player>(state, source, data.influence_target);
 }
-void execute_increase_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
-	/*
-	Increasing the opinion of a nation costs define:INCREASEOPINION_INFLUENCE_COST influence points. Opinion can be increased to a
-	maximum of friendly.
-	*/
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-
-	auto& current_influence = state.world.gp_relationship_get_influence(rel);
-	state.world.gp_relationship_set_influence(rel, current_influence - state.defines.increaseopinion_influence_cost);
-
-	auto& l = state.world.gp_relationship_get_status(rel);
-	state.world.gp_relationship_set_status(rel, uint8_t(nations::influence::increase_level(l)));
-
-	notification::post(state, notification::message{
-		[source, influence_target](sys::state& state, text::layout_base& contents) {
-			text::add_line(state, contents, "msg_op_inc_1", text::variable_type::x, source, text::variable_type::y, influence_target);
-		},
-		"msg_op_inc_title",
-		source, influence_target, dcon::nation_id{},
-		sys::message_base_type::increase_opinion, dcon::province_id{ }
-	});
+void execute_increase_opinion(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::influence_action_data>();
+	nations::increase_opinion(state, source, data.influence_target);
 }
 
 void decrease_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
@@ -1527,79 +1304,14 @@ void decrease_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id
 	p << data;
 	add_to_command_queue(state, p);
 }
-bool can_decrease_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
-	/*
-	The source must be a great power. The source must have define:DECREASEOPINION_INFLUENCE_COST influence points. The source may
-	not be currently banned with the direct target or currently on the opposite side of a war involving them. Only a great power
-	can be a secondary target for this action. Decreasing the opinion of another nation requires that you have an opinion of at
-	least "opposed" with the influenced nation and you must have a an equal or better opinion level with the influenced nation
-	than the nation you are lowering their opinion of does. The secondary target must neither have the influenced nation in sphere
-	nor may it already be at hostile opinion with them.
-	*/
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	if(!state.world.nation_get_is_great_power(source) || !state.world.nation_get_is_great_power(affected_gp) ||
-			state.world.nation_get_is_great_power(influence_target))
-		return false;
-
-	if(source == affected_gp)
-		return false;
-
-	if(state.world.nation_get_in_sphere_of(influence_target) == affected_gp)
-		return false;
-
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	if(!rel)
-		return false;
-
-	if(state.world.gp_relationship_get_influence(rel) < state.defines.decreaseopinion_influence_cost)
-		return false;
-
-	if((state.world.gp_relationship_get_status(rel) & nations::influence::is_banned) != 0)
-		return false;
-
-	if(military::are_at_war(state, source, influence_target))
-		return false;
-
-	auto clevel = (nations::influence::level_mask & state.world.gp_relationship_get_status(rel));
-	if(clevel == nations::influence::level_hostile)
-		return false;
-
-	if((nations::influence::level_mask &
-		state.world.gp_relationship_get_status(state.world.get_gp_relationship_by_gp_influence_pair(influence_target,
-			affected_gp))) == nations::influence::level_hostile)
-		return false;
-
-	return nations::influence::is_influence_level_greater_or_equal(clevel,
-			nations::influence::get_level(state, affected_gp, influence_target));
+bool can_decrease_opinion(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::influence_action_data>();
+	return nations::can_decrease_opinion<command::actor::player>(state, source, data.influence_target, data.gp_target);
 }
-void execute_decrease_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
-	/*
-	Decreasing the opinion of a nation "increases" your relationship with them by define:DECREASEOPINION_RELATION_ON_ACCEPT. This
-	actions costs define:DECREASEOPINION_INFLUENCE_COST influence points. Opinion of the influenced nation of the secondary target
-	decreases by one step.
-	*/
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	auto orel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, affected_gp);
-	if(!orel)
-		orel = state.world.force_create_gp_relationship(influence_target, affected_gp);
+void execute_decrease_opinion(sys::state& state, dcon::nation_id source, command_data& command) {
 
-	auto& current_influence = state.world.gp_relationship_get_influence(rel);
-	state.world.gp_relationship_set_influence(rel, current_influence - state.defines.decreaseopinion_influence_cost);
-	nations::adjust_relationship(state, source, affected_gp, state.defines.decreaseopinion_relation_on_accept);
-
-	auto& l = state.world.gp_relationship_get_status(orel);
-	state.world.gp_relationship_set_status(orel, uint8_t(nations::influence::decrease_level(l)));
-
-	notification::post(state, notification::message{
-		[source, influence_target, affected_gp](sys::state& state, text::layout_base& contents) {
-			text::add_line(state, contents, "msg_op_dec_1", text::variable_type::x, source, text::variable_type::y, influence_target, text::variable_type::val, affected_gp);
-		},
-		"msg_op_dec_title",
-		source, affected_gp, influence_target,
-		sys::message_base_type::decrease_opinion, dcon::province_id{ }
-	});
+	const auto& data = command.get_payload<influence_action_data>();
+	nations::decrease_opinion(state, source, data.influence_target, data.gp_target);
 }
 
 void add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
@@ -1611,137 +1323,31 @@ void add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id in
 	add_to_command_queue(state, p);
 
 }
-bool can_add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
-	/*
-	The source must be a great power. The source must have define:ADDTOSPHERE_INFLUENCE_COST influence points. The source may not
-	be currently banned with the direct target or currently on the opposite side of a war involving them. Only a great power can
-	be a secondary target for this action. The nation must have a friendly opinion of you and my not be in the sphere of another
-	nation.
-	*/
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	if(!state.world.nation_get_is_great_power(source) || state.world.nation_get_is_great_power(influence_target))
-		return false;
-
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	if(!rel)
-		return false;
-
-	if(state.world.gp_relationship_get_influence(rel) < state.defines.addtosphere_influence_cost)
-		return false;
-
-	if((state.world.gp_relationship_get_status(rel) & nations::influence::is_banned) != 0)
-		return false;
-
-	if(military::are_at_war(state, source, influence_target))
-		return false;
-
-	auto clevel = (nations::influence::level_mask & state.world.gp_relationship_get_status(rel));
-	if(clevel != nations::influence::level_friendly)
-		return false;
-
-	if(state.world.nation_get_in_sphere_of(influence_target))
-		return false;
-
-	return true;
+bool can_add_to_sphere(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::influence_action_data>();
+	return nations::can_add_to_sphere<command::actor::player>(state, source, data.influence_target);
 }
-void execute_add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-
-	auto& current_influence = state.world.gp_relationship_get_influence(rel);
-	state.world.gp_relationship_set_influence(rel, current_influence - state.defines.addtosphere_influence_cost);
-
-	nations::sphere_nation(state, influence_target, source);
-
-	notification::post(state, notification::message{
-		[source, influence_target](sys::state& state, text::layout_base& contents) {
-			text::add_line(state, contents, "msg_add_sphere_1", text::variable_type::x, source, text::variable_type::y, influence_target);
-		},
-		"msg_add_sphere_title",
-		source, influence_target, dcon::nation_id{},
-		sys::message_base_type::add_to_sphere, dcon::province_id{ }
-	});
+void execute_add_to_sphere(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<influence_action_data>();
+	nations::add_to_sphere_diplo_action(state, source, data.influence_target);
 }
 
-void remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
+void remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
 
 	command_data p{ command_type::remove_from_sphere, state.local_player_id };
-	auto data = influence_action_data{ influence_target, affected_gp };
+	auto data = influence_action_data{ };
+	data.influence_target = influence_target;
 	p << data;
 	add_to_command_queue(state, p);
 
 }
-bool can_remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
-	/*
-	The source must be a great power. The source must have define:REMOVEFROMSPHERE_INFLUENCE_COST influence points. The source may
-	not be currently banned with the direct target or currently on the opposite side of a war involving them. Only a great power
-	can be a secondary target for this action. To preform this action you must have an opinion level of friendly with the nation
-	you are removing from a sphere.
-	*/
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	if(!state.world.nation_get_is_great_power(source) || !state.world.nation_get_is_great_power(affected_gp) ||
-			state.world.nation_get_is_great_power(influence_target))
-		return false;
-
-	if(state.world.nation_get_in_sphere_of(influence_target) != affected_gp)
-		return false;
-
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	if(!rel)
-		return false;
-
-	if(source != affected_gp && state.world.gp_relationship_get_influence(rel) < state.defines.removefromsphere_influence_cost)
-		return false;
-
-	if((state.world.gp_relationship_get_status(rel) & nations::influence::is_banned) != 0)
-		return false;
-
-	if(military::are_at_war(state, source, influence_target))
-		return false;
-
-	auto clevel = (nations::influence::level_mask & state.world.gp_relationship_get_status(rel));
-	if(clevel != nations::influence::level_friendly && clevel != nations::influence::level_in_sphere)
-		return false;
-
-	return true;
+bool can_remove_from_sphere(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::influence_action_data>();
+	return nations::can_remove_from_sphere<command::actor::player>(state, source, data.influence_target);
 }
-void execute_remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
-	/*
-	Removing a nation from a sphere costs define:REMOVEFROMSPHERE_INFLUENCE_COST influence points. If you remove a nation from
-	your own sphere you lose define:REMOVEFROMSPHERE_PRESTIGE_COST prestige and gain define:REMOVEFROMSPHERE_INFAMY_COST infamy.
-	Removing a nation from the sphere of another nation "increases" your relationship with the former sphere leader by
-	define:REMOVEFROMSPHERE_RELATION_ON_ACCEPT points. The removed nation then becomes friendly with its former sphere leader.
-	*/
-	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
-	auto orel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, affected_gp);
-	auto l = state.world.gp_relationship_get_status(orel);
-
-	nations::remove_from_sphere(state, influence_target, uint8_t(nations::influence::decrease_level(l)));
-
-	if(source != affected_gp) {
-		auto& current_influence = state.world.gp_relationship_get_influence(rel);
-		state.world.gp_relationship_set_influence(rel, current_influence - state.defines.removefromsphere_influence_cost);
-		nations::adjust_relationship(state, source, affected_gp, state.defines.removefromsphere_relation_on_accept);
-	} else {
-		auto& current_infamy = state.world.nation_get_infamy(source);
-		state.world.nation_set_infamy(source, current_infamy + state.defines.removefromsphere_infamy_cost);
-		nations::adjust_prestige(state, source, -state.defines.removefromsphere_prestige_cost);
-	}
-
-	notification::post(state, notification::message{
-		[source, influence_target, affected_gp](sys::state& state, text::layout_base& contents) {
-			if(source == affected_gp)
-				text::add_line(state, contents, "msg_rem_sphere_1", text::variable_type::x, source, text::variable_type::y, influence_target);
-			else
-				text::add_line(state, contents, "msg_rem_sphere_2", text::variable_type::x, source, text::variable_type::y, influence_target, text::variable_type::val, affected_gp);
-		},
-		"msg_rem_sphere_title",
-		source, affected_gp, influence_target,
-		sys::message_base_type::rem_sphere, dcon::province_id{ }
-	});
+void execute_remove_from_sphere(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<influence_action_data>();
+	nations::remove_from_sphere_diplo_action(state, source, data.influence_target);
 }
 
 void upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id si) {
@@ -6258,44 +5864,37 @@ bool can_perform_command(sys::state& state, command_data& c) {
 
 	case command_type::expel_advisors:
 	{
-		auto& data = c.get_payload<command::influence_action_data>();
-		return can_expel_advisors(state, source, data.influence_target, data.gp_target);
+		return can_expel_advisors(state, source, c);
 	}
 
 	case command_type::ban_embassy:
 	{
-		auto& data = c.get_payload<command::influence_action_data>();
-		return can_ban_embassy(state, source, data.influence_target, data.gp_target);
+		return can_ban_embassy(state, source, c);
 	}
 
 	case command_type::discredit_advisors:
 	{
-		auto& data = c.get_payload<command::influence_action_data>();
-		return can_discredit_advisors(state, source, data.influence_target, data.gp_target);
+		return can_discredit_advisors(state, source, c);
 	}
 
 	case command_type::decrease_opinion:
 	{
-		auto& data = c.get_payload<command::influence_action_data>();
-		return can_decrease_opinion(state, source, data.influence_target, data.gp_target);
+		return can_decrease_opinion(state, source, c);
 	}
 
 	case command_type::remove_from_sphere:
 	{
-		auto& data = c.get_payload<command::influence_action_data>();
-		return can_remove_from_sphere(state, source, data.influence_target, data.gp_target);
+		return can_remove_from_sphere(state, source, c);
 	}
 
 	case command_type::increase_opinion:
 	{
-		auto& data = c.get_payload<command::influence_action_data>();
-		return can_increase_opinion(state, source, data.influence_target);
+		return can_increase_opinion(state, source, c);
 	}
 
 	case command_type::add_to_sphere:
 	{
-		auto& data = c.get_payload<command::influence_action_data>();
-		return can_add_to_sphere(state, source, data.influence_target);
+		return can_add_to_sphere(state, source, c);
 	}
 
 	case command_type::upgrade_colony_to_state:
@@ -7017,44 +6616,37 @@ void execute_command(sys::state& state, command_data& c) {
 	}
 	case command_type::expel_advisors:
 	{
-		auto& data = c.get_payload<influence_action_data>();
-		execute_expel_advisors(state, source_nation, data.influence_target, data.gp_target);
+		execute_expel_advisors(state, source_nation, c);
 		break;
 	}
 	case command_type::ban_embassy:
 	{
-		auto& data = c.get_payload<influence_action_data>();
-		execute_ban_embassy(state, source_nation, data.influence_target, data.gp_target);
+		execute_ban_embassy(state, source_nation, c);
 		break;
 	}
 	case command_type::discredit_advisors:
 	{
-		auto& data = c.get_payload<influence_action_data>();
-		execute_discredit_advisors(state, source_nation, data.influence_target, data.gp_target);
+		execute_discredit_advisors(state, source_nation, c);
 		break;
 	}
 	case command_type::decrease_opinion:
 	{
-		auto& data = c.get_payload<influence_action_data>();
-		execute_decrease_opinion(state, source_nation, data.influence_target, data.gp_target);
+		execute_decrease_opinion(state, source_nation, c);
 		break;
 	}
 	case command_type::remove_from_sphere:
 	{
-		auto& data = c.get_payload<influence_action_data>();
-		execute_remove_from_sphere(state, source_nation, data.influence_target, data.gp_target);
+		execute_remove_from_sphere(state, source_nation, c);
 		break;
 	}
 	case command_type::increase_opinion:
 	{
-		auto& data = c.get_payload<influence_action_data>();
-		execute_increase_opinion(state, source_nation, data.influence_target);
+		execute_increase_opinion(state, source_nation, c);
 		break;
 	}
 	case command_type::add_to_sphere:
 	{
-		auto& data = c.get_payload<influence_action_data>();
-		execute_add_to_sphere(state, source_nation, data.influence_target);
+		execute_add_to_sphere(state, source_nation, c);
 		break;
 	}
 	case command_type::upgrade_colony_to_state:

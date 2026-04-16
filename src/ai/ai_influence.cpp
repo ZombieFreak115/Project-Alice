@@ -155,41 +155,75 @@ void update_influence_priorities(sys::state& state) {
 	}
 }
 
+dcon::gp_relationship_id get_highest_gp_influence_except_us(sys::state& state, dcon::nation_id great_power, dcon::nation_id influence_target) {
+	dcon::gp_relationship_id best{}; 
+	float highest = -1.0f;// start negative incase no one has any influence
+	for(auto gp_rel : state.world.nation_get_gp_relationship_as_influence_target(influence_target)) {
+		if(gp_rel.get_influence() > highest) {
+			highest = gp_rel.get_influence();
+			best = gp_rel.id;
+		}
+	}
+	return best;
+}
+
+
 void perform_influence_actions(sys::state& state) {
 	for(auto gprl : state.world.in_gp_relationship) {
 		if(gprl.get_great_power().get_is_player_controlled()) {
 			// nothing -- player GP
 		} else {
-			if((gprl.get_status() & nations::influence::is_banned) != 0)
-				continue; // can't do anything with a banned nation
-
-			if(military::are_at_war(state, gprl.get_great_power(), gprl.get_influence_target()))
-				continue; // can't do anything while at war
-
-			auto clevel = (nations::influence::level_mask & gprl.get_status());
-			if(clevel == nations::influence::level_in_sphere)
-				continue; // already in sphere
+			// Are we allowed to take any influence action?
+			if(!nations::can_do_influence_action<command::actor::ai>(state, gprl.get_great_power(), gprl.get_influence_target(), gprl)) {
+				continue;
+			}
+			auto great_power = gprl.get_great_power();
+			auto influence_target = gprl.get_influence_target();
 
 			auto current_sphere = gprl.get_influence_target().get_in_sphere_of();
-
-			if(state.defines.increaseopinion_influence_cost <= gprl.get_influence() && clevel != nations::influence::level_friendly) {
-				assert(command::can_increase_opinion(state, gprl.get_great_power(), gprl.get_influence_target()));
-				command::execute_increase_opinion(state, gprl.get_great_power(), gprl.get_influence_target());
-			} else if(state.defines.removefromsphere_influence_cost <= gprl.get_influence() && current_sphere /* && current_sphere != gprl.get_great_power()*/ && clevel == nations::influence::level_friendly) { // condition taken care of by check above
-				assert(command::can_remove_from_sphere(state, gprl.get_great_power(), gprl.get_influence_target(), gprl.get_influence_target().get_in_sphere_of()));
-				command::execute_remove_from_sphere(state, gprl.get_great_power(), gprl.get_influence_target(), gprl.get_influence_target().get_in_sphere_of());
-			} else if(state.defines.addtosphere_influence_cost <= gprl.get_influence() && !current_sphere && clevel == nations::influence::level_friendly) {
-				assert(command::can_add_to_sphere(state, gprl.get_great_power(), gprl.get_influence_target()));
-				command::execute_add_to_sphere(state, gprl.get_great_power(), gprl.get_influence_target());
+			// If the target is in no sphere
+			if(!current_sphere) {
+				if(nations::can_increase_opinion_specific_checks<command::actor::ai>(state, great_power, influence_target, gprl)) {
+					assert(nations::can_increase_opinion<command::actor::player>(state, great_power, influence_target));
+					nations::increase_opinion(state, gprl);
+				}
+				else if(nations::can_add_to_sphere_specific_checks<command::actor::ai>(state, great_power, influence_target, gprl)) {
+					assert(nations::can_add_to_sphere<command::actor::player>(state, great_power, influence_target));
+					nations::add_to_sphere_diplo_action(state, great_power, influence_target);
+				}
+			}
+			// if it's our sphere
+			else if(current_sphere == great_power) {
+				auto highest_infl = get_highest_gp_influence_except_us(state, great_power, influence_target);
+				auto other_gp = state.world.gp_relationship_get_great_power(highest_infl);
+				auto other_infl_target = state.world.gp_relationship_get_influence_target(highest_infl);
+				// If the highest competing influence in our sphere is greater than 40 and they are friendly, try to ban them to stop them from taking our sphere
+				if(state.world.gp_relationship_get_influence(highest_infl) > 40.0f && nations::influence::get_level(state, other_gp, other_infl_target) == nations::influence::level_friendly) {
+					if(nations::can_ban_embassy_specific_checks<command::actor::ai>(state, great_power, influence_target, other_gp, gprl)) {
+						nations::ban_embassy(state, great_power, influence_target, other_gp);
+					}
+				}
 				//De-sphere countries we have wargoals against, desphering countries need to check for going over infamy
-			} else if(military::can_use_cb_against(state, gprl.get_great_power(), gprl.get_influence_target())
-				&& state.defines.removefromsphere_influence_cost <= gprl.get_influence()
-				&& current_sphere
-				&& clevel == nations::influence::level_friendly
-				&& (state.world.nation_get_infamy(gprl.get_great_power()) + state.defines.removefromsphere_infamy_cost) < state.defines.badboy_limit
-			) {
-				assert(command::can_remove_from_sphere(state, gprl.get_great_power(), gprl.get_influence_target(), gprl.get_influence_target().get_in_sphere_of()));
-				command::execute_remove_from_sphere(state, gprl.get_great_power(), gprl.get_influence_target(), gprl.get_influence_target().get_in_sphere_of());
+				else if(military::can_use_cb_against(state, great_power, influence_target) && (state.world.nation_get_infamy(great_power) + state.defines.removefromsphere_infamy_cost) < state.defines.badboy_limit) {
+					if(nations::can_remove_from_sphere_specific_checks<command::actor::ai>(state, great_power, influence_target, gprl)) {
+						assert(nations::can_remove_from_sphere<command::actor::player>(state, great_power, influence_target));
+						nations::remove_from_sphere_diplo_action(state, great_power, influence_target);
+					}
+				}
+				
+				
+			}
+			// If it's someone else's sphere
+			else {
+				if(nations::can_remove_from_sphere_specific_checks<command::actor::ai>(state, great_power, influence_target, gprl)) {
+					assert(nations::can_remove_from_sphere<command::actor::player>(state, great_power, influence_target));
+					// Remove sphere from another GP
+					nations::remove_from_sphere_diplo_action(state, great_power, influence_target);
+				}
+				if(nations::can_increase_opinion_specific_checks<command::actor::ai>(state, great_power, influence_target, gprl)) {
+					assert(nations::can_increase_opinion<command::actor::player>(state, great_power, influence_target));
+					nations::increase_opinion(state, gprl);
+				}
 			}
 		}
 	}

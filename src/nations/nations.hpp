@@ -323,6 +323,7 @@ void remove_cores_from_owned(sys::state& state, dcon::nation_id n, dcon::nationa
 void perform_nationalization(sys::state& state, dcon::nation_id n);
 
 void sphere_nation(sys::state& state, dcon::nation_id target, dcon::nation_id source);
+// Will remove a nation from sphere. Should not be confused with the remove from sphere diplo action
 void remove_from_sphere(sys::state& state, dcon::nation_id target, uint8_t new_influence_level);
 
 float get_yesterday_income(sys::state& state, dcon::nation_id n);
@@ -351,7 +352,7 @@ template<command::actor Actor>
 bool can_fabricate_cb_global_checks(sys::state& state);
 void fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state = dcon::state_definition_id{});
 
-// change_influence_priority functions
+// change_influence_priority command functions
 
 template<command::actor Actor>
 bool can_change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
@@ -364,5 +365,62 @@ bool can_change_influence_priority_target_checks(sys::state& state, dcon::nation
 void change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, uint8_t priority);
 template<uint8_t priority>
 void change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+
+
+// Checks conditions to see if conducting *any* influence actions are possible
+template<command::actor Actor>
+bool can_do_influence_action(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
+
+// increase_opinion command functions
+template<command::actor Actor>
+bool can_increase_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+template<command::actor Actor>
+bool can_increase_opinion_specific_checks(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
+void increase_opinion(sys::state& state, dcon::gp_relationship_id rel);
+void increase_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+
+// decrease_opinion_functions
+template<command::actor Actor>
+bool can_decrease_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+void decrease_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+
+
+// remove_from_sphere command functions
+template<command::actor Actor>
+bool can_remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+template<command::actor Actor>
+bool can_remove_from_sphere_specific_checks(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
+void remove_from_sphere_diplo_action(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+
+// add_to_sphere command functions
+template<command::actor Actor>
+bool can_add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+template<command::actor Actor>
+bool can_add_to_sphere_specific_checks(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
+void add_to_sphere_diplo_action(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+
+// discredit_advisors command functions
+template<command::actor Actor>
+bool can_discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+template<command::actor Actor>
+bool can_discredit_advisors_specific_checks(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
+void discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+
+// ban_embassy command functions
+template<command::actor Actor>
+bool can_ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+template<command::actor Actor>
+bool can_ban_embassy_specific_checks(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
+void ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+
+// expel_advisors command functions
+template<command::actor Actor>
+bool can_expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+template<command::actor Actor>
+bool can_expel_advisors_specific_checks(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
+void expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+
+
+
 
 } // namespace nations

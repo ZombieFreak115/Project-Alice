@@ -867,29 +867,18 @@ bool can_start_election(sys::state& state, dcon::nation_id source);
 void change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, uint8_t priority);
 
 void discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
-bool can_discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
 
 void expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
-bool can_expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
 
 void ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
-bool can_ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
 
 void increase_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
-bool can_increase_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
-void execute_increase_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
 
 void decrease_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
-bool can_decrease_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
-void execute_decrease_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
 
 void add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
-bool can_add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
-void execute_add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
 
-void remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
-bool can_remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
-void execute_remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+void remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
 
 void upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id si);
 bool can_upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id si);

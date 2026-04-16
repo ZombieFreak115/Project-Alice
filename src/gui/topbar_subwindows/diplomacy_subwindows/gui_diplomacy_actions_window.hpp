@@ -952,7 +952,7 @@ public:
 	}
 
 	bool is_available(sys::state& state, dcon::nation_id target) noexcept override {
-		return command::can_increase_opinion(state, state.local_player_nation, target);
+		return nations::can_increase_opinion<command::actor::player>(state, state.local_player_nation, target);
 	}
 
 	void button_action(sys::state& state, dcon::nation_id target, ui::element_base* parent) noexcept override {
@@ -988,7 +988,7 @@ public:
 	}
 
 	bool is_available(sys::state& state, dcon::nation_id target) noexcept override {
-		return command::can_add_to_sphere(state, state.local_player_nation, target);
+		return nations::can_add_to_sphere<command::actor::player>(state, state.local_player_nation, target);
 	}
 
 	void button_action(sys::state& state, dcon::nation_id target, ui::element_base* parent) noexcept override {
@@ -1026,11 +1026,11 @@ public:
 	}
 
 	bool is_available(sys::state& state, dcon::nation_id target) noexcept override {
-		return command::can_remove_from_sphere(state, state.local_player_nation, target, state.world.nation_get_in_sphere_of(target));
+		return nations::can_remove_from_sphere<command::actor::player>(state, state.local_player_nation, target);
 	}
 
 	void button_action(sys::state& state, dcon::nation_id target, ui::element_base* parent) noexcept override {
-		command::remove_from_sphere(state, state.local_player_nation, target, state.world.nation_get_in_sphere_of(target));
+		command::remove_from_sphere(state, state.local_player_nation, target);
 	}
 
 	void update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents, dcon::nation_id target) noexcept override {
@@ -1501,11 +1501,11 @@ class diplomacy_action_dialog_agree_button : public generic_settable_element<but
 		case diplomacy_action::cancel_war_subsidies:
 			return command::can_cancel_war_subsidies(state, state.local_player_nation, target);
 		case diplomacy_action::increase_opinion:
-			return command::can_increase_opinion(state, state.local_player_nation, target);
+			return nations::can_increase_opinion<command::actor::player>(state, state.local_player_nation, target);
 		case diplomacy_action::add_to_sphere:
-			return command::can_add_to_sphere(state, state.local_player_nation, target);
+			return nations::can_add_to_sphere<command::actor::player>(state, state.local_player_nation, target);
 		case diplomacy_action::remove_from_sphere:
-			return command::can_remove_from_sphere(state, state.local_player_nation, target, state.world.nation_get_in_sphere_of(target));
+			return nations::can_remove_from_sphere<command::actor::player>(state, state.local_player_nation, target);
 		case diplomacy_action::justify_war:
 			return false;
 		case diplomacy_action::command_units:
@@ -1583,7 +1583,7 @@ public:
 			command::add_to_sphere(state, state.local_player_nation, target);
 			break;
 		case diplomacy_action::remove_from_sphere:
-			command::remove_from_sphere(state, state.local_player_nation, target, state.world.nation_get_in_sphere_of(target));
+			command::remove_from_sphere(state, state.local_player_nation, target);
 			break;
 		case diplomacy_action::justify_war:
 			break;
@@ -1861,16 +1861,16 @@ public:
 
 		switch(retrieve<gp_choice_actions>(state, parent)) {
 		case gp_choice_actions::discredit:
-			disabled = !command::can_discredit_advisors(state, state.local_player_nation, target, gp);
+			disabled = !nations::can_discredit_advisors<command::actor::player>(state, state.local_player_nation, target, gp);
 			break;
 		case gp_choice_actions::expel_advisors:
-			disabled = !command::can_expel_advisors(state, state.local_player_nation, target, gp);
+			disabled = !nations::can_expel_advisors<command::actor::player>(state, state.local_player_nation, target, gp);
 			break;
 		case gp_choice_actions::ban_embassy:
-			disabled = !command::can_ban_embassy(state, state.local_player_nation, target, gp);
+			disabled = !nations::can_ban_embassy<command::actor::player>(state, state.local_player_nation, target, gp);
 			break;
 		case gp_choice_actions::decrease_opinion:
-			disabled = !command::can_decrease_opinion(state, state.local_player_nation, target, gp);
+			disabled = !nations::can_decrease_opinion<command::actor::player>(state, state.local_player_nation, target, gp);
 			break;
 		}
 	}
