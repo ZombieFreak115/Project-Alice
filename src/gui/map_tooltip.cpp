@@ -442,7 +442,7 @@ void colonial_map_tt_box(sys::state& state, text::columnar_layout& contents, dco
 		text::close_layout_box(contents, box);
 
 		auto distance = province::direct_distance(state, dcon::fatten(state.world, state.local_player_nation).get_capital().id, prov);
-		if(!province::can_start_colony(state, state.local_player_nation, fat.get_state_from_abstract_state_membership().id)) {
+		if(!province::can_start_colony<command::actor::player>(state, state.local_player_nation, fat.get_state_from_abstract_state_membership().id)) {
 			if(fat.get_life_rating() > state.world.nation_get_modifier_values(state.local_player_nation, sys::national_mod_offsets::colonial_life_rating)) {
 				ui::active_modifiers_description(state, contents, state.local_player_nation, 0, sys::national_mod_offsets::colonial_life_rating, false);
 			}

@@ -38,7 +38,7 @@ void restore_unsaved_values(sys::state& state);
 void restore_distances(sys::state& state);
 
 bool is_overseas(sys::state const& state, dcon::province_id ids);
-bool can_integrate_colony(sys::state& state, dcon::state_instance_id id);
+
 dcon::province_id get_connected_province(sys::state& state, dcon::province_adjacency_id adj, dcon::province_id curr);
 float colony_integration_cost(sys::state& state, dcon::state_instance_id id);
 float state_accepted_bureaucrat_size(sys::state& state, dcon::state_instance_id id);
@@ -79,18 +79,16 @@ void conquer_province(sys::state& state, dcon::province_id id, dcon::nation_id n
 void update_crimes(sys::state& state);
 void update_nationalism(sys::state& state);
 
-bool can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
+
 bool fast_can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d, int32_t free_points, dcon::province_id coastal_target, bool& adjacent);
-bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
 bool is_colonizing(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
 void update_colonization(sys::state& state);
-void increase_colonial_investment(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+
 
 void add_core(sys::state& state, dcon::province_id prov, dcon::national_identity_id tag);
 void remove_core(sys::state& state, dcon::province_id prov, dcon::national_identity_id tag);
 void set_rgo(sys::state& state, dcon::province_id prov, dcon::commodity_id c);
 void enable_canal(sys::state& state, int32_t id);
-void upgrade_colonial_state(sys::state& state, dcon::nation_id owner, dcon::state_instance_id si);
 
 // distance from a state to a given province (does not pathfind)
 float state_distance(sys::state& state, dcon::state_instance_id state_id, dcon::province_id prov_id);
@@ -170,5 +168,29 @@ std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& st
 
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::nation_id n);
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::rebel_faction_id rf);
+
+// can_upgrade_colony_to_state command functions
+template<command::actor Actor>
+bool can_upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id id);
+void upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id si);
+
+// cstart_colony command functions
+// Overload for passing free colonial points directly for ai performance
+template<command::actor Actor>
+bool can_start_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def, int32_t free_points);
+template<command::actor Actor>
+bool can_start_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+template<command::actor Actor>
+bool can_start_colony_source_checks(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def, int32_t free_points);
+template<command::actor Actor>
+bool can_start_colony_state_def_checks(sys::state& state, dcon::state_definition_id state_def);
+template<command::actor Actor>
+bool can_start_colony_global_checks(sys::state& state);
+uint16_t start_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+
+// invest_in_colony command functions
+template<command::actor Actor>
+bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
+void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
 
 } // namespace province

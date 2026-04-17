@@ -2087,12 +2087,25 @@ class colony_invest_button : public button_element_base {
 public:
 	void button_action(sys::state& state) noexcept override {
 		auto content = retrieve<dcon::province_id>(state, parent);
-		command::invest_in_colony(state, state.local_player_nation, content);
+		auto state_def = state.world.province_get_state_from_abstract_state_membership(content);
+		if(province::is_colonizing(state, state.local_player_nation, state_def)) {
+			command::invest_in_colony(state, state.local_player_nation, content);
+		}
+		else {
+			command::start_colony(state, state.local_player_nation, content);
+		}
 	}
 
 	void on_update(sys::state& state) noexcept override {
 		auto content = retrieve<dcon::province_id>(state, parent);
-		disabled = !command::can_invest_in_colony(state, state.local_player_nation, content);
+		auto state_def = state.world.province_get_state_from_abstract_state_membership(content);
+		if(province::is_colonizing(state, state.local_player_nation, state_def)) {
+			disabled = !province::can_invest_in_colony<command::actor::player>(state, state.local_player_nation, state_def);
+		}
+		else {
+			disabled = !province::can_start_colony<command::actor::player>(state, state.local_player_nation, state_def);
+		}
+
 	}
 
 	tooltip_behavior has_tooltip(sys::state& state) noexcept override {

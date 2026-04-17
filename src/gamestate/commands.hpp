@@ -71,6 +71,7 @@ enum class command_type : uint8_t {
 		cancel_given_military_access = 54,
 		declare_war = 55,
 		add_war_goal = 56,
+		start_colony = 57,
 		start_peace_offer = 58,
 		add_peace_offer_term = 59,
 		send_peace_offer = 60,
@@ -654,6 +655,7 @@ constexpr enum_array<command_type, command_handler> command_type_handlers = {
 	{command_type::remove_from_sphere, command_handler{ sizeof(command::influence_action_data), sizeof(command::influence_action_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	{command_type::upgrade_colony_to_state, command_handler{ sizeof(command::generic_location_data), sizeof(command::generic_location_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	{command_type::invest_in_colony, command_handler{ sizeof(command::generic_location_data), sizeof(command::generic_location_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
+	{command_type::start_colony, command_handler{ sizeof(command::generic_location_data), sizeof(command::generic_location_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	{command_type::abandon_colony, command_handler{ sizeof(command::generic_location_data), sizeof(command::generic_location_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	{command_type::finish_colonization, command_handler{sizeof(command::generic_state_definition_data),  sizeof(command::generic_state_definition_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	{command_type::intervene_in_war, command_handler{sizeof(command::war_target_data),  sizeof(command::war_target_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
@@ -881,10 +883,10 @@ void add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id in
 void remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
 
 void upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id si);
-bool can_upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id si);
+
+void start_colony(sys::state& state, dcon::nation_id source, dcon::province_id pr);
 
 void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::province_id p);
-bool can_invest_in_colony(sys::state& state, dcon::nation_id source, dcon::province_id p);
 
 void abandon_colony(sys::state& state, dcon::nation_id source, dcon::province_id p);
 bool can_abandon_colony(sys::state& state, dcon::nation_id source, dcon::province_id p);

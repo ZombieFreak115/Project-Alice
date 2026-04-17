@@ -10,14 +10,14 @@ std::vector<uint32_t> colonial_map_from(sys::state& state) {
 
 		if(!(fat_id.get_nation_from_province_ownership())) {
 			if(province::is_colonizing(state, state.local_player_nation, fat_id.get_state_from_abstract_state_membership())) {
-				if(province::can_invest_in_colony(state, state.local_player_nation, fat_id.get_state_from_abstract_state_membership())) {
+				if(province::can_invest_in_colony<command::actor::player>(state, state.local_player_nation, fat_id.get_state_from_abstract_state_membership())) {
 					prov_color[i] = sys::pack_color(140, 247, 15);
 					prov_color[i + texture_size] = sys::pack_color(140, 247, 15);
 				} else {
 					prov_color[i] = sys::pack_color(250, 250, 5);
 					prov_color[i + texture_size] = sys::pack_color(250, 250, 5);
 				}
-			} else if(province::can_start_colony(state, state.local_player_nation, fat_id.get_state_from_abstract_state_membership())) {
+			} else if(province::can_start_colony<command::actor::player>(state, state.local_player_nation, fat_id.get_state_from_abstract_state_membership())) {
 				prov_color[i] = sys::pack_color(46, 247, 15);
 				prov_color[i + texture_size] = sys::pack_color(46, 247, 15);
 			} else {

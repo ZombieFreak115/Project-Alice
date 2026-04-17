@@ -1359,14 +1359,33 @@ void upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::st
 	add_to_command_queue(state, p);
 
 }
-bool can_upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id si) {
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	return state.world.state_instance_get_nation_from_state_ownership(si) == source && province::can_integrate_colony(state, si);
+bool can_upgrade_colony_to_state(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::generic_location_data>();
+	return province::can_upgrade_colony_to_state<command::actor::player>(state, source, state.world.province_get_state_membership(data.prov));
 }
-void execute_upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id si) {
-	province::upgrade_colonial_state(state, source, si);
+void execute_upgrade_colony_to_state(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<generic_location_data>();
+	province::upgrade_colony_to_state(state, source, state.world.province_get_state_membership(data.prov));
+}
+
+
+
+void start_colony(sys::state& state, dcon::nation_id source, dcon::province_id pr) {
+
+	command_data p{ command_type::start_colony, state.local_player_id };
+	auto data = generic_location_data{ pr };
+	p << data;
+	add_to_command_queue(state, p);
+
+}
+bool can_start_colony(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<generic_location_data>();
+	return province::can_start_colony<command::actor::player>(state, source, state.world.province_get_state_from_abstract_state_membership(data.prov));
+}
+
+void execute_start_colony(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<generic_location_data>();
+	province::start_colony(state, source, state.world.province_get_state_from_abstract_state_membership(data.prov));
 }
 
 void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::province_id pr) {
@@ -1377,44 +1396,15 @@ void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::province_
 	add_to_command_queue(state, p);
 
 }
+
 bool can_invest_in_colony(sys::state& state, dcon::nation_id source, dcon::province_id p) {
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
 	auto state_def = state.world.province_get_state_from_abstract_state_membership(p);
-	if(!province::is_colonizing(state, source, state_def))
-		return province::can_start_colony(state, source, state_def);
-	else
-		return province::can_invest_in_colony(state, source, state_def);
+	return province::can_invest_in_colony<command::actor::player>(state, source, state_def);
 }
 void execute_invest_in_colony(sys::state& state, dcon::nation_id source, dcon::province_id pr) {
 	auto state_def = state.world.province_get_state_from_abstract_state_membership(pr);
-	if(province::is_colonizing(state, source, state_def)) {
-		province::increase_colonial_investment(state, source, state_def);
-	} else {
-		bool adjacent = [&]() {
-			for(auto p : state.world.state_definition_get_abstract_state_membership(state_def)) {
-				if(!p.get_province().get_nation_from_province_ownership()) {
-					for(auto adj : p.get_province().get_province_adjacency()) {
-						auto indx = adj.get_connected_provinces(0) != p.get_province() ? 0 : 1;
-						auto o = adj.get_connected_provinces(indx).get_nation_from_province_ownership();
-						if(o == source)
-							return true;
-						if(o.get_overlord_as_subject().get_ruler() == source)
-							return true;
-					}
-				}
-			}
-			return false;
-			}();
-
-			auto new_rel = fatten(state.world, state.world.force_create_colonization(state_def, source));
-			new_rel.set_level(uint8_t(1));
-			new_rel.set_last_investment(state.current_date);
-			new_rel.set_points_invested(uint16_t(state.defines.colonization_interest_cost_initial + (adjacent ? state.defines.colonization_interest_cost_neighbor_modifier : 0.0f)));
-
-			state.world.state_definition_set_colonization_stage(state_def, uint8_t(1));
-	}
+	province::invest_in_colony(state, source, state_def);
+	
 }
 
 void abandon_colony(sys::state& state, dcon::nation_id source, dcon::province_id pr) {
@@ -5899,8 +5889,7 @@ bool can_perform_command(sys::state& state, command_data& c) {
 
 	case command_type::upgrade_colony_to_state:
 	{
-		auto& data = c.get_payload<command::generic_location_data>();
-		return can_upgrade_colony_to_state(state, source, state.world.province_get_state_membership(data.prov));
+		return can_upgrade_colony_to_state(state, source, c);
 	}
 
 	case command_type::invest_in_colony:
@@ -5908,7 +5897,10 @@ bool can_perform_command(sys::state& state, command_data& c) {
 		auto& data = c.get_payload<command::generic_location_data>();
 		return can_invest_in_colony(state, source, data.prov);
 	}
-
+	case command_type::start_colony:
+	{
+		return can_start_colony(state, source, c);
+	}
 	case command_type::abandon_colony:
 	{
 		auto& data = c.get_payload<command::generic_location_data>();
@@ -6651,14 +6643,18 @@ void execute_command(sys::state& state, command_data& c) {
 	}
 	case command_type::upgrade_colony_to_state:
 	{
-		auto& data = c.get_payload<generic_location_data>();
-		execute_upgrade_colony_to_state(state, source_nation, state.world.province_get_state_membership(data.prov));
+		execute_upgrade_colony_to_state(state, source_nation, c);
 		break;
 	}
 	case command_type::invest_in_colony:
 	{
 		auto& data = c.get_payload<generic_location_data>();
 		execute_invest_in_colony(state, source_nation, data.prov);
+		break;
+	}
+	case command_type::start_colony:
+	{
+		execute_start_colony(state, source_nation, c);
 		break;
 	}
 	case command_type::abandon_colony:

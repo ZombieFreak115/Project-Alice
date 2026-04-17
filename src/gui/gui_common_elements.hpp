@@ -1349,7 +1349,7 @@ public:
 
 	void on_update(sys::state& state) noexcept override {
 		auto content = retrieve<dcon::state_instance_id>(state, parent);
-		disabled = !command::can_upgrade_colony_to_state(state, state.local_player_nation, content);
+		disabled = !province::can_upgrade_colony_to_state<command::actor::player>(state, state.local_player_nation, content);
 	}
 
 	void button_action(sys::state& state) noexcept override {

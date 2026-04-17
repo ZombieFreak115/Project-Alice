@@ -1703,21 +1703,23 @@ int32_t max_colonial_points(sys::state& state, dcon::nation_id n) {
 		return 0;
 	}
 }
-
-bool can_expand_colony(sys::state& state, dcon::nation_id n) {
+template<command::actor Actor>
+bool can_expand_any_colony(sys::state& state, dcon::nation_id n) {
 	for(auto cols : state.world.nation_get_colonization_as_colonizer(n)) {
 		auto state_colonization = state.world.state_definition_get_colonization(cols.get_state());
 		auto num_colonizers = state_colonization.end() - state_colonization.begin();
 		if(cols.get_state().get_colonization_stage() == uint8_t(3)) {
 			return true;
 		} else {
-			if(province::can_invest_in_colony(state, n, cols.get_state())) {
+			if(province::can_invest_in_colony<Actor>(state, n, cols.get_state())) {
 				return true;
 			}
 		}
 	}
 	return false;
 }
+template bool can_expand_any_colony<command::actor::ai>(sys::state& state, dcon::nation_id n);
+template bool can_expand_any_colony<command::actor::player>(sys::state& state, dcon::nation_id n);
 
 bool is_losing_colonial_race(sys::state& state, dcon::nation_id n) {
 	for(auto cols : state.world.nation_get_colonization_as_colonizer(n)) {
@@ -4414,9 +4416,10 @@ bool can_fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id
 		return false;
 	}
 
-
 	return true;
 }
+template bool can_fabricate_cb<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state);
+template bool can_fabricate_cb<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state);
 
 template<command::actor Actor>
 bool can_fabricate_cb_source_checks(sys::state& state, dcon::nation_id source) {
@@ -4432,6 +4435,8 @@ bool can_fabricate_cb_source_checks(sys::state& state, dcon::nation_id source) {
 
 	return true;
 }
+template bool can_fabricate_cb_source_checks<command::actor::ai>(sys::state& state, dcon::nation_id source);
+template bool can_fabricate_cb_source_checks<command::actor::player>(sys::state& state, dcon::nation_id source);
 
 template<command::actor Actor>
 bool can_fabricate_cb_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target) {
@@ -4463,6 +4468,8 @@ bool can_fabricate_cb_target_checks(sys::state& state, dcon::nation_id source, d
 	return true;
 
 }
+template bool can_fabricate_cb_target_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id target);
+template bool can_fabricate_cb_target_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id target);
 
 template<command::actor Actor>
 bool can_fabricate_cb_cb_type_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type) {
@@ -4480,8 +4487,10 @@ bool can_fabricate_cb_cb_type_checks(sys::state& state, dcon::nation_id source, 
 	if(!military::cb_conditions_satisfied(state, source, target, type))
 		return false;
 	return true;
-
 }
+template bool can_fabricate_cb_cb_type_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type);
+template bool can_fabricate_cb_cb_type_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type);
+
 
 template<command::actor Actor>
 bool can_fabricate_cb_cb_state_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state) {
@@ -4492,6 +4501,10 @@ bool can_fabricate_cb_cb_state_checks(sys::state& state, dcon::nation_id source,
 	return true;
 
 }
+template bool can_fabricate_cb_cb_state_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state);
+template bool can_fabricate_cb_cb_state_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state);
+
+
 template<command::actor Actor>
 bool can_fabricate_cb_global_checks(sys::state& state) {
 
@@ -4503,7 +4516,8 @@ bool can_fabricate_cb_global_checks(sys::state& state) {
 	return true;
 
 }
-
+template bool can_fabricate_cb_global_checks<command::actor::ai>(sys::state& state);
+template bool can_fabricate_cb_global_checks<command::actor::player>(sys::state& state);
 
 void fabricate_cb(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id type, dcon::state_definition_id target_state) {
 	state.world.nation_set_constructing_cb_target(source, target);
@@ -4527,6 +4541,8 @@ bool can_change_influence_priority(sys::state& state, dcon::nation_id source, dc
 	}
 	return true;
 }
+template bool can_change_influence_priority<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+template bool can_change_influence_priority<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
 
 template<command::actor Actor>
 bool can_change_influence_priority_global_checks(sys::state& state) {
@@ -4537,6 +4553,9 @@ bool can_change_influence_priority_global_checks(sys::state& state) {
 	}
 	return true;
 }
+template bool can_change_influence_priority_global_checks<command::actor::ai>(sys::state& state);
+template bool can_change_influence_priority_global_checks<command::actor::player>(sys::state& state);
+
 template<command::actor Actor>
 bool can_change_influence_priority_source_checks(sys::state& state, dcon::nation_id source) {
 	// Source nation must exist
@@ -4551,6 +4570,9 @@ bool can_change_influence_priority_source_checks(sys::state& state, dcon::nation
 		return true;
 	}
 }
+template bool can_change_influence_priority_source_checks<command::actor::ai>(sys::state& state, dcon::nation_id source);
+template bool can_change_influence_priority_source_checks<command::actor::player>(sys::state& state, dcon::nation_id source);
+
 template<command::actor Actor>
 bool can_change_influence_priority_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
 	// the target must not be a great power.
@@ -4563,6 +4585,8 @@ bool can_change_influence_priority_target_checks(sys::state& state, dcon::nation
 	}
 	return true;
 }
+template bool can_change_influence_priority_target_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+template bool can_change_influence_priority_target_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
 
 template<uint8_t priority>
 void change_influence_priority(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
@@ -4640,8 +4664,8 @@ bool can_do_influence_action(sys::state& state, dcon::nation_id source, dcon::na
 
 	return true;
 }
-
-
+template bool can_do_influence_action<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
+template bool can_do_influence_action<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
 
 template<command::actor Actor>
 bool can_increase_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
@@ -4660,6 +4684,8 @@ bool can_increase_opinion(sys::state& state, dcon::nation_id source, dcon::natio
 
 	return true;
 }
+template bool can_increase_opinion<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+template bool can_increase_opinion<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
 
 
 template<command::actor Actor>
@@ -4673,7 +4699,8 @@ bool can_increase_opinion_specific_checks(sys::state& state, dcon::nation_id sou
 	}
 	return true;
 }
-
+template bool can_increase_opinion_specific_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
+template bool can_increase_opinion_specific_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
 
 void increase_opinion(sys::state& state, dcon::gp_relationship_id rel) {
 	/*
@@ -4732,7 +4759,8 @@ bool can_decrease_opinion_specific_checks(sys::state& state, dcon::nation_id sou
 	return nations::influence::is_influence_level_greater_or_equal(clevel,
 			nations::influence::get_level(state, affected_gp, influence_target));
 }
-
+template bool can_decrease_opinion_specific_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
+template bool can_decrease_opinion_specific_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
 
 
 template<command::actor Actor>
@@ -4755,6 +4783,8 @@ bool can_decrease_opinion(sys::state& state, dcon::nation_id source, dcon::natio
 	}
 	return true;
 }
+template bool can_decrease_opinion<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+template bool can_decrease_opinion<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
 
 void decrease_opinion(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
 	/*
@@ -4801,6 +4831,8 @@ bool can_remove_from_sphere_specific_checks(sys::state& state, dcon::nation_id s
 
 	return true;
 }
+template bool can_remove_from_sphere_specific_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
+template bool can_remove_from_sphere_specific_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
 
 template<command::actor Actor>
 bool can_remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
@@ -4820,6 +4852,8 @@ bool can_remove_from_sphere(sys::state& state, dcon::nation_id source, dcon::nat
 	}
 	return true;
 }
+template bool can_remove_from_sphere<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+template bool can_remove_from_sphere<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
 
 void remove_from_sphere_diplo_action(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
 	/*
@@ -4880,7 +4914,8 @@ bool can_add_to_sphere_specific_checks(sys::state& state, dcon::nation_id source
 
 	return true;
 }
-
+template bool can_add_to_sphere_specific_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
+template bool can_add_to_sphere_specific_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::gp_relationship_id rel);
 
 template<command::actor Actor>
 bool can_add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
@@ -4900,6 +4935,8 @@ bool can_add_to_sphere(sys::state& state, dcon::nation_id source, dcon::nation_i
 
 	return true;
 }
+template bool can_add_to_sphere<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
+template bool can_add_to_sphere<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target);
 
 void add_to_sphere_diplo_action(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target) {
 	auto rel = state.world.get_gp_relationship_by_gp_influence_pair(influence_target, source);
@@ -4945,7 +4982,8 @@ bool can_discredit_advisors_specific_checks(sys::state& state, dcon::nation_id s
 	return nations::influence::is_influence_level_greater_or_equal(clevel,
 			nations::influence::get_level(state, affected_gp, influence_target));
 }
-
+template bool can_discredit_advisors_specific_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
+template bool can_discredit_advisors_specific_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
 
 template<command::actor Actor>
 bool can_discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
@@ -4965,6 +5003,8 @@ bool can_discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nat
 	}
 	return true;
 }
+template bool can_discredit_advisors<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+template bool can_discredit_advisors<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
 
 void discredit_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
 	/*
@@ -5020,6 +5060,8 @@ bool can_ban_embassy_specific_checks(sys::state& state, dcon::nation_id source, 
 	return nations::influence::is_influence_level_greater_or_equal(clevel,
 			nations::influence::get_level(state, affected_gp, influence_target));
 }
+template bool can_ban_embassy_specific_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
+template bool can_ban_embassy_specific_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
 
 template<command::actor Actor>
 bool can_ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
@@ -5039,7 +5081,8 @@ bool can_ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id 
 	}
 	return true;
 }
-
+template bool can_ban_embassy<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+template bool can_ban_embassy<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
 
 void ban_embassy(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
 	/*
@@ -5095,6 +5138,8 @@ bool can_expel_advisors_specific_checks(sys::state& state, dcon::nation_id sourc
 	return nations::influence::is_influence_level_greater_or_equal(clevel,
 			nations::influence::get_level(state, affected_gp, influence_target));
 }
+template bool can_expel_advisors_specific_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
+template bool can_expel_advisors_specific_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
 
 template<command::actor Actor>
 bool can_expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
@@ -5114,7 +5159,8 @@ bool can_expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_
 	}
 	return true;
 }
-
+template bool can_expel_advisors<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+template bool can_expel_advisors<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
 
 void expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp) {
 	/*

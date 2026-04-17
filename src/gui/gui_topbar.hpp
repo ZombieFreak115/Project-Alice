@@ -1710,13 +1710,13 @@ public:
 		auto nation_id = retrieve<dcon::nation_id>(state, parent);
 		auto nation_fat_id = dcon::fatten(state.world, nation_id);
 		for(auto si : state.world.nation_get_state_ownership(nation_id)) {
-			if(province::can_integrate_colony(state, si.get_state())) {
+			if(province::can_upgrade_colony_to_state<command::actor::player>(state, state.local_player_nation, si.get_state())) {
 				provinces.push_back(si.get_state().get_capital());
 			}
 		}
 
 		state.world.for_each_state_definition([&](dcon::state_definition_id sdef) {
-			if(province::can_start_colony(state, nation_id, sdef)) {
+			if(province::can_start_colony<command::actor::player>(state, nation_id, sdef)) {
 				dcon::province_id province;
 				for(auto p : state.world.state_definition_get_abstract_state_membership(sdef)) {
 					if(!p.get_province().get_nation_from_province_ownership()) {
@@ -1734,7 +1734,7 @@ public:
 			auto sdef = state.world.colonization_get_state(colony);
 			if(state.world.state_definition_get_colonization_stage(sdef) == 3) { //make protectorate
 				provinces.push_back(get_state_def_province(state, sdef));
-			} else if(province::can_invest_in_colony(state, nation_id, sdef)) { //invest
+			} else if(province::can_invest_in_colony<command::actor::player>(state, nation_id, sdef)) { //invest
 				provinces.push_back(get_state_def_province(state, sdef));
 			} else { //losing rase
 				auto lvl = state.world.colonization_get_level(colony);
@@ -1765,17 +1765,17 @@ public:
 	int32_t get_icon_frame(sys::state& state, dcon::nation_id nation_id) noexcept override {
 		bool any_integratable = false;
 		for(auto si : state.world.nation_get_state_ownership(nation_id)) {
-			if(province::can_integrate_colony(state, si.get_state())) {
+			if(province::can_upgrade_colony_to_state<command::actor::player>(state, state.local_player_nation, si.get_state())) {
 				any_integratable = true;
 				break;
 			}
 		}
 		state.world.for_each_state_definition([&](dcon::state_definition_id sdef) {
-			if(province::can_start_colony(state, nation_id, sdef)) {
+			if(province::can_start_colony<command::actor::player>(state, nation_id, sdef)) {
 				any_integratable = true;
 			}
 		});
-		if(nations::can_expand_colony(state, nation_id) || any_integratable) {
+		if(nations::can_expand_any_colony<command::actor::player>(state, nation_id) || any_integratable) {
 			return 0;
 		} else if(nations::is_losing_colonial_race(state, nation_id)) {
 			return 1;
@@ -1797,14 +1797,14 @@ public:
 		bool is_empty = true;
 
 		for(auto si : state.world.nation_get_state_ownership(nation_id)) {
-			if(province::can_integrate_colony(state, si.get_state())) {
+			if(province::can_upgrade_colony_to_state<command::actor::player>(state, state.local_player_nation, si.get_state())) {
 				text::add_line(state, contents, "countryalert_colonialgood_state", text::variable_type::region, si.get_state().id);
 				is_empty = false;
 			}
 		}
 
 		state.world.for_each_state_definition([&](dcon::state_definition_id sdef) {
-			if(province::can_start_colony(state, nation_id, sdef)) {
+			if(province::can_start_colony<command::actor::player>(state, nation_id, sdef)) {
 				text::add_line(state, contents, "alice_countryalert_colonialgood_start", text::variable_type::region, sdef);
 				is_empty = false;
 			}
@@ -1815,7 +1815,7 @@ public:
 			if(state.world.state_definition_get_colonization_stage(sdef) == 3) {
 				text::add_line(state, contents, "countryalert_colonialgood_colony", text::variable_type::region, sdef);
 				is_empty = false;
-			} else if(province::can_invest_in_colony(state, nation_id, sdef)) {
+			} else if(province::can_invest_in_colony<command::actor::player>(state, nation_id, sdef)) {
 				text::add_line(state, contents, "countryalert_colonialgood_invest", text::variable_type::region, sdef);
 				is_empty = false;
 			}

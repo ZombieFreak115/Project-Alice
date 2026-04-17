@@ -1001,21 +1001,6 @@ float state_sorting_distance(sys::state& state, dcon::state_instance_id state_id
 	return sorting_distance(state, state.world.state_instance_get_capital(state_id), prov_id);
 }
 
-bool can_integrate_colony(sys::state& state, dcon::state_instance_id id) {
-	if(state.world.state_instance_get_capital(id).get_is_colonial() == false)
-		return false;
-
-	auto dkey = demographics::to_key(state, state.culture_definitions.bureaucrat);
-	auto bureaucrat_size = state_accepted_bureaucrat_size(state, id);
-	auto total_size = state.world.state_instance_get_demographics(id, demographics::total);
-	if(bureaucrat_size / total_size >= state.defines.state_creation_admin_limit) {
-		auto owner = state.world.state_instance_get_nation_from_state_ownership(id);
-		auto cost = colony_integration_cost(state, id);
-		return cost == 0.0f || cost <= nations::free_colonial_points(state, owner);
-	} else {
-		return false;
-	}
-}
 
 float colony_integration_cost(sys::state& state, dcon::state_instance_id id) {
 	/*
@@ -1037,42 +1022,7 @@ float colony_integration_cost(sys::state& state, dcon::state_instance_id id) {
 	}
 }
 
-void upgrade_colonial_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id si) {
-	province::for_each_province_in_state_instance(state, si, [&](dcon::province_id p) {
-		// Provinces in the state stop being colonial.
-		state.world.province_set_is_colonial(p, false);
 
-		// All timed modifiers active for provinces in the state expire
-		auto timed_modifiers = state.world.province_get_current_modifiers(p);
-		for(uint32_t i = timed_modifiers.size(); i-- > 0;) {
-			if(bool(timed_modifiers[i].expiration)) {
-				timed_modifiers.remove_at(i);
-			}
-		}
-	});
-
-	// Gain define:COLONY_TO_STATE_PRESTIGE_GAIN x(1.0 + colony - prestige - from - tech) x(1.0 + prestige - from - tech)
-	nations::adjust_prestige(state, source,
-			state.defines.colony_to_state_prestige_gain *
-					(1.0f + state.world.nation_get_modifier_values(source, sys::national_mod_offsets::colonial_prestige)));
-
-	// An event from `on_colony_to_state` happens(with the state in scope)
-	event::fire_fixed_event(state, state.national_definitions.on_colony_to_state, trigger::to_generic(si), event::slot_type::state,
-			source, -1, event::slot_type::none);
-
-	// An event from `on_colony_to_state_free_slaves` happens(with the state in scope)
-	event::fire_fixed_event(state, state.national_definitions.on_colony_to_state_free_slaves, trigger::to_generic(si),
-			event::slot_type::state, source, -1, event::slot_type::none);
-
-	// Update is colonial nation
-	state.world.nation_set_is_colonial_nation(source, false);
-	for(auto p : state.world.nation_get_province_ownership(source)) {
-		if(p.get_province().get_is_colonial()) {
-			state.world.nation_set_is_colonial_nation(source, true);
-			return;
-		}
-	}
-}
 
 void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation_id new_owner) {
 	assert(id);
@@ -1611,64 +1561,7 @@ bool is_colonizing(sys::state& state, dcon::nation_id n, dcon::state_definition_
 	return false;
 }
 
-bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d) {
-	// Your country must be of define:COLONIAL_RANK or less.
-	if(state.world.nation_get_rank(n) > uint16_t(state.defines.colonial_rank))
-		return false; // too low rank to colonize;
 
-	if(state.world.state_definition_get_colonization_stage(d) > uint8_t(2))
-		return false; // too late
-
-	// The state may not be the current target of a crisis, nor may your country be involved in an active crisis war.
-
-	auto first_wg = state.crisis_attacker_wargoals.at(0);
-	if(first_wg.state == d)
-		return false;
-	for(auto par : state.world.war_get_war_participant(state.crisis_war)) {
-		if(par.get_nation() == n)
-			return false;
-	}
-
-	// Must have colonization in progress
-	dcon::colonization_id colony_status;
-	auto crange = state.world.state_definition_get_colonization(d);
-	for(auto rel : crange) {
-		if(rel.get_colonizer() == n) {
-			colony_status = rel.id;
-			break;
-		}
-	}
-
-	if(!colony_status)
-		return false;
-	if(crange.end() - crange.begin() <= 1) // no competition
-		return false;
-
-	/*
-	If you have put a colonist in the region, and colonization is in phase 1 or 2, you can invest if it has been at least
-	define:COLONIZATION_DAYS_BETWEEN_INVESTMENT since your last investment, and you have enough free colonial points.
-	*/
-
-	if(state.world.colonization_get_last_investment(colony_status) + int32_t(state.defines.colonization_days_between_investment) > state.current_date)
-		return false;
-
-	/*
-	Steps cost define:COLONIZATION_INTEREST_COST while in phase 1. In phase two, each point of investment cost
-	define:COLONIZATION_INFLUENCE_COST up to the fourth point. After reaching the fourth point, further points cost
-	define:COLONIZATION_EXTRA_GUARD_COST x (points - 4) + define:COLONIZATION_INFLUENCE_COST.
-	*/
-
-	auto free_points = nations::free_colonial_points(state, n);
-	if(state.world.state_definition_get_colonization_stage(d) == 1) {
-		return free_points >= int32_t(state.defines.colonization_interest_cost);
-	} else if(state.world.colonization_get_level(colony_status) <= 4) {
-		return free_points >= int32_t(state.defines.colonization_influence_cost);
-	} else {
-		return free_points >=
-					 int32_t(state.defines.colonization_extra_guard_cost * (state.world.colonization_get_level(colony_status) - 4) +
-									 state.defines.colonization_influence_cost);
-	}
-}
 
 float get_province_modifier_without_hostile_buildings(sys::state& state, dcon::nation_id as_nation, dcon::province_id prov, dcon::provincial_modifier_value prov_mod_val) {
 	auto modifier_val = state.world.province_get_modifier_values(prov, prov_mod_val);
@@ -1710,135 +1603,6 @@ bool state_borders_nation(sys::state& state, dcon::nation_id n, dcon::state_inst
 	return false;
 }
 
-bool can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d) {
-	if(state.world.state_definition_get_colonization_stage(d) > uint8_t(1))
-		return false; // too late
-
-	auto mem = state.world.state_definition_get_abstract_state_membership(d);
-	if(mem.begin() == mem.end() || (*mem.begin()).get_province().id.index() >= state.province_definitions.first_sea_province.index())
-		return false;
-
-	// Your country must be of define:COLONIAL_RANK or less.
-	if(state.world.nation_get_rank(n) > uint16_t(state.defines.colonial_rank))
-		return false; // too low rank to colonize;
-
-	// The state may not be the current target of a crisis, nor may your country be involved in an active crisis war.
-	if(state.crisis_attacker_wargoals.size() > 0) {
-		auto first_wg = state.crisis_attacker_wargoals.at(0);
-		if(first_wg.state == d)
-			return false;
-		for(auto par : state.world.war_get_war_participant(state.crisis_war)) {
-			if(par.get_nation() == n)
-				return false;
-		}
-	}
-
-	float max_life_rating = -1.0f;
-	for(auto p : state.world.state_definition_get_abstract_state_membership(d)) {
-		if(!p.get_province().get_nation_from_province_ownership()) {
-			max_life_rating = std::max(max_life_rating, float(p.get_province().get_life_rating()));
-		}
-	}
-
-	if(max_life_rating < 0.0f) {
-		return false; // no uncolonized province
-	}
-
-	/*
-	You must have colonial life rating points from technology + define:COLONIAL_LIFERATING less than or equal to the *greatest*
-	life rating of an unowned province in the state
-	*/
-
-	if(state.defines.colonial_liferating + state.world.nation_get_modifier_values(n, sys::national_mod_offsets::colonial_life_rating) > max_life_rating) {
-		return false;
-	}
-
-	auto colonizers = state.world.state_definition_get_colonization(d);
-	auto num_colonizers = colonizers.end() - colonizers.begin();
-
-	// You can invest colonially in a region if there are fewer than 4 other colonists there (or you already have a colonist
-	// there)
-	if(num_colonizers >= 4)
-		return false;
-
-	for(auto c : colonizers) {
-		if(c.get_colonizer() == n)
-			return false; // already started a colony
-	}
-
-	/*
-	If you haven't yet put a colonist into the region, you must be in range of the region. Any region adjacent to your country or
-	to one of your vassals or substates is considered to be in range. Otherwise it must be in range of one of your naval bases,
-	with the range depending on the colonial range value provided by the naval base building x the level of the naval base.
-	*/
-
-	bool adjacent = [&]() {
-		for(auto p : state.world.state_definition_get_abstract_state_membership(d)) {
-			if(!p.get_province().get_nation_from_province_ownership()) {
-				for(auto adj : p.get_province().get_province_adjacency()) {
-					auto indx = adj.get_connected_provinces(0) != p.get_province() ? 0 : 1;
-					auto o = adj.get_connected_provinces(indx).get_nation_from_province_ownership();
-					if(o == n)
-						return true;
-					if(o.get_overlord_as_subject().get_ruler() == n)
-						return true;
-				}
-			}
-		}
-		return false;
-	}();
-
-	/*
-	// OLD WAY: just check if it is coastal
-	bool nation_has_port = state.world.nation_get_central_ports(n) != 0;
-	bool reachable_by_sea = nation_has_port && [&]() {
-		for(auto p : state.world.state_definition_get_abstract_state_membership(d)) {
-			if(!p.get_province().get_nation_from_province_ownership()) {
-				if(p.get_province().get_is_coast())
-					return true;
-			}
-		}
-		return false;
-	}();
-	*/
-	bool reachable_by_sea = false;
-
-	dcon::province_id coastal_target = [&]() {
-		for(auto p : state.world.state_definition_get_abstract_state_membership(d)) {
-			if(!p.get_province().get_nation_from_province_ownership()) {
-				if(p.get_province().get_is_coast())
-					return p.get_province().id;
-			}
-		}
-		return dcon::province_id{};
-	}();
-
-	if(!adjacent && coastal_target  && state.world.nation_get_central_ports(n) != 0) {
-		for(auto p : state.world.nation_get_province_ownership(n)) {
-			if(auto nb_level = p.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base)); nb_level > 0 && p.get_province().get_nation_from_province_control() == n) {
-				auto dist = province::direct_distance(state, p.get_province(), coastal_target);
-				auto arbitrary_circumference = state.map_state.map_data.world_circumference / 10.0f;
-				if(dist <= arbitrary_circumference * state.defines.alice_naval_base_to_colonial_distance_factor * nb_level) {
-					reachable_by_sea = true;
-					break;
-				}
-			}
-		}
-	}
-
-	if(!adjacent && !reachable_by_sea)
-		return false;
-
-	/*
-	Investing in a colony costs define:COLONIZATION_INVEST_COST_INITIAL + define:COLONIZATION_INTEREST_COST_NEIGHBOR_MODIFIER (if
-	a province adjacent to the region is owned) to place the initial colonist.
-	*/
-
-	auto free_points = nations::free_colonial_points(state, n);
-
-	return free_points >= int32_t(state.defines.colonization_interest_cost_initial +
-																(adjacent ? state.defines.colonization_interest_cost_neighbor_modifier : 0.0f));
-}
 
 bool fast_can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d, int32_t free_points, dcon::province_id coastal_target, bool& adjacent) {
 	if(state.world.state_definition_get_colonization_stage(d) > uint8_t(1))
@@ -1944,67 +1708,7 @@ bool fast_can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_def
 																(adjacent ? state.defines.colonization_interest_cost_neighbor_modifier : 0.0f));
 }
 
-void increase_colonial_investment(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def) {
-	uint8_t greatest_other_level = 0;
-	dcon::nation_id second_colonizer;
-	for(auto rel : state.world.state_definition_get_colonization(state_def)) {
-		if(rel.get_colonizer() != source) {
-			if(rel.get_level() >= greatest_other_level) {
-				greatest_other_level = rel.get_level();
-				second_colonizer = rel.get_colonizer();
-			}
-		}
-	}
 
-	for(auto rel : state.world.state_definition_get_colonization(state_def)) {
-		if(rel.get_colonizer() == source) {
-
-			if(state.world.state_definition_get_colonization_stage(state_def) == 1) {
-				rel.set_points_invested(uint16_t(rel.get_points_invested() + uint16_t(state.defines.colonization_interest_cost)));
-			} else if(rel.get_level() <= 4) {
-				rel.set_points_invested(uint16_t(rel.get_points_invested() + uint16_t(state.defines.colonization_influence_cost)));
-			} else {
-				rel.set_points_invested(uint16_t(rel.get_points_invested() + uint16_t(
-					state.defines.colonization_extra_guard_cost * (rel.get_level() - 4) + state.defines.colonization_influence_cost)));
-			}
-			rel.set_level(uint8_t(rel.get_level() + uint8_t(1)));
-			rel.set_last_investment(state.current_date);
-
-			/*
-			If you get define:COLONIZATION_INTEREST_LEAD points it moves into phase 2, kicking out all but the second-most
-			colonizer (in terms of points). In phase 2 if you get define:COLONIZATION_INFLUENCE_LEAD points ahead of the other
-			colonizer, the other colonizer is kicked out and the phase moves to 3.
-			*/
-			if(state.world.state_definition_get_colonization_stage(state_def) == 1) {
-				if(rel.get_level() >= int32_t(state.defines.colonization_interest_lead)) {
-
-					state.world.state_definition_set_colonization_stage(state_def, uint8_t(2));
-					auto col_range = state.world.state_definition_get_colonization(state_def);
-					while(int32_t(col_range.end() - col_range.begin()) > 2) {
-						for(auto r : col_range) {
-							if(r.get_colonizer() != source && r.get_colonizer() != second_colonizer) {
-								state.world.delete_colonization(r);
-								break;
-							}
-						}
-					}
-				}
-			} else if(rel.get_level() >= int32_t(state.defines.colonization_interest_lead) + greatest_other_level) {
-				state.world.state_definition_set_colonization_stage(state_def, uint8_t(3));
-				auto col_range = state.world.state_definition_get_colonization(state_def);
-				while(int32_t(col_range.end() - col_range.begin()) > 1) {
-					for(auto r : col_range) {
-						if(r.get_colonizer() != source) {
-							state.world.delete_colonization(r);
-							break;
-						}
-					}
-				}
-			}
-			return;
-		}
-	}
-}
 
 void update_colonization(sys::state& state) {
 	for(auto d : state.world.in_state_definition) {
@@ -2785,6 +2489,16 @@ std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& st
 
 }
 
+dcon::province_id get_colonization_coastal_target(sys::state& state, dcon::state_definition_id state_def) {
+	for(auto p : state.world.state_definition_get_abstract_state_membership(state_def)) {
+		if(!p.get_province().get_nation_from_province_ownership()) {
+			if(p.get_province().get_is_coast())
+				return p.get_province().id;
+		}
+	}
+	return dcon::province_id{};
+}
+
 void restore_distances(sys::state& state) {
 	for(auto p : state.world.in_province) {
 		auto tile_pos = p.get_mid_point();
@@ -2809,5 +2523,408 @@ void restore_distances(sys::state& state) {
 		adj.set_distance_km(dist_km);
 	}
 }
+
+
+template<command::actor Actor>
+bool can_upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id id) {
+	if constexpr(Actor == command::actor::player) {
+		if(!state.current_scene.game_in_progress) {
+			return false;
+		}
+		if(!state.world.state_instance_is_valid(id)) {
+			return false;
+		}
+		// We already know this will be owned by the ai nation as we loop over states
+		if(state.world.state_instance_get_nation_from_state_ownership(id) != source) {
+			return false;
+		}
+	}
+
+	if(state.world.state_instance_get_capital(id).get_is_colonial() == false)
+		return false;
+
+	auto dkey = demographics::to_key(state, state.culture_definitions.bureaucrat);
+	auto bureaucrat_size = state_accepted_bureaucrat_size(state, id);
+	auto total_size = state.world.state_instance_get_demographics(id, demographics::total);
+	if(bureaucrat_size / total_size >= state.defines.state_creation_admin_limit) {
+		auto owner = state.world.state_instance_get_nation_from_state_ownership(id);
+		auto cost = colony_integration_cost(state, id);
+		return cost == 0.0f || cost <= nations::free_colonial_points(state, owner);
+	} else {
+		return false;
+	}
+}
+template bool can_upgrade_colony_to_state<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::state_instance_id id);
+template bool can_upgrade_colony_to_state<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::state_instance_id id);
+
+void upgrade_colony_to_state(sys::state& state, dcon::nation_id source, dcon::state_instance_id si) {
+	province::for_each_province_in_state_instance(state, si, [&](dcon::province_id p) {
+		// Provinces in the state stop being colonial.
+		state.world.province_set_is_colonial(p, false);
+
+		// All timed modifiers active for provinces in the state expire
+		auto timed_modifiers = state.world.province_get_current_modifiers(p);
+		for(uint32_t i = timed_modifiers.size(); i-- > 0;) {
+			if(bool(timed_modifiers[i].expiration)) {
+				timed_modifiers.remove_at(i);
+			}
+		}
+	});
+
+	// Gain define:COLONY_TO_STATE_PRESTIGE_GAIN x(1.0 + colony - prestige - from - tech) x(1.0 + prestige - from - tech)
+	nations::adjust_prestige(state, source,
+			state.defines.colony_to_state_prestige_gain *
+					(1.0f + state.world.nation_get_modifier_values(source, sys::national_mod_offsets::colonial_prestige)));
+
+	// An event from `on_colony_to_state` happens(with the state in scope)
+	event::fire_fixed_event(state, state.national_definitions.on_colony_to_state, trigger::to_generic(si), event::slot_type::state,
+			source, -1, event::slot_type::none);
+
+	// An event from `on_colony_to_state_free_slaves` happens(with the state in scope)
+	event::fire_fixed_event(state, state.national_definitions.on_colony_to_state_free_slaves, trigger::to_generic(si),
+			event::slot_type::state, source, -1, event::slot_type::none);
+
+	// Update is colonial nation
+	state.world.nation_set_is_colonial_nation(source, false);
+	for(auto p : state.world.nation_get_province_ownership(source)) {
+		if(p.get_province().get_is_colonial()) {
+			state.world.nation_set_is_colonial_nation(source, true);
+			return;
+		}
+	}
+}
+
+template<command::actor Actor>
+bool can_start_colony_global_checks(sys::state& state) {
+
+	if constexpr(Actor == command::actor::player) {
+		if(!state.current_scene.game_in_progress) {
+			return false;
+		}
+	}
+	return true;
+}
+template bool can_start_colony_global_checks<command::actor::ai>(sys::state& state);
+template bool can_start_colony_global_checks<command::actor::player>(sys::state& state);
+
+template<command::actor Actor>
+bool can_start_colony_state_def_checks(sys::state& state, dcon::state_definition_id state_def) {
+
+	// There must be atleast one uncolonized province in the state
+	auto any_uncolonized = [&]() {
+		for(auto p : state.world.state_definition_get_abstract_state_membership(state_def)) {
+			auto prov = p.get_province();
+			if(!prov.get_province_ownership().get_nation() && prov.id.index() < state.province_definitions.first_sea_province.index()) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	if(!any_uncolonized) {
+		return false;
+	}
+
+	if(state.world.state_definition_get_colonization_stage(state_def) > uint8_t(1)) {
+		return false; // too late
+	}
+	auto mem = state.world.state_definition_get_abstract_state_membership(state_def);
+	if(mem.begin() == mem.end() || (*mem.begin()).get_province().id.index() >= state.province_definitions.first_sea_province.index()) {
+		return false;
+	}
+	auto colonizers = state.world.state_definition_get_colonization(state_def);
+	auto num_colonizers = colonizers.end() - colonizers.begin();
+
+	// You can invest colonially in a region if there are fewer than 4 other colonists there (or you already have a colonist
+	// there)
+	if(num_colonizers >= 4) {
+		return false;
+	}
+	return true;
+}
+
+template bool can_start_colony_state_def_checks<command::actor::ai>(sys::state& state, dcon::state_definition_id state_def);
+template bool can_start_colony_state_def_checks<command::actor::player>(sys::state& state, dcon::state_definition_id state_def);
+
+template<command::actor Actor>
+bool can_start_colony_source_checks(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def, int32_t free_points) {
+
+	if constexpr(Actor == command::actor::player) {
+		// Your country must be of define:COLONIAL_RANK or less.
+		if(state.world.nation_get_rank(source) > uint16_t(state.defines.colonial_rank))
+			return false; // too low rank to colonize;
+	}
+
+
+
+	// The state may not be the current target of a crisis, nor may your country be involved in an active crisis war.
+	if(state.crisis_attacker_wargoals.size() > 0) {
+		auto first_wg = state.crisis_attacker_wargoals.at(0);
+		if(first_wg.state == state_def)
+			return false;
+		for(auto par : state.world.war_get_war_participant(state.crisis_war)) {
+			if(par.get_nation() == source)
+				return false;
+		}
+	}
+
+
+	float max_life_rating = -1.0f;
+	for(auto p : state.world.state_definition_get_abstract_state_membership(state_def)) {
+		if(!p.get_province().get_nation_from_province_ownership()) {
+			max_life_rating = std::max(max_life_rating, float(p.get_province().get_life_rating()));
+		}
+	}
+
+	if(max_life_rating < 0.0f) {
+		return false; // no uncolonized province
+	}
+
+	/*
+	You must have colonial life rating points from technology + define:COLONIAL_LIFERATING less than or equal to the *greatest*
+	life rating of an unowned province in the state
+	*/
+
+	if(state.defines.colonial_liferating + state.world.nation_get_modifier_values(source, sys::national_mod_offsets::colonial_life_rating) > max_life_rating) {
+		return false;
+	}
+	auto colonizers = state.world.state_definition_get_colonization(state_def);
+	for(auto c : colonizers) {
+		if(c.get_colonizer() == source)
+			return false; // already started a colony
+	}
+	/*
+	If you haven't yet put a colonist into the region, you must be in range of the region. Any region adjacent to your country or
+	to one of your vassals or substates is considered to be in range. Otherwise it must be in range of one of your naval bases,
+	with the range depending on the colonial range value provided by the naval base building x the level of the naval base.
+	*/
+	bool adjacent = [&]() {
+		for(auto p : state.world.state_definition_get_abstract_state_membership(state_def)) {
+			if(!p.get_province().get_nation_from_province_ownership()) {
+				for(auto adj : p.get_province().get_province_adjacency()) {
+					auto indx = adj.get_connected_provinces(0) != p.get_province() ? 0 : 1;
+					auto o = adj.get_connected_provinces(indx).get_nation_from_province_ownership();
+					if(o == source)
+						return true;
+					if(o.get_overlord_as_subject().get_ruler() == source)
+						return true;
+				}
+			}
+		}
+		return false;
+	}();
+
+	bool reachable_by_sea = false;
+
+	dcon::province_id coastal_target = get_colonization_coastal_target(state, state_def);
+
+	if(!adjacent && coastal_target && state.world.nation_get_central_ports(source) != 0) {
+		for(auto p : state.world.nation_get_province_ownership(source)) {
+			if(auto nb_level = p.get_province().get_building_level(uint8_t(economy::province_building_type::naval_base)); nb_level > 0 && p.get_province().get_nation_from_province_control() == source) {
+				auto dist = province::direct_distance(state, p.get_province(), coastal_target);
+				auto arbitrary_circumference = state.map_state.map_data.world_circumference / 10.0f;
+				if(dist <= arbitrary_circumference * state.defines.alice_naval_base_to_colonial_distance_factor * nb_level) {
+					reachable_by_sea = true;
+					break;
+				}
+			}
+		}
+	}
+
+	if(!adjacent && !reachable_by_sea)
+		return false;
+
+	/*
+	Investing in a colony costs define:COLONIZATION_INVEST_COST_INITIAL + define:COLONIZATION_INTEREST_COST_NEIGHBOR_MODIFIER (if
+	a province adjacent to the region is owned) to place the initial colonist.
+	*/
+
+	return free_points >= int32_t(state.defines.colonization_interest_cost_initial +
+																(adjacent ? state.defines.colonization_interest_cost_neighbor_modifier : 0.0f));
+}
+template bool can_start_colony_source_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def, int32_t free_points);
+template bool can_start_colony_source_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def, int32_t free_points);
+
+template<command::actor Actor>
+bool can_start_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def, int32_t free_points) {
+	if(!can_start_colony_global_checks<Actor>(state)) {
+		return false;
+	}
+	if(!can_start_colony_state_def_checks<Actor>(state, state_def)) {
+		return false;
+	}
+	if(!can_start_colony_source_checks<Actor>(state, source, state_def, free_points)) {
+		return false;
+	}
+	return true;
+}
+template bool can_start_colony<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def, int32_t free_points);
+template bool can_start_colony<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def, int32_t free_points);
+template<command::actor Actor>
+bool can_start_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def) {
+	auto free_points = nations::free_colonial_points(state, source);
+	return can_start_colony<Actor>(state, source, state_def, free_points);
+}
+template bool can_start_colony<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+template bool can_start_colony<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+
+uint16_t start_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def) {
+	bool adjacent = [&]() {
+		for(auto p : state.world.state_definition_get_abstract_state_membership(state_def)) {
+			if(!p.get_province().get_nation_from_province_ownership()) {
+				for(auto adj : p.get_province().get_province_adjacency()) {
+					auto indx = adj.get_connected_provinces(0) != p.get_province() ? 0 : 1;
+					auto o = adj.get_connected_provinces(indx).get_nation_from_province_ownership();
+					if(o == source)
+						return true;
+					if(o.get_overlord_as_subject().get_ruler() == source)
+						return true;
+				}
+			}
+		}
+		return false;
+	}();
+	auto points_invested = uint16_t(state.defines.colonization_interest_cost_initial + (adjacent ? state.defines.colonization_interest_cost_neighbor_modifier : 0.0f));
+
+	auto new_rel = fatten(state.world, state.world.force_create_colonization(state_def, source));
+	new_rel.set_level(uint8_t(1));
+	new_rel.set_last_investment(state.current_date);
+	new_rel.set_points_invested(points_invested);
+
+	state.world.state_definition_set_colonization_stage(state_def, uint8_t(1));
+
+	return points_invested;
+}
+
+
+template<command::actor Actor>
+bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d) {
+	if constexpr(Actor == command::actor::player) {
+		if(!state.current_scene.game_in_progress) {
+			return false;
+		}
+	}
+	// Your country must be of define:COLONIAL_RANK or less.
+	if(state.world.nation_get_rank(n) > uint16_t(state.defines.colonial_rank))
+		return false; // too low rank to colonize;
+
+	if(state.world.state_definition_get_colonization_stage(d) > uint8_t(2))
+		return false; // too late
+
+	// The state may not be the current target of a crisis, nor may your country be involved in an active crisis war.
+
+	auto first_wg = state.crisis_attacker_wargoals.at(0);
+	if(first_wg.state == d)
+		return false;
+	for(auto par : state.world.war_get_war_participant(state.crisis_war)) {
+		if(par.get_nation() == n)
+			return false;
+	}
+
+	// Must have colonization in progress
+	dcon::colonization_id colony_status;
+	auto crange = state.world.state_definition_get_colonization(d);
+	for(auto rel : crange) {
+		if(rel.get_colonizer() == n) {
+			colony_status = rel.id;
+			break;
+		}
+	}
+
+	if(!colony_status)
+		return false;
+	if(crange.end() - crange.begin() <= 1) // no competition
+		return false;
+
+	/*
+	If you have put a colonist in the region, and colonization is in phase 1 or 2, you can invest if it has been at least
+	define:COLONIZATION_DAYS_BETWEEN_INVESTMENT since your last investment, and you have enough free colonial points.
+	*/
+
+	if(state.world.colonization_get_last_investment(colony_status) + int32_t(state.defines.colonization_days_between_investment) > state.current_date)
+		return false;
+
+	/*
+	Steps cost define:COLONIZATION_INTEREST_COST while in phase 1. In phase two, each point of investment cost
+	define:COLONIZATION_INFLUENCE_COST up to the fourth point. After reaching the fourth point, further points cost
+	define:COLONIZATION_EXTRA_GUARD_COST x (points - 4) + define:COLONIZATION_INFLUENCE_COST.
+	*/
+
+	auto free_points = nations::free_colonial_points(state, n);
+	if(state.world.state_definition_get_colonization_stage(d) == 1) {
+		return free_points >= int32_t(state.defines.colonization_interest_cost);
+	} else if(state.world.colonization_get_level(colony_status) <= 4) {
+		return free_points >= int32_t(state.defines.colonization_influence_cost);
+	} else {
+		return free_points >=
+			int32_t(state.defines.colonization_extra_guard_cost * (state.world.colonization_get_level(colony_status) - 4) +
+							state.defines.colonization_influence_cost);
+	}
+}
+template bool can_invest_in_colony<command::actor::ai>(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
+template bool can_invest_in_colony<command::actor::player>(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
+
+void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def) {
+	uint8_t greatest_other_level = 0;
+	dcon::nation_id second_colonizer;
+	for(auto rel : state.world.state_definition_get_colonization(state_def)) {
+		if(rel.get_colonizer() != source) {
+			if(rel.get_level() >= greatest_other_level) {
+				greatest_other_level = rel.get_level();
+				second_colonizer = rel.get_colonizer();
+			}
+		}
+	}
+
+	for(auto rel : state.world.state_definition_get_colonization(state_def)) {
+		if(rel.get_colonizer() == source) {
+
+			if(state.world.state_definition_get_colonization_stage(state_def) == 1) {
+				rel.set_points_invested(uint16_t(rel.get_points_invested() + uint16_t(state.defines.colonization_interest_cost)));
+			} else if(rel.get_level() <= 4) {
+				rel.set_points_invested(uint16_t(rel.get_points_invested() + uint16_t(state.defines.colonization_influence_cost)));
+			} else {
+				rel.set_points_invested(uint16_t(rel.get_points_invested() + uint16_t(
+					state.defines.colonization_extra_guard_cost * (rel.get_level() - 4) + state.defines.colonization_influence_cost)));
+			}
+			rel.set_level(uint8_t(rel.get_level() + uint8_t(1)));
+			rel.set_last_investment(state.current_date);
+
+			/*
+			If you get define:COLONIZATION_INTEREST_LEAD points it moves into phase 2, kicking out all but the second-most
+			colonizer (in terms of points). In phase 2 if you get define:COLONIZATION_INFLUENCE_LEAD points ahead of the other
+			colonizer, the other colonizer is kicked out and the phase moves to 3.
+			*/
+			if(state.world.state_definition_get_colonization_stage(state_def) == 1) {
+				if(rel.get_level() >= int32_t(state.defines.colonization_interest_lead)) {
+
+					state.world.state_definition_set_colonization_stage(state_def, uint8_t(2));
+					auto col_range = state.world.state_definition_get_colonization(state_def);
+					while(int32_t(col_range.end() - col_range.begin()) > 2) {
+						for(auto r : col_range) {
+							if(r.get_colonizer() != source && r.get_colonizer() != second_colonizer) {
+								state.world.delete_colonization(r);
+								break;
+							}
+						}
+					}
+				}
+			} else if(rel.get_level() >= int32_t(state.defines.colonization_interest_lead) + greatest_other_level) {
+				state.world.state_definition_set_colonization_stage(state_def, uint8_t(3));
+				auto col_range = state.world.state_definition_get_colonization(state_def);
+				while(int32_t(col_range.end() - col_range.begin()) > 1) {
+					for(auto r : col_range) {
+						if(r.get_colonizer() != source) {
+							state.world.delete_colonization(r);
+							break;
+						}
+					}
+				}
+			}
+			return;
+		}
+	}
+}
+
+
 
 } // namespace province
