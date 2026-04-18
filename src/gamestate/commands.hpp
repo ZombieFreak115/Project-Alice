@@ -889,10 +889,8 @@ void start_colony(sys::state& state, dcon::nation_id source, dcon::province_id p
 void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::province_id p);
 
 void abandon_colony(sys::state& state, dcon::nation_id source, dcon::province_id p);
-bool can_abandon_colony(sys::state& state, dcon::nation_id source, dcon::province_id p);
 
 void finish_colonization(sys::state& state, dcon::nation_id source, dcon::state_definition_id d);
-bool can_finish_colonization(sys::state& state, dcon::nation_id source, dcon::state_definition_id d);
 
 void intervene_in_war(sys::state& state, dcon::nation_id source, dcon::war_id w, bool for_attacker);
 bool can_intervene_in_war(sys::state& state, dcon::nation_id source, dcon::war_id w, bool for_attacker);
@@ -925,8 +923,6 @@ void change_stockpile_settings(sys::state& state, dcon::nation_id source, dcon::
 bool can_change_stockpile_settings(sys::state& state, dcon::nation_id source, dcon::commodity_id c, float target_amount, bool draw_on_stockpiles);
 
 void take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id d);
-bool can_take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id d);
-void execute_take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id d);
 
 void make_event_choice(sys::state& state, event::pending_human_n_event const& e, uint8_t option_id);
 void make_event_choice(sys::state& state, event::pending_human_f_n_event const& e, uint8_t option_id);

@@ -137,7 +137,7 @@ public:
 
 	void on_update(sys::state& state) noexcept override {
 		auto content = retrieve<dcon::decision_id>(state, parent);
-		disabled = !command::can_take_decision(state, state.local_player_nation, content);
+		disabled = !nations::can_take_decision<command::actor::player>(state, state.local_player_nation, content);
 	}
 
 	tooltip_behavior has_tooltip(sys::state& state) noexcept override {

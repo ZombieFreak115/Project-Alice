@@ -1397,12 +1397,14 @@ void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::province_
 
 }
 
-bool can_invest_in_colony(sys::state& state, dcon::nation_id source, dcon::province_id p) {
-	auto state_def = state.world.province_get_state_from_abstract_state_membership(p);
+bool can_invest_in_colony(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::generic_location_data>();
+	auto state_def = state.world.province_get_state_from_abstract_state_membership(data.prov);
 	return province::can_invest_in_colony<command::actor::player>(state, source, state_def);
 }
-void execute_invest_in_colony(sys::state& state, dcon::nation_id source, dcon::province_id pr) {
-	auto state_def = state.world.province_get_state_from_abstract_state_membership(pr);
+void execute_invest_in_colony(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::generic_location_data>();
+	auto state_def = state.world.province_get_state_from_abstract_state_membership(data.prov);
 	province::invest_in_colony(state, source, state_def);
 	
 }
@@ -1416,22 +1418,14 @@ void abandon_colony(sys::state& state, dcon::nation_id source, dcon::province_id
 
 }
 
-bool can_abandon_colony(sys::state& state, dcon::nation_id source, dcon::province_id pr) {
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	auto state_def = state.world.province_get_state_from_abstract_state_membership(pr);
-	return province::is_colonizing(state, source, state_def);
+bool can_abandon_colony(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::generic_location_data>();
+	return province::can_abandon_colony<command::actor::player>(state, source, state.world.province_get_state_from_abstract_state_membership(data.prov));
 }
 
-void execute_abandon_colony(sys::state& state, dcon::nation_id source, dcon::province_id p) {
-	auto state_def = state.world.province_get_state_from_abstract_state_membership(p);
-
-	for(auto rel : state.world.state_definition_get_colonization(state_def)) {
-		if(rel.get_colonizer() == source) {
-			state.world.delete_colonization(rel);
-		}
-	}
+void execute_abandon_colony(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<generic_location_data>();
+	province::abandon_colony(state, source, state.world.province_get_state_from_abstract_state_membership(data.prov));
 }
 
 void finish_colonization(sys::state& state, dcon::nation_id source, dcon::state_definition_id d) {
@@ -1442,32 +1436,13 @@ void finish_colonization(sys::state& state, dcon::nation_id source, dcon::state_
 	add_to_command_queue(state, p);
 
 }
-bool can_finish_colonization(sys::state& state, dcon::nation_id source, dcon::state_definition_id d) {
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	if(state.world.state_definition_get_colonization_stage(d) != 3)
-		return false;
-	auto rng = state.world.state_definition_get_colonization(d);
-	if(rng.begin() == rng.end())
-		return false;
-	return (*rng.begin()).get_colonizer() == source;
+bool can_finish_colonization(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::generic_state_definition_data>();
+	return province::can_finish_colonization<command::actor::player>(state, source, data.state_def);
 }
-void execute_finish_colonization(sys::state& state, dcon::nation_id source, dcon::state_definition_id d) {
-	for(auto pr : state.world.state_definition_get_abstract_state_membership(d)) {
-		if(!pr.get_province().get_nation_from_province_ownership()) {
-			province::change_province_owner(state, pr.get_province(), source);
-		}
-	}
-
-	state.world.state_definition_set_colonization_temperature(d, 0.0f);
-	state.world.state_definition_set_colonization_stage(d, uint8_t(0));
-
-	auto rng = state.world.state_definition_get_colonization(d);
-
-	while(rng.begin() != rng.end()) {
-		state.world.delete_colonization(*rng.begin());
-	}
+void execute_finish_colonization(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<generic_state_definition_data>();
+	province::finish_colonization(state, source, data.state_def);
 }
 
 void intervene_in_war(sys::state& state, dcon::nation_id source, dcon::war_id w, bool for_attacker) {
@@ -1851,27 +1826,13 @@ void take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id 
 	p << data;
 	add_to_command_queue(state, p);
 }
-bool can_take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id d) {
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	if(!(state.world.nation_get_is_player_controlled(source) && state.cheat_data.always_potential_decisions)) {
-		auto condition = state.world.decision_get_potential(d);
-		if(condition && !trigger::evaluate(state, condition, trigger::to_generic(source), trigger::to_generic(source), 0))
-			return false;
-	}
-	if(!(state.world.nation_get_is_player_controlled(source) && state.cheat_data.always_allow_decisions)) {
-		auto condition = state.world.decision_get_allow(d);
-		if(condition && !trigger::evaluate(state, condition, trigger::to_generic(source), trigger::to_generic(source), 0))
-			return false;
-	}
-	return true;
+bool can_take_decision(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<command::decision_data>();
+	return nations::can_take_decision<command::actor::player>(state, source, data.d);
 }
-void execute_take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id d) {
-	nations::take_decision(state, source, d);
-	if(auto e = state.world.decision_get_effect(d); e) {
-		event::update_future_events(state);
-	}
+void execute_take_decision(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& data = command.get_payload<decision_data>();
+	nations::take_decision<command::actor::player>(state, source, data.d);
 }
 
 bool can_make_event_choice(sys::state& state, dcon::nation_id source, pending_human_n_event_data const& e) {
@@ -5894,8 +5855,7 @@ bool can_perform_command(sys::state& state, command_data& c) {
 
 	case command_type::invest_in_colony:
 	{
-		auto& data = c.get_payload<command::generic_location_data>();
-		return can_invest_in_colony(state, source, data.prov);
+		return can_invest_in_colony(state, source, c);
 	}
 	case command_type::start_colony:
 	{
@@ -5903,14 +5863,12 @@ bool can_perform_command(sys::state& state, command_data& c) {
 	}
 	case command_type::abandon_colony:
 	{
-		auto& data = c.get_payload<command::generic_location_data>();
-		return can_abandon_colony(state, source, data.prov);
+		return can_abandon_colony(state, source,c);
 	}
 
 	case command_type::finish_colonization:
 	{
-		auto& data = c.get_payload<command::generic_state_definition_data>();
-		return can_finish_colonization(state, source, data.state_def);
+		return can_finish_colonization(state, source, c);
 	}
 
 	case command_type::intervene_in_war:
@@ -5967,8 +5925,7 @@ bool can_perform_command(sys::state& state, command_data& c) {
 
 	case command_type::take_decision:
 	{
-		auto& data = c.get_payload<command::decision_data>();
-		return can_take_decision(state, source, data.d);
+		return can_take_decision(state, source, c);
 	}
 
 	case command_type::make_n_event_choice:
@@ -6648,8 +6605,7 @@ void execute_command(sys::state& state, command_data& c) {
 	}
 	case command_type::invest_in_colony:
 	{
-		auto& data = c.get_payload<generic_location_data>();
-		execute_invest_in_colony(state, source_nation, data.prov);
+		execute_invest_in_colony(state, source_nation, c);
 		break;
 	}
 	case command_type::start_colony:
@@ -6659,14 +6615,12 @@ void execute_command(sys::state& state, command_data& c) {
 	}
 	case command_type::abandon_colony:
 	{
-		auto& data = c.get_payload<generic_location_data>();
-		execute_abandon_colony(state, source_nation, data.prov);
+		execute_abandon_colony(state, source_nation, c);
 		break;
 	}
 	case command_type::finish_colonization:
 	{
-		auto& data = c.get_payload<generic_state_definition_data>();
-		execute_finish_colonization(state, source_nation, data.state_def);
+		execute_finish_colonization(state, source_nation, c);
 		break;
 	}
 	case command_type::intervene_in_war:
@@ -6724,8 +6678,7 @@ void execute_command(sys::state& state, command_data& c) {
 	}
 	case command_type::take_decision:
 	{
-		auto& data = c.get_payload<decision_data>();
-		execute_take_decision(state, source_nation, data.d);
+		execute_take_decision(state, source_nation, c);
 		break;
 	}
 	case command_type::make_n_event_choice:

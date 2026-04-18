@@ -1431,15 +1431,14 @@ void update_cb_fabrication(sys::state& state) {
 			if(n.get_infamy() > infamy_limit)
 				continue;
 			auto ol = n.get_overlord_as_subject().get_ruler().id;
-			// Can we justify on the target?
+			// Can we justify on our rival?
 			if(n.get_ai_rival() && nations::can_fabricate_cb_target_checks<command::actor::ai>(state, n, n.get_ai_rival())) {
 				// This call will return a cb which we are allowed and want to justify, or none
 				auto cb = pick_fabrication_type(state, n, n.get_ai_rival());
 				// Can we use the cb on this specific state?
 				if(cb.cb && nations::can_fabricate_cb_cb_state_checks<command::actor::ai>(state, n, n.get_ai_rival(), cb.cb, cb.state_def)) {
-					n.set_constructing_cb_target(n.get_ai_rival());
-					n.set_constructing_cb_type(cb.cb);
-					n.set_constructing_cb_target_state(cb.state_def);
+					assert(nations::can_fabricate_cb<command::actor::ai>(state, n, n.get_ai_rival(), cb.cb, cb.state_def));
+					nations::fabricate_cb(state, n, n.get_ai_rival(), cb.cb, cb.state_def);
 					continue;
 				}
 				

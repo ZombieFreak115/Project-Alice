@@ -1794,20 +1794,12 @@ void update_colonization(sys::state& state) {
 				do {
 					state.world.delete_colonization(*(colonizers.begin()));
 				} while(colonizers.end() != colonizers.begin());
-			} else if(state.world.nation_get_is_player_controlled((*colonizers.begin()).get_colonizer()) == false) { // ai colonization finishing
+
+			} else if((*colonizers.begin()).get_colonizer().get_is_player_controlled() == false) { // ai colonization finishing
 				auto source = (*colonizers.begin()).get_colonizer();
-
-				for(auto pr : state.world.state_definition_get_abstract_state_membership(d)) {
-					if(!pr.get_province().get_nation_from_province_ownership()) {
-						province::change_province_owner(state, pr.get_province(), source);
-					}
-				}
-
-				state.world.state_definition_set_colonization_temperature(d, 0.0f);
-				state.world.state_definition_set_colonization_stage(d, uint8_t(0));
-
-				while(colonizers.begin() != colonizers.end()) {
-					state.world.delete_colonization(*colonizers.begin());
+				if(province::can_finish_colonization<command::actor::ai>(state, source, d)) {
+					assert(province::can_finish_colonization<command::actor::player>(state, source, d));
+					province::finish_colonization(state, source, d);
 				}
 			}
 		}
@@ -2797,11 +2789,14 @@ uint16_t start_colony(sys::state& state, dcon::nation_id source, dcon::state_def
 
 
 template<command::actor Actor>
-bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d) {
+bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d, int32_t free_points) {
+	auto crange = state.world.state_definition_get_colonization(d);
+
 	if constexpr(Actor == command::actor::player) {
 		if(!state.current_scene.game_in_progress) {
 			return false;
 		}
+
 	}
 	// Your country must be of define:COLONIAL_RANK or less.
 	if(state.world.nation_get_rank(n) > uint16_t(state.defines.colonial_rank))
@@ -2820,18 +2815,18 @@ bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_defi
 			return false;
 	}
 
+
 	// Must have colonization in progress
 	dcon::colonization_id colony_status;
-	auto crange = state.world.state_definition_get_colonization(d);
 	for(auto rel : crange) {
 		if(rel.get_colonizer() == n) {
 			colony_status = rel.id;
 			break;
 		}
 	}
-
 	if(!colony_status)
 		return false;
+
 	if(crange.end() - crange.begin() <= 1) // no competition
 		return false;
 
@@ -2849,7 +2844,6 @@ bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_defi
 	define:COLONIZATION_EXTRA_GUARD_COST x (points - 4) + define:COLONIZATION_INFLUENCE_COST.
 	*/
 
-	auto free_points = nations::free_colonial_points(state, n);
 	if(state.world.state_definition_get_colonization_stage(d) == 1) {
 		return free_points >= int32_t(state.defines.colonization_interest_cost);
 	} else if(state.world.colonization_get_level(colony_status) <= 4) {
@@ -2860,10 +2854,18 @@ bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_defi
 							state.defines.colonization_influence_cost);
 	}
 }
+template bool can_invest_in_colony<command::actor::ai>(sys::state& state, dcon::nation_id n, dcon::state_definition_id d, int32_t free_points);
+template bool can_invest_in_colony<command::actor::player>(sys::state& state, dcon::nation_id n, dcon::state_definition_id d, int32_t free_points);
+
+template<command::actor Actor>
+bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d) {
+	auto free_points = nations::free_colonial_points(state, n);
+	return can_invest_in_colony<Actor>(state, n, d, free_points);
+}
 template bool can_invest_in_colony<command::actor::ai>(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
 template bool can_invest_in_colony<command::actor::player>(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
 
-void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def) {
+uint16_t invest_in_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def) {
 	uint8_t greatest_other_level = 0;
 	dcon::nation_id second_colonizer;
 	for(auto rel : state.world.state_definition_get_colonization(state_def)) {
@@ -2877,14 +2879,17 @@ void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::state_def
 
 	for(auto rel : state.world.state_definition_get_colonization(state_def)) {
 		if(rel.get_colonizer() == source) {
+			uint16_t additional_points_invested;
 
 			if(state.world.state_definition_get_colonization_stage(state_def) == 1) {
-				rel.set_points_invested(uint16_t(rel.get_points_invested() + uint16_t(state.defines.colonization_interest_cost)));
+				additional_points_invested = uint16_t(state.defines.colonization_interest_cost);
+				rel.set_points_invested(uint16_t(rel.get_points_invested() + additional_points_invested));
 			} else if(rel.get_level() <= 4) {
-				rel.set_points_invested(uint16_t(rel.get_points_invested() + uint16_t(state.defines.colonization_influence_cost)));
+				additional_points_invested = uint16_t(state.defines.colonization_influence_cost);
+				rel.set_points_invested(uint16_t(rel.get_points_invested() + additional_points_invested));
 			} else {
-				rel.set_points_invested(uint16_t(rel.get_points_invested() + uint16_t(
-					state.defines.colonization_extra_guard_cost * (rel.get_level() - 4) + state.defines.colonization_influence_cost)));
+				additional_points_invested = uint16_t(state.defines.colonization_extra_guard_cost * (rel.get_level() - 4) + state.defines.colonization_influence_cost);
+				rel.set_points_invested(uint16_t(rel.get_points_invested() + additional_points_invested));
 			}
 			rel.set_level(uint8_t(rel.get_level() + uint8_t(1)));
 			rel.set_last_investment(state.current_date);
@@ -2920,11 +2925,73 @@ void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::state_def
 					}
 				}
 			}
-			return;
+			return additional_points_invested;
+		}
+	}
+	assert(false && "Failed to invest in a colony, this shouldnt happen!");
+	return 0;
+}
+
+template<command::actor Actor>
+bool can_abandon_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def) {
+	if constexpr(Actor == command::actor::player) {
+		if(!state.current_scene.game_in_progress) {
+			return false;
+		}
+	}
+	return province::is_colonizing(state, source, state_def);
+}
+template bool can_abandon_colony<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+template bool can_abandon_colony<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+
+void abandon_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def) {;
+
+	for(auto rel : state.world.state_definition_get_colonization(state_def)) {
+		if(rel.get_colonizer() == source) {
+			state.world.delete_colonization(rel);
 		}
 	}
 }
+template<command::actor Actor>
+bool can_finish_colonization(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def) {
+	if constexpr(Actor == command::actor::player) {
+		if(!state.current_scene.game_in_progress) {
+			return false;
+		}
+		// We already know this won't be the case in the current ai code. May change
+		if(state.world.state_definition_get_colonization_stage(state_def) != 3) {
+			return false;
+		}
+		auto rng = state.world.state_definition_get_colonization(state_def);
+		if(rng.begin() == rng.end()) {
+			return false;
+		}
+		if((*rng.begin()).get_colonizer() != source) {
+			return false;
+		}
+	}
 
+	return true;
+}
+template bool can_finish_colonization<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::state_definition_id d);
+template bool can_finish_colonization<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::state_definition_id d);
+
+void finish_colonization(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def) {
+	for(auto pr : state.world.state_definition_get_abstract_state_membership(state_def)) {
+		if(!pr.get_province().get_nation_from_province_ownership()) {
+			province::change_province_owner(state, pr.get_province(), source);
+		}
+	}
+
+	state.world.state_definition_set_colonization_temperature(state_def, 0.0f);
+	state.world.state_definition_set_colonization_stage(state_def, uint8_t(0));
+
+	auto rng = state.world.state_definition_get_colonization(state_def);
+
+	while(rng.begin() != rng.end()) {
+		state.world.delete_colonization(*rng.begin());
+	}
+}
 
 
 } // namespace province

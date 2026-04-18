@@ -280,7 +280,6 @@ void make_alliance(sys::state& state, dcon::nation_id a, dcon::nation_id b);
 void adjust_influence(sys::state& state, dcon::nation_id great_power, dcon::nation_id target, float delta);
 void adjust_influence_with_overflow(sys::state& state, dcon::nation_id great_power, dcon::nation_id target, float delta);
 void adjust_foreign_investment(sys::state& state, dcon::nation_id great_power, dcon::nation_id target, float delta);
-void take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id d);
 void enact_issue(sys::state& state, dcon::nation_id source, dcon::issue_option_id i);
 void enact_reform(sys::state& state, dcon::nation_id source, dcon::reform_option_id i);
 
@@ -420,6 +419,15 @@ bool can_expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_
 template<command::actor Actor>
 bool can_expel_advisors_specific_checks(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp, dcon::gp_relationship_id rel);
 void expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id influence_target, dcon::nation_id affected_gp);
+
+// take_decision command functions
+// This vectorized version contains the actual implementation
+template<command::actor Actor>
+ve::mask_vector can_take_decision(sys::state& state, ve::contiguous_tags<dcon::nation_id> nations, dcon::decision_id decision);
+template<command::actor Actor>
+bool can_take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id decision);
+template<command::actor Actor>
+void take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id decision);
 
 
 

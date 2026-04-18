@@ -35,32 +35,25 @@ void take_ai_decisions(sys::state& state) {
 		auto d = dcon::decision_id{ dcon::decision_id::value_base_t(i) };
 		auto e = state.world.decision_get_effect(d);
 		if(e) {
-			auto potential = state.world.decision_get_potential(d);
-			auto allow = state.world.decision_get_allow(d);
 			auto ai_will_do = state.world.decision_get_ai_will_do(d);
 			ve::execute_serial_fast<dcon::nation_id>(state.world.nation_size(), [&](auto ids) {
-				// AI-only, not dead nations
-				ve::mask_vector filter_a = !state.world.nation_get_is_player_controlled(ids) && nations::exists_or_is_utility_tag(state, ids);
+				// AI-only
+				ve::mask_vector filter_a = !state.world.nation_get_is_player_controlled(ids);
 				if(ve::compress_mask(filter_a).v != 0) {
-					// empty allow assumed to be an "always = yes"
-					ve::mask_vector filter_b = potential
-						? filter_a && (trigger::evaluate(state, potential, trigger::to_generic(ids), trigger::to_generic(ids), 0))
-						: filter_a;
+					ve::mask_vector filter_b = filter_a && nations::can_take_decision<command::actor::ai>(state, ids, d);
+
+					// Ai must be scripted to take it
 					if(ve::compress_mask(filter_b).v != 0) {
-						ve::mask_vector filter_c = allow
-							? filter_b && (trigger::evaluate(state, allow, trigger::to_generic(ids), trigger::to_generic(ids), 0))
+						ve::mask_vector filter_d = ai_will_do
+							? filter_b && (trigger::evaluate_multiplicative_modifier(state, ai_will_do, trigger::to_generic(ids), trigger::to_generic(ids), 0) > 0.0f)
 							: filter_b;
-						if(ve::compress_mask(filter_c).v != 0) {
-							ve::mask_vector filter_d = ai_will_do
-								? filter_c && (trigger::evaluate_multiplicative_modifier(state, ai_will_do, trigger::to_generic(ids), trigger::to_generic(ids), 0) > 0.0f)
-								: filter_c;
-							ve::apply([&](dcon::nation_id n, bool passed_filter) {
-								if(passed_filter) {
-									decisions_taken.local().push_back(decision_nation_pair(d, n));
-								}
-							}, ids, filter_d);
-						}
+						ve::apply([&](dcon::nation_id n, bool passed_filter) {
+							if(passed_filter) {
+								decisions_taken.local().push_back(decision_nation_pair(d, n));
+							}
+						}, ids, filter_d);
 					}
+					
 				}
 			});
 		}
@@ -84,9 +77,9 @@ void take_ai_decisions(sys::state& state) {
 		auto n = v.second;
 		auto d = v.first;
 		auto e = state.world.decision_get_effect(d);
-		if(command::can_take_decision(state, n, d)) {
-			nations::take_decision(state, n, d);
-		}
+		assert(nations::can_take_decision<command::actor::player>(state, n, d)) ;
+		nations::take_decision<command::actor::ai>(state, n, d);
+		
 	}
 }
 
@@ -150,62 +143,27 @@ void update_ai_ruling_party(sys::state& state) {
 }
 
 void update_ai_colonial_investment(sys::state& state) {
-	static std::vector<dcon::state_definition_id> investments;
 	static std::vector<int32_t> free_points;
 
-	investments.clear();
-	investments.resize(uint32_t(state.defines.colonial_rank));
-
 	free_points.clear();
-	free_points.resize(uint32_t(state.defines.colonial_rank), -1);
+	free_points.resize(uint32_t(state.defines.colonial_rank));
 
-
-
-	for(auto col : state.world.in_colonization) {
-		auto n = col.get_colonizer();
-		if(n.get_is_player_controlled() == false
-			&& n.get_rank() <= uint16_t(state.defines.colonial_rank)
-			&& !investments[n.get_rank() - 1]
-			&& col.get_state().get_colonization_stage() <= uint8_t(2)
-			// Perhaps wrong logic
-			&& col.get_state() != state.world.state_instance_get_definition(state.crisis_state_instance)
-			&& (!state.crisis_war || n.get_is_at_war() == false)
-			 ) {
-
-			if(state.crisis_attacker_wargoals.size() > 0) {
-				auto first_wg = state.crisis_attacker_wargoals.at(0);
-				if(first_wg.state == col.get_state()) {
-					continue;
-				}
-			}
-
-			auto crange = col.get_state().get_colonization();
-			if(crange.end() - crange.begin() > 1) {
-				if(col.get_last_investment() + int32_t(state.defines.colonization_days_between_investment) <= state.current_date) {
-
-					if(free_points[n.get_rank() - 1] < 0) {
-						free_points[n.get_rank() - 1] = nations::free_colonial_points(state, n);
-					}
-
-					int32_t cost = 0;;
-					if(col.get_state().get_colonization_stage() == 1) {
-						cost = int32_t(state.defines.colonization_interest_cost);
-					} else if(col.get_level() <= 4) {
-						cost = int32_t(state.defines.colonization_influence_cost);
-					} else {
-						cost =
-							int32_t(state.defines.colonization_extra_guard_cost * (col.get_level() - 4) + state.defines.colonization_influence_cost);
-					}
-					if(free_points[n.get_rank() - 1] >= cost) {
-						investments[n.get_rank() - 1] = col.get_state().id;
-					}
-				}
-			}
+	// Cache available free colonial points
+	for(int32_t i = 0; i < int32_t(state.defines.colonial_rank); ++i) {
+		if(!state.world.nation_get_is_player_controlled(state.nations_by_rank[i])) {
+			free_points[i] = nations::free_colonial_points(state, state.nations_by_rank[i]);
 		}
 	}
-	for(uint32_t i = 0; i < investments.size(); ++i) {
-		if(investments[i])
-			province::invest_in_colony(state, state.nations_by_rank[i], investments[i]);
+	for(auto col : state.world.in_colonization) {
+		auto n = col.get_colonizer();
+		if(n.get_is_player_controlled() == false ) {
+			if(size_t(n.get_rank() - 1) >= free_points.size()) {
+				continue; // prevent out of bounds read, if they are lower rank than colonial_rank they can't invest in colonies anyway
+			}
+			if(province::can_invest_in_colony<command::actor::ai>(state, n, col.get_state(), free_points[n.get_rank() - 1])) {
+				free_points[n.get_rank() - 1] -= province::invest_in_colony(state, n, col.get_state());
+			}
+		}
 	}
 }
 void update_ai_colony_starting(sys::state& state) {

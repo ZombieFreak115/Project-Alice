@@ -4219,27 +4219,6 @@ void enact_reform(sys::state& state, dcon::nation_id source, dcon::reform_option
 	sys::update_single_nation_modifiers(state, source);
 }
 
-void take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id d) {
-	if(auto e = state.world.decision_get_effect(d); e) {
-		effect::execute(state, e, trigger::to_generic(source), trigger::to_generic(source), 0, uint32_t(state.current_date.value),
-				uint32_t(source.index() << 4 ^ d.index()));
-	}
-
-	notification::post(state, notification::message{
-		[source, d, when = state.current_date](sys::state& state, text::layout_base& contents) {
-			text::add_line(state, contents, "msg_decision_1", text::variable_type::x, source, text::variable_type::y, state.world.decision_get_name(d));
-			if(auto e = state.world.decision_get_effect(d); e) {
-				text::add_line(state, contents, "msg_decision_2");
-				ui::effect_description(state, contents, e, trigger::to_generic(source), trigger::to_generic(source), 0, uint32_t(when.value),
-					uint32_t(source.index() << 4 ^ d.index()));
-			}
-		},
-		"msg_decision_title",
-		source, dcon::nation_id{}, dcon::nation_id{},
-		sys::message_base_type::decision,
-		dcon::province_id{ }
-	});
-}
 
 
 
@@ -5192,8 +5171,96 @@ void expel_advisors(sys::state& state, dcon::nation_id source, dcon::nation_id i
 	});
 }
 
+template<command::actor Actor>
+ve::mask_vector can_take_decision(sys::state& state, ve::contiguous_tags<dcon::nation_id> nations, dcon::decision_id decision) {
+	if constexpr(Actor == command::actor::player) {
+		if(!state.current_scene.game_in_progress) {
+			return false;
+		}
+		if(!state.world.decision_is_valid(decision)) {
+			return false;
+		}
+	}
 
+	auto potential = state.world.decision_get_potential(decision);
+	auto allow = state.world.decision_get_allow(decision);
 
+	// Nations must exist or be utility tag
+	ve::mask_vector filter = nations::exists_or_is_utility_tag(state, nations);
+	if(ve::compress_mask(filter).v != 0) {
+		// empty allow assumed to be an "always = yes"
+		if constexpr(Actor == command::actor::ai) {
+			filter = potential
+				? filter && (trigger::evaluate(state, potential, trigger::to_generic(nations), trigger::to_generic(nations), 0))
+				: filter;
+		}
+		else {
+			filter = potential
+				? filter && (state.cheat_data.always_potential_decisions || trigger::evaluate(state, potential, trigger::to_generic(nations), trigger::to_generic(nations), 0))
+				: filter;
+		}
+		
 
+		if(ve::compress_mask(filter).v != 0) {
+			if constexpr(Actor == command::actor::ai) {
+				filter = allow
+					? filter && (trigger::evaluate(state, allow, trigger::to_generic(nations), trigger::to_generic(nations), 0))
+					: filter;
+			}
+			else {
+				filter = allow
+					? filter && (state.cheat_data.always_allow_decisions ||trigger::evaluate(state, allow, trigger::to_generic(nations), trigger::to_generic(nations), 0))
+					: filter;
+			}
+		}
+	}
+	
+	return filter;
+}
+template ve::mask_vector can_take_decision<command::actor::ai>(sys::state& state, ve::contiguous_tags<dcon::nation_id> nations, dcon::decision_id decision);
+template ve::mask_vector can_take_decision<command::actor::player>(sys::state& state, ve::contiguous_tags<dcon::nation_id> nations, dcon::decision_id decision);
 
-} // namespace nations
+template<command::actor Actor>
+bool can_take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id decision) {
+	uint32_t vector_value = uint32_t(source.value - 1);
+	uint32_t vector_index = uint32_t(vector_value % ve::vector_size);
+	ve::contiguous_tags<dcon::nation_id> nation_tags{ vector_value - vector_index};
+	ve::mask_vector mask = can_take_decision<Actor>(state, nation_tags, decision);
+	return mask[vector_index];
+}
+template bool can_take_decision<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::decision_id decision);
+template bool can_take_decision<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::decision_id decision);
+
+template<command::actor Actor>
+void take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id decision) {
+	if(auto e = state.world.decision_get_effect(decision); e) {
+		effect::execute(state, e, trigger::to_generic(source), trigger::to_generic(source), 0, uint32_t(state.current_date.value),
+				uint32_t(source.index() << 4 ^ decision.index()));
+	}
+
+	notification::post(state, notification::message{
+		[source, decision, when = state.current_date](sys::state& state, text::layout_base& contents) {
+			text::add_line(state, contents, "msg_decision_1", text::variable_type::x, source, text::variable_type::y, state.world.decision_get_name(decision));
+			if(auto e = state.world.decision_get_effect(decision); e) {
+				text::add_line(state, contents, "msg_decision_2");
+				ui::effect_description(state, contents, e, trigger::to_generic(source), trigger::to_generic(source), 0, uint32_t(when.value),
+					uint32_t(source.index() << 4 ^ decision.index()));
+			}
+		},
+		"msg_decision_title",
+		source, dcon::nation_id{}, dcon::nation_id{},
+		sys::message_base_type::decision,
+		dcon::province_id{ }
+	});
+	if constexpr(Actor == command::actor::player) {
+		if(auto e = state.world.decision_get_effect(decision); e) {
+			event::update_future_events(state);
+		}
+	}
+}
+template void take_decision<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::decision_id decision);
+template void take_decision<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::decision_id decision);
+}
+
+// namespace nations
+

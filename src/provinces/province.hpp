@@ -186,11 +186,25 @@ template<command::actor Actor>
 bool can_start_colony_state_def_checks(sys::state& state, dcon::state_definition_id state_def);
 template<command::actor Actor>
 bool can_start_colony_global_checks(sys::state& state);
+// Returns the amount of colonial points which got invested to start the colony
 uint16_t start_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
 
 // invest_in_colony command functions
 template<command::actor Actor>
 bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
-void invest_in_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+template<command::actor Actor>
+bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d, int32_t free_points);
+// Returns the amount of colonial points which got invested
+uint16_t invest_in_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+
+// abandon_colony command functions
+template<command::actor Actor>
+bool can_abandon_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+void abandon_colony(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+
+// finish_colonization command functions
+template<command::actor Actor>
+bool can_finish_colonization(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
+void finish_colonization(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
 
 } // namespace province

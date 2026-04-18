@@ -2066,7 +2066,7 @@ public:
 
 	void on_update(sys::state& state) noexcept override {
 		auto content = retrieve<dcon::province_id>(state, parent);
-		disabled = !command::can_finish_colonization(state, state.local_player_nation, state.world.province_get_state_from_abstract_state_membership(content));
+		disabled = !province::can_finish_colonization<command::actor::player>(state, state.local_player_nation, state.world.province_get_state_from_abstract_state_membership(content));
 	}
 };
 
@@ -2079,7 +2079,8 @@ public:
 
 	void on_update(sys::state& state) noexcept override {
 		auto content = retrieve<dcon::province_id>(state, parent);
-		disabled = !command::can_abandon_colony(state, state.local_player_nation, content);
+		auto state_def = state.world.province_get_state_from_abstract_state_membership(content);
+		disabled = !province::can_abandon_colony<command::actor::player>(state, state.local_player_nation, state_def);
 	}
 };
 
