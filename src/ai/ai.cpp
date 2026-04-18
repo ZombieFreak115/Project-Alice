@@ -761,6 +761,11 @@ void pickup_idle_ships(sys::state& state) {
 					send_fleet_home(state, n);
 				} else {
 					auto transported_dest = (*(transporting_range.begin())).get_army().get_ai_province();
+					// If ai province is not set, then set navy home
+					if(!transported_dest) {
+						send_fleet_home(state, n);
+						break;
+					}
 
 					// move to closest port or closest off_shore
 					if(transported_dest.get_is_coast()) {

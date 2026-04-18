@@ -21,6 +21,7 @@ void update_influence_priorities(sys::state& state) {
 		} else {
 			// If we are allowed to, set all influence priorities to 0, except for spherelings which is set to 1
 			if(nations::can_change_influence_priority_source_checks<command::actor::ai>(state, gprl.get_great_power()) && nations::can_change_influence_priority_target_checks<command::actor::ai>(state, gprl.get_great_power(), gprl.get_influence_target())) {
+				assert(nations::can_change_influence_priority<command::actor::player>(state, gprl.get_great_power(), gprl.get_influence_target()));
 				auto status = gprl.get_status();
 				if((status & nations::influence::level_mask) == nations::influence::level_in_sphere) {
 					nations::change_influence_priority<1>(state, gprl.get_great_power(), gprl.get_influence_target());
@@ -144,12 +145,15 @@ void update_influence_priorities(sys::state& state) {
 
 		uint32_t i = 0;
 		for(; i < 2 && i < targets.size(); ++i) {
+			assert(nations::can_change_influence_priority<command::actor::player>(state,n.nation, targets[i].id));
 			nations::change_influence_priority<3>(state, n.nation, targets[i].id);
 		}
 		for(; i < 4 && i < targets.size(); ++i) {
+			assert(nations::can_change_influence_priority<command::actor::player>(state, n.nation, targets[i].id));
 			nations::change_influence_priority<2>(state, n.nation, targets[i].id);
 		}
 		for(; i < 6 && i < targets.size(); ++i) {
+			assert(nations::can_change_influence_priority<command::actor::player>(state, n.nation, targets[i].id));
 			nations::change_influence_priority<1>(state, n.nation, targets[i].id);
 		}
 	}
@@ -200,6 +204,7 @@ void perform_influence_actions(sys::state& state) {
 				// If the highest competing influence in our sphere is greater than 40 and they are friendly, try to ban them to stop them from taking our sphere
 				if(state.world.gp_relationship_get_influence(highest_infl) > 40.0f && nations::influence::get_level(state, other_gp, other_infl_target) == nations::influence::level_friendly) {
 					if(nations::can_ban_embassy_specific_checks<command::actor::ai>(state, great_power, influence_target, other_gp, gprl)) {
+						assert(nations::can_ban_embassy<command::actor::player>(state, great_power, influence_target, other_gp));
 						nations::ban_embassy(state, great_power, influence_target, other_gp);
 					}
 				}

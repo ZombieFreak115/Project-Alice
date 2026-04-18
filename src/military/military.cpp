@@ -2842,7 +2842,9 @@ void add_to_war(sys::state& state, dcon::war_id w, dcon::nation_id n, bool as_at
 	});
 
 	if(!on_war_creation && state.world.nation_get_is_player_controlled(n) == false) {
-		ai::add_free_ai_cbs_to_war(state, n, w);
+		if(nations::can_add_war_goal_diplo_action_global_checks<command::actor::ai>(state)) {
+			ai::add_free_ai_cbs_to_war(state, n, w);
+		}
 	}
 	// update flag black status before we check for collisions with enemy armies
 	state.military_definitions.pending_blackflag_update = true;
@@ -2936,10 +2938,12 @@ dcon::war_id create_war(sys::state& state, dcon::nation_id primary_attacker, dco
 	}
 
 	if(!state.cheat_data.disable_ai) {
-		if(state.world.nation_get_is_player_controlled(primary_attacker) == false)
-			ai::add_free_ai_cbs_to_war(state, primary_attacker, new_war);
-		if(state.world.nation_get_is_player_controlled(primary_defender) == false)
-			ai::add_free_ai_cbs_to_war(state, primary_defender, new_war);
+		if(nations::can_add_war_goal_diplo_action_global_checks<command::actor::ai>(state)) {
+			if(state.world.nation_get_is_player_controlled(primary_attacker) == false)
+				ai::add_free_ai_cbs_to_war(state, primary_attacker, new_war);
+			if(state.world.nation_get_is_player_controlled(primary_defender) == false)
+				ai::add_free_ai_cbs_to_war(state, primary_defender, new_war);
+		}
 	}
 
 	notification::post(state, notification::message{
@@ -10940,89 +10944,13 @@ bool can_declare_war(sys::state& state, dcon::nation_id source, dcon::nation_id 
 template bool can_declare_war<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation);
 template bool can_declare_war<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::cb_type_id primary_cb, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation);
 
-// used by both functions
-// attempts to be cheap...
-bool can_declare_war_cheap_target_checks(sys::state& state, dcon::nation_id n, dcon::nation_id target) {
-
-	if(target == n)
-		return false;	
-
-	// can't declare war on nations without land currently
-	if(state.world.nation_get_owned_province_count(target) == 0)
-		return false;
-
-	// no decs against allies
-	if(nations::are_allied(state, n, target))
-		return false;
-
-	// cannot declare war on your own sphereling
-	if(state.world.nation_get_in_sphere_of(target) == n)
-		return false;
-
-	// when declaring a war, alliances with the spherelord are also checked
-	if(nations::would_war_conflict_with_sphere_leader<nations::war_initiation::declare_war>(state, n, target)) {
-		return false;
-	}
-
-	if(military::has_truce_with(state, n, target))
-		return false;
-
-	// subjects check
-	auto overlord_source = state.world.overlord_get_ruler(state.world.nation_get_overlord_as_subject(n));
-	if(overlord_source && overlord_source != target && state.defines.alice_allow_subjects_declare_wars == 0.0)
-		return false;
-
-	// the most expensive check
-	if(nations::has_units_inside_other_nation(state, n, target)) {
-		return false;
-	}
-
-	return true;
-}
-
-// cheaper version: some checks could be more strict to be less computationally expensive
-bool can_attack_ai(sys::state& state, dcon::nation_id n, dcon::nation_id target) {
-	// we don't allow attacking war allies or war enemies
-	// for AI we do it in a cheaper way:
-	// don't declare war when you have war allies
-	if(state.world.nation_get_is_at_war(n))
-		return false;
-	auto overlord = state.world.overlord_get_ruler(state.world.nation_get_overlord_as_subject(target));
-	// we do not check can_attack(state, source) because it is checked during iteration over source
-	// common checks, both for player and AI
-	if(!can_declare_war_cheap_target_checks(state, n, target)) {
-		return false;
-	}
-	if(overlord) {
-		if(!can_declare_war_cheap_target_checks(state, n, overlord)) {
-			return false;
-		}
-	}
-
-	// check existence of cb
-	if(!military::can_use_cb_against(state, n, target))
-		return false;
-
-	return true;
-}
-
-// we can allow expensive logic there
-template<command::actor Actor>
-bool can_declare_war_expensive_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target) {
-	// we skip this check on ai as earlier it is already checked that the ai nation must not be at war to declare
-	if constexpr(Actor == command::actor::player) {
-		if(military::are_allied_in_war(state, source, target) || military::are_at_war(state, source, target))
-			return false;
-	}
-	return true;
-}
-
-template bool can_declare_war_expensive_target_checks<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::nation_id target);
-template bool can_declare_war_expensive_target_checks<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::nation_id target);
 
 template<command::actor Actor>
 bool can_declare_war_nation_checks(const sys::state& state, dcon::nation_id source) {
 	if(state.world.nation_get_owned_province_count(source) == 0) {
+		return false;
+	}
+	if(state.world.nation_get_diplomatic_points(source) < state.defines.declarewar_diplomatic_cost) {
 		return false;
 	}
 	// AI cannot declare war if already in a war, it means we can skip a later expensive check which checks war allies & war enemies
@@ -11040,30 +10968,65 @@ template bool can_declare_war_nation_checks<command::actor::player>(const sys::s
 
 template<command::actor Actor>
 bool can_declare_war_target_checks(sys::state& state, dcon::nation_id source, dcon::nation_id target) {
+
+
+
+	auto target_checks = [&]() {
+		if(target == source)
+			return false;
+
+		// can't declare war on nations without land currently
+		if(state.world.nation_get_owned_province_count(target) == 0)
+			return false;
+
+		// no decs against allies
+		if(nations::are_allied(state, source, target))
+			return false;
+
+		// cannot declare war on your own sphereling
+		if(state.world.nation_get_in_sphere_of(target) == source)
+			return false;
+
+		// when declaring a war, alliances with the spherelord are also checked
+		if(nations::would_war_conflict_with_sphere_leader<nations::war_initiation::declare_war>(state, source, target)) {
+			return false;
+		}
+
+		if(military::has_truce_with(state, source, target))
+			return false;
+
+		// subjects check
+		auto overlord_source = state.world.overlord_get_ruler(state.world.nation_get_overlord_as_subject(source));
+		if(overlord_source && overlord_source != target && state.defines.alice_allow_subjects_declare_wars == 0.0)
+			return false;
+
+
+		if(nations::has_units_inside_other_nation(state, source, target)) {
+			return false;
+		}
+		// the most expensive check
+		// we skip this check on ai as earlier it is already checked that the ai nation must not be at war to declare
+		if constexpr(Actor == command::actor::player) {
+			if(military::are_allied_in_war(state, source, target) || military::are_at_war(state, source, target))
+				return false;
+		}
+
+		return true;
+
+
+	};
+
 	auto overlord = state.world.overlord_get_ruler(state.world.nation_get_overlord_as_subject(target));
 
 
-	if(!can_declare_war_cheap_target_checks(state, source, target)) {
-		return false;
-	}
-	if(!can_declare_war_expensive_target_checks<Actor>(state, source, target)) {
+	if(!target_checks()) {
 		return false;
 	}
 	if(overlord) {
-		if(!can_declare_war_cheap_target_checks(state, source, overlord)) {
-			return false;
-		}
-		if(!can_declare_war_expensive_target_checks<Actor>(state, source, overlord)) {
+		if(!target_checks()) {
 			return false;
 		}
 	}
-
-	// anti player bias
-	if constexpr(Actor == command::actor::player) {
-		if(state.world.nation_get_diplomatic_points(source) < state.defines.declarewar_diplomatic_cost) {
-			return false;
-		}
-	 }
 
 	// have to check only against target
 	if(!military::can_use_cb_against(state, source, target))

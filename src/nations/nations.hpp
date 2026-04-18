@@ -429,6 +429,24 @@ bool can_take_decision(sys::state& state, dcon::nation_id source, dcon::decision
 template<command::actor Actor>
 void take_decision(sys::state& state, dcon::nation_id source, dcon::decision_id decision);
 
+// add_war_goal command functions
+template<command::actor Actor>
+bool can_add_war_goal_diplo_action(sys::state& state, dcon::nation_id source, dcon::war_id w, dcon::nation_id target, dcon::cb_type_id cb_type, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation);
+template<command::actor Actor>
+bool can_add_war_goal_diplo_action_global_checks(sys::state& state);
+template<command::actor Actor>
+bool can_add_war_goal_diplo_action_source_checks(sys::state& state, dcon::nation_id source);
+template<command::actor Actor>
+bool can_add_war_goal_diplo_action_war_checks(sys::state& state, dcon::nation_id source, dcon::war_id w, military::war_role war_role);
+template<command::actor Actor>
+bool can_add_war_goal_diplo_action_target_checks(sys::state& state, dcon::nation_id source, dcon::war_id w, dcon::war_participant_id target, bool source_is_attacker);
+template<command::actor Actor>
+bool can_add_war_goal_diplo_action_cb_type_checks(sys::state& state, dcon::nation_id source, dcon::war_id w, dcon::nation_id target, dcon::cb_type_id cb_type);
+template<command::actor Actor>
+bool can_add_war_goal_diplo_action_cb_instance_checks(sys::state& state, dcon::nation_id source, dcon::war_id w, dcon::nation_id target, dcon::cb_type_id cb_type, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation);
+// Will add the wargoal in addition to doing the diplo-action related things, like adding infamy and subtracting diplo pts
+void add_war_goal_diplo_action(sys::state& state, dcon::nation_id source, dcon::war_id w, dcon::nation_id target, dcon::cb_type_id cb_type, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation);
+
 
 
 

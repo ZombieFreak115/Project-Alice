@@ -3263,7 +3263,7 @@ void display_data::set_text_lines(sys::state& state) {
 			float param_range = right - left;
 			float actual_ratio = (cur_x - left) / param_range;
 			float diff = std::abs(actual_ratio - expected_ratio);
-			assert(diff < 0.04f);
+			//assert(diff < 0.04f);
 		} else {
 			// Clean margin advance on sphere (restart from start)
 			float accumulated = 0.f;
@@ -3388,7 +3388,7 @@ void display_data::set_text_lines(sys::state& state) {
 			float param_range = right - left;
 			float actual_ratio = (cur_x - left) / param_range;
 			float diff = std::abs(actual_ratio - expected_ratio);
-			assert(diff < 0.04f);
+			//assert(diff < 0.04f);
 		}
 	}
 

@@ -654,7 +654,7 @@ public:
 
 		if(military::are_at_war(state, state.local_player_nation, n)) {
 			dcon::war_id w = military::find_war_between(state, state.local_player_nation, n);
-			disabled = !command::can_add_war_goal(state, state.local_player_nation, w, n, c, s, ni,
+			disabled = !nations::can_add_war_goal_diplo_action<command::actor::player>(state, state.local_player_nation, w, n, c, s, ni,
 					state.world.national_identity_get_nation_from_identity_holder(ni));
 		} else {
 			disabled = !military::can_declare_war<command::actor::player>(state, state.local_player_nation, n, c, s, ni,

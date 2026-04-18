@@ -2790,101 +2790,23 @@ void execute_declare_war(sys::state& state, dcon::nation_id source, command_data
 void add_war_goal(sys::state& state, dcon::nation_id source, dcon::war_id w, dcon::nation_id target, dcon::cb_type_id cb_type,
 		dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation) {
 
-
-
 	command_data p{ command_type::add_war_goal, state.local_player_id };
 	auto data = new_war_goal_data{ target, cb_state, cb_tag,cb_secondary_nation, w, cb_type  };
 	p << data;
 	add_to_command_queue(state, p);
 
 }
-bool can_add_war_goal(sys::state& state, dcon::nation_id source, dcon::war_id w, dcon::nation_id target, dcon::cb_type_id cb_type,
-		dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag, dcon::nation_id cb_secondary_nation) {
-	/*
-	The nation adding the war goal must have positive war score against the target of the war goal (see below). And the nation
-	must be already able to use the CB in question (e.g. it as fabricated previously) or it must be a constructible CB and the
-	nation adding the war goal must have overall jingoism support >= defines:WARGOAL_JINGOISM_REQUIREMENT (x
-	defines:GW_JINGOISM_REQUIREMENT_MOD in a great war).
-	*/
-	if(!state.current_scene.game_in_progress) {
-		return false;
-	}
-	if(source == target)
-		return false;
+bool can_add_war_goal(sys::state& state, dcon::nation_id source, command_data& command) {
 
-	if(state.world.nation_get_is_player_controlled(source) && state.cheat_data.always_allow_wargoals)
-		return true;
-
-	if(state.world.nation_get_is_player_controlled(source) && state.world.nation_get_diplomatic_points(source) < state.defines.addwargoal_diplomatic_cost)
-		return false;
-
-	bool is_attacker = military::is_attacker(state, w, source);
-	bool target_in_war = false;
-
-	for(auto par : state.world.war_get_war_participant(w)) {
-		if(par.get_nation() == target) {
-			if(par.get_is_attacker() == is_attacker)
-				return false;
-			target_in_war = true;
-			break;
-		}
-	}
-
-	if(!is_attacker && military::defenders_have_status_quo_wargoal(state, w))
-		return false;
-
-	if(!target_in_war)
-		return false;
-
-	// prevent duplicate war goals
-	if(military::war_goal_would_be_duplicate(state, source, w, target, cb_type, cb_state, cb_tag, cb_secondary_nation))
-		return false;
-
-	if((state.world.cb_type_get_type_bits(cb_type) & military::cb_flag::always) == 0) {
-		bool cb_fabbed = false;
-		for(auto& fab_cb : state.world.nation_get_available_cbs(source)) {
-			if(fab_cb.cb_type == cb_type && fab_cb.target == target) {
-				cb_fabbed = true;
-				break;
-			}
-		}
-		if(!cb_fabbed && state.defines.alice_can_add_constructable_cbs_as_wargoals != 0.f) {
-			if((state.world.cb_type_get_type_bits(cb_type) & military::cb_flag::is_not_constructing_cb) != 0)
-				return false; // can only add a constructable cb this way
-
-			auto totalpop = state.world.nation_get_demographics(source, demographics::total);
-			auto jingoism_perc = totalpop > 0 ? state.world.nation_get_demographics(source, demographics::to_key(state, state.culture_definitions.jingoism)) / totalpop : 0.0f;
-
-			if(state.world.war_get_is_great(w)) {
-				if(jingoism_perc < state.defines.wargoal_jingoism_requirement * state.defines.gw_wargoal_jingoism_requirement_mod)
-					return false;
-			} else {
-				if(jingoism_perc < state.defines.wargoal_jingoism_requirement)
-					return false;
-			}
-		}
-	}
-	if(!military::cb_instance_conditions_satisfied(state, source, target, cb_type, cb_state, cb_tag, cb_secondary_nation))
-		return false;
-
-	return true;
+	const auto& data = command.get_payload<command::new_war_goal_data>();
+	return nations::can_add_war_goal_diplo_action<command::actor::player>(state, source, data.war, data.target, data.cb_type,
+			data.cb_state, data.cb_tag, data.cb_secondary_nation);
 }
-void execute_add_war_goal(sys::state& state, dcon::nation_id source, dcon::war_id w, dcon::nation_id target,
-		dcon::cb_type_id cb_type, dcon::state_definition_id cb_state, dcon::national_identity_id cb_tag,
-		dcon::nation_id cb_secondary_nation) {
+void execute_add_war_goal(sys::state& state, dcon::nation_id source, command_data& command) {
 
-	if(!can_add_war_goal(state, source, w, target, cb_type, cb_state, cb_tag, cb_secondary_nation))
-		return;
-
-	auto& current_diplo = state.world.nation_get_diplomatic_points(source);
-	state.world.nation_set_diplomatic_points(source, current_diplo - state.defines.addwargoal_diplomatic_cost);
-	nations::adjust_relationship(state, source, target, state.defines.addwargoal_relation_on_accept);
-
-	float infamy = military::cb_addition_infamy_cost(state, w, cb_type, source, target, cb_state);
-	auto& current_infamy = state.world.nation_get_infamy(source);
-	state.world.nation_set_infamy(source, current_infamy + infamy);
-
-	military::add_wargoal(state, w, source, target, cb_type, cb_state, cb_tag, cb_secondary_nation);
+	const auto& data = command.get_payload<new_war_goal_data>();
+	nations::add_war_goal_diplo_action(state, source, data.war, data.target, data.cb_type,
+			data.cb_state, data.cb_tag, data.cb_secondary_nation);
 }
 
 void start_peace_offer(sys::state& state, dcon::nation_id source, dcon::nation_id target, dcon::war_id war, bool is_concession) {
@@ -6026,9 +5948,7 @@ bool can_perform_command(sys::state& state, command_data& c) {
 
 	case command_type::add_war_goal:
 	{
-		auto& data = c.get_payload<command::new_war_goal_data>();
-		return can_add_war_goal(state, source, data.war, data.target, data.cb_type,
-				data.cb_state, data.cb_tag, data.cb_secondary_nation);
+		return can_add_war_goal(state, source, c);
 	}
 
 	case command_type::start_peace_offer:
@@ -6782,9 +6702,7 @@ void execute_command(sys::state& state, command_data& c) {
 	}
 	case command_type::add_war_goal:
 	{
-		auto& data = c.get_payload<new_war_goal_data>();
-		execute_add_war_goal(state, source_nation, data.war, data.target, data.cb_type,
-				data.cb_state, data.cb_tag, data.cb_secondary_nation);
+		execute_add_war_goal(state, source_nation, c);
 		break;
 	}
 	case command_type::start_peace_offer:

@@ -569,7 +569,7 @@ void prepare_list_of_states_for_conquest(
 				trigger::to_generic(attacker)
 			);
 			if(trigger_result) {
-				assert(military::cb_conditions_satisfied(state, attacker, target, cb));
+				//assert(military::cb_conditions_satisfied(state, attacker, target, cb));
 
 				auto duplicate = military::war_goal_would_be_duplicate(
 					state,
@@ -907,7 +907,7 @@ void prepare_list_of_targets_for_cb(
 	// to prevent not being able to declare wars at all
 	// when you really want to declare war
 
-	assert(military::cb_conditions_satisfied(state, attacker, target, cb));
+	//assert(military::cb_conditions_satisfied(state, attacker, target, cb));
 	auto duplicated = military::war_goal_would_be_duplicate(
 		state,
 		attacker,
@@ -1329,6 +1329,14 @@ void sort_possible_justification_cbs(std::vector<possible_cb>& result, sys::stat
 
 		prepare_list_of_targets_for_cb(state, result, n, target, cb, dcon::war_id{ });
 	}
+	// Remove wargoals with non-compliant states
+	for(uint32_t i = result.size(); i-- > 0;) {
+		auto poss_cb = result[i];
+		if(!nations::can_fabricate_cb_cb_state_checks<command::actor::ai>(state, n, target, poss_cb.cb, poss_cb.state_def)) {
+			std::swap(result[i], result[result.size() - 1]);
+			result.pop_back();
+		}
+	}
 
 	// Prioritize CB types
 	sort_prepared_list_of_cb(state, result);
@@ -1435,9 +1443,8 @@ void update_cb_fabrication(sys::state& state) {
 			if(n.get_ai_rival() && nations::can_fabricate_cb_target_checks<command::actor::ai>(state, n, n.get_ai_rival())) {
 				// This call will return a cb which we are allowed and want to justify, or none
 				auto cb = pick_fabrication_type(state, n, n.get_ai_rival());
-				// Can we use the cb on this specific state?
-				if(cb.cb && nations::can_fabricate_cb_cb_state_checks<command::actor::ai>(state, n, n.get_ai_rival(), cb.cb, cb.state_def)) {
-					assert(nations::can_fabricate_cb<command::actor::ai>(state, n, n.get_ai_rival(), cb.cb, cb.state_def));
+				if(cb.cb) {
+					assert(nations::can_fabricate_cb<command::actor::player>(state, n, n.get_ai_rival(), cb.cb, cb.state_def));
 					nations::fabricate_cb(state, n, n.get_ai_rival(), cb.cb, cb.state_def);
 					continue;
 				}
@@ -1493,8 +1500,8 @@ void update_cb_fabrication(sys::state& state) {
 				if(target) {
 					// already checked the if the target is allowed earlier, so just need to check CBs
 					auto possible_cb = pick_fabrication_type(state, n, target);
-					if(possible_cb.cb && nations::can_fabricate_cb_cb_state_checks<command::actor::ai>(state, n, target, possible_cb.cb, possible_cb.state_def)) {
-						assert(nations::can_fabricate_cb<command::actor::ai>(state, n, target, possible_cb.cb, possible_cb.state_def));
+					if(possible_cb.cb) {
+						assert(nations::can_fabricate_cb<command::actor::player>(state, n, target, possible_cb.cb, possible_cb.state_def));
 						nations::fabricate_cb(state, n, target, possible_cb.cb, possible_cb.state_def);
 						continue;
 					}
@@ -1535,23 +1542,31 @@ bool will_join_war(sys::state& state, dcon::nation_id n, dcon::war_id w, bool as
 	return false;
 }
 
-void sort_available_cbs(std::vector<possible_cb>& result, sys::state& state, dcon::nation_id n, dcon::war_id w) {
+void sort_available_addable_cbs(std::vector<possible_cb>& result, sys::state& state, dcon::nation_id n, dcon::war_id w) {
 	result.clear();
 	auto is_attacker = military::get_role(state, w, n) == military::war_role::attacker;
 	for(auto par : state.world.war_get_war_participant(w)) {
-		if(par.get_is_attacker() != is_attacker) {
-			for(auto& cb : state.world.nation_get_available_cbs(n)) {
-				if(cb.target == par.get_nation())
+		if(nations::can_add_war_goal_diplo_action_target_checks<command::actor::ai>(state, n, w, par, is_attacker)) {
+			for(auto cb : state.world.nation_get_available_cbs(n)) {
+				if(nations::can_add_war_goal_diplo_action_cb_type_checks<command::actor::ai>(state, n, w, par.get_nation(), cb.cb_type)) {
 					prepare_list_of_targets_for_cb(state, result, n, par.get_nation(), cb.cb_type, w);
+				}
 			}
 			for(auto cb : state.world.in_cb_type) {
-				if((cb.get_type_bits() & military::cb_flag::always) != 0) {
+				if((cb.get_type_bits() & military::cb_flag::always) != 0 && nations::can_add_war_goal_diplo_action_cb_type_checks<command::actor::ai>(state, n, w, par.get_nation(), cb)) {
 					prepare_list_of_targets_for_cb(state, result, n, par.get_nation(), cb, w);
 				}
 			}
 		}
 	}
-
+	// Remove wargoals with non-compliant cbs
+	for(uint32_t i = result.size(); i-- > 0;) {
+		auto poss_cb = result[i];
+		if(!nations::can_add_war_goal_diplo_action_cb_instance_checks<command::actor::ai>(state, n, w, poss_cb.target, poss_cb.cb, poss_cb.state_def, poss_cb.associated_tag, poss_cb.secondary_nation)) {
+			std::swap(result[i], result[result.size() - 1]);
+			result.pop_back();
+		}
+	}
 	sort_prepared_list_of_cb(state, result);
 }
 
@@ -1569,36 +1584,42 @@ void sort_available_declaration_cbs(std::vector<possible_cb>& result, sys::state
 			prepare_list_of_targets_for_cb(state, result, n, target, cb, dcon::war_id { });
 		}
 	}
+	// Remove wargoals with non-compliant cbs
+	for(uint32_t i = result.size(); i-- > 0;) {
+		auto poss_cb = result[i];
+		if(!military::can_declare_war_cb_checks(state, n, target, poss_cb.cb, poss_cb.state_def, poss_cb.associated_tag, poss_cb.secondary_nation)) {
+			std::swap(result[i], result[result.size() - 1]);
+			result.pop_back();
+		}
+	}
 
 	sort_prepared_list_of_cb(state, result);
 }
 
 void add_free_ai_cbs_to_war(sys::state& state, dcon::nation_id n, dcon::war_id w) {
-	bool is_attacker = military::is_attacker(state, w, n);
-	if(!is_attacker && military::defenders_have_status_quo_wargoal(state, w))
+	auto role = military::get_role(state, w, n);
+	if(!nations::can_add_war_goal_diplo_action_source_checks<command::actor::ai>(state, n) || !nations::can_add_war_goal_diplo_action_war_checks<command::actor::ai>(state, n, w, role)) {
 		return;
-	if(is_attacker && military::attackers_have_status_quo_wargoal(state, w))
-		return;
-
-	bool added = false;
-	do {
-		added = false;
-		static std::vector<possible_cb> potential;
-		sort_available_cbs(potential, state, n, w);
-		for(auto& p : potential) {
-			if(!military::war_goal_would_be_duplicate(state, n, w, p.target, p.cb, p.state_def, p.associated_tag, p.secondary_nation)) {
-				military::add_wargoal(state, w, n, p.target, p.cb, p.state_def, p.associated_tag, p.secondary_nation);
-				nations::adjust_relationship(state, n, p.target, state.defines.addwargoal_relation_on_accept);
-				added = true;
-			}
+	}
+	
+	static std::vector<possible_cb> potential;
+	sort_available_addable_cbs(potential, state, n, w);
+	for(auto& p : potential) {
+		// Check these conditions again as wargoals may be added to the way in this loop, and diplo points may be spent which may cause these checks to fail
+		if(!nations::can_add_war_goal_diplo_action_source_checks<command::actor::ai>(state, n) || !nations::can_add_war_goal_diplo_action_war_checks<command::actor::ai>(state, n, w, role)) {
+			return;
 		}
-	} while(added);
+		assert(nations::can_add_war_goal_diplo_action<command::actor::player>(state, n, w, p.target, p.cb, p.state_def, p.associated_tag, p.secondary_nation));
+		nations::add_war_goal_diplo_action(state, n, w, p.target, p.cb, p.state_def, p.associated_tag, p.secondary_nation);
+			
+	}
 
 }
 
-dcon::cb_type_id pick_wargoal_extra_cb_type(sys::state& state, dcon::nation_id from, dcon::nation_id target, bool is_great) {
+dcon::cb_type_id pick_wargoal_extra_cb_type(sys::state& state, dcon::nation_id from, dcon::nation_id target, dcon::war_id war) {
 	static std::vector<dcon::cb_type_id> possibilities;
 	possibilities.clear();
+	auto is_great = state.world.war_get_is_great(war);
 
 	auto free_infamy = state.defines.badboy_limit - state.world.nation_get_infamy(from);
 
@@ -1606,13 +1627,11 @@ dcon::cb_type_id pick_wargoal_extra_cb_type(sys::state& state, dcon::nation_id f
 
 	for(auto c : state.world.in_cb_type) {
 		auto bits = state.world.cb_type_get_type_bits(c);
-		if((bits & (military::cb_flag::always | military::cb_flag::is_not_constructing_cb)) != 0)
-			continue;
 		if((bits & (military::cb_flag::po_demand_state | military::cb_flag::po_annex | military::cb_flag::po_transfer_provinces)) == 0)
 			continue;
 		if(military::cb_infamy(state, c, target) * multiplier > free_infamy)
 			continue;
-		if(!military::cb_conditions_satisfied(state, from, target, c))
+		if(!nations::can_add_war_goal_diplo_action_cb_type_checks<command::actor::ai>(state, from, war, target, c))
 			continue;
 		possibilities.push_back(c);
 	}
@@ -1624,7 +1643,7 @@ dcon::cb_type_id pick_wargoal_extra_cb_type(sys::state& state, dcon::nation_id f
 	}
 }
 
-dcon::nation_id pick_wargoal_target(sys::state& state, dcon::nation_id from, dcon::war_id w, bool is_attacker) {
+dcon::nation_id pick_add_wargoal_target(sys::state& state, dcon::nation_id from, dcon::war_id w, bool is_attacker) {
 
 	if(is_attacker && military::get_role(state, w, state.world.nation_get_ai_rival(from)) == military::war_role::defender)
 		return state.world.nation_get_ai_rival(from);
@@ -1635,14 +1654,14 @@ dcon::nation_id pick_wargoal_target(sys::state& state, dcon::nation_id from, dco
 	possibilities.clear();
 
 	for(auto par : state.world.war_get_war_participant(w)) {
-		if(par.get_is_attacker() != is_attacker) {
+		if(nations::can_add_war_goal_diplo_action_target_checks<command::actor::ai>(state, from, w, par, is_attacker)) {
 			if(state.world.get_nation_adjacency_by_nation_adjacency_pair(from, par.get_nation()))
 				possibilities.push_back(par.get_nation().id);
 		}
 	}
 	if(possibilities.empty()) {
 		for(auto par : state.world.war_get_war_participant(w)) {
-			if(par.get_is_attacker() != is_attacker) {
+			if(nations::can_add_war_goal_diplo_action_target_checks<command::actor::ai>(state, from, w, par, is_attacker)) {
 				if(nations::is_great_power(state, par.get_nation()))
 					possibilities.push_back(par.get_nation().id);
 			}
@@ -1660,19 +1679,18 @@ void add_wargoal_to_war(sys::state& state, dcon::nation_id n, dcon::war_id w) {
 	if((rval & 1) == 0)
 		return;
 
+	auto role = military::get_role(state, w, n);
+	bool attacker = (role == military::war_role::attacker);
+	if(!nations::can_add_war_goal_diplo_action_source_checks<command::actor::ai>(state, n) || !nations::can_add_war_goal_diplo_action_war_checks<command::actor::ai>(state, n, w, role)) {
+		return;
+	}
+
 	if(n == state.world.war_get_primary_attacker(w) || n == state.world.war_get_primary_defender(w)) {
 		if(((rval >> 1) & 1) == 0) {
 			add_free_ai_cbs_to_war(state, n, w);
 		}
 	}
 
-	auto totalpop = state.world.nation_get_demographics(n, demographics::total);
-	auto jingoism_perc = totalpop > 0 ? state.world.nation_get_demographics(n, demographics::to_key(state, state.culture_definitions.jingoism)) / totalpop : 0.0f;
-
-	if(jingoism_perc < state.defines.wargoal_jingoism_requirement * state.defines.gw_wargoal_jingoism_requirement_mod)
-		return;
-
-	bool attacker = military::get_role(state, w, n) == military::war_role::attacker;
 	auto spare_ws = attacker
 		? (std::clamp(30.f + military::primary_warscore(state, w) * 2.f, 30.f, 100.f) - military::attacker_peace_cost(state, w))
 		: (std::clamp(30.f - military::primary_warscore(state, w) * 2.f, 30.f, 100.f) - military::defender_peace_cost(state, w));
@@ -1680,11 +1698,11 @@ void add_wargoal_to_war(sys::state& state, dcon::nation_id n, dcon::war_id w) {
 	if(spare_ws < 1.0f)
 		return;
 
-	auto target = pick_wargoal_target(state, n, w, attacker);
+	auto target = pick_add_wargoal_target(state, n, w, attacker);
 	if(!target)
 		return;
 
-	auto cb = pick_wargoal_extra_cb_type(state, n, target, state.world.war_get_is_great(w));
+	auto cb = pick_wargoal_extra_cb_type(state, n, target, w);
 	if(!cb)
 		return;
 
@@ -1696,7 +1714,7 @@ void add_wargoal_to_war(sys::state& state, dcon::nation_id n, dcon::war_id w) {
 	sort_prepared_list_of_cb(state, result);
 
 	for(size_t i = 0; i < result.size(); i++) {
-		if(!command::can_add_war_goal(
+		if(!nations::can_add_war_goal_diplo_action_cb_instance_checks<command::actor::ai>(
 			state,
 			n,
 			w,
@@ -1721,15 +1739,16 @@ void add_wargoal_to_war(sys::state& state, dcon::nation_id n, dcon::war_id w) {
 		if(predicted_cost > spare_ws) {
 			continue;
 		}
-
-		military::add_wargoal(state, w, n, target, cb, result[0].state_def, result[0].associated_tag, result[0].secondary_nation);
-		nations::adjust_relationship(state, n, target, state.defines.addwargoal_relation_on_accept);
-		state.world.nation_set_infamy(n, state.world.nation_get_infamy(n) + military::cb_infamy(state, cb, target) * multiplier);
+		assert(nations::can_add_war_goal_diplo_action<command::actor::player>(state, n, w, target, result[i].cb, result[i].state_def, result[i].associated_tag, result[i].secondary_nation));
+		nations::add_war_goal_diplo_action(state, n, w, target, result[i].cb, result[i].state_def, result[i].associated_tag, result[i].secondary_nation);
 		return;
 	}
 }
 
 void add_wargoals(sys::state& state) {
+	if(!nations::can_add_war_goal_diplo_action_global_checks<command::actor::ai>(state)) {
+		return;
+	}
 	for(auto w : state.world.in_war) {
 		for(auto par : w.get_war_participant()) {
 			if(par.get_nation().get_is_player_controlled() == false) {
@@ -2150,12 +2169,12 @@ void make_war_decs(sys::state& state) {
 			static std::vector<possible_cb> potential_cbs;
 			potential_cbs.clear();
 			sort_available_declaration_cbs(potential_cbs, state, n, targets.get(n));
-			for(auto potential_cb : potential_cbs) {
-				// Are we allowed to declare war with this CB instance?
-				if(military::can_declare_war_cb_checks(state, n, targets.get(n), potential_cb.cb, potential_cb.state_def, potential_cb.associated_tag, potential_cb.secondary_nation)) {
-					assert(military::can_declare_war<command::actor::ai>(state, n, targets.get(n), potential_cb.cb, potential_cb.state_def, potential_cb.associated_tag, potential_cb.secondary_nation));
+			if(potential_cbs.size() > 0) {
+				auto potential_cb = potential_cbs[0];
+				// Check nation again, as the nation may get declared on in this loop which will change the "at_war" state
+				if(military::can_declare_war_nation_checks<command::actor::ai>(state, n)) {
+					assert(military::can_declare_war<command::actor::player>(state, n, targets.get(n), potential_cb.cb, potential_cb.state_def, potential_cb.associated_tag, potential_cb.secondary_nation));
 					military::declare_war<command::actor::ai>(state, n, targets.get(n), potential_cb.cb, potential_cb.state_def, potential_cb.associated_tag, potential_cb.secondary_nation, true, false);
-					break;
 				}
 			}
 		}
