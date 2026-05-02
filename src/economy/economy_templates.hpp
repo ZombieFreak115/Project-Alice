@@ -54,4 +54,21 @@ void for_each_upgraded_factory(sys::state& state, dcon::province_id s, F&& func)
 		}
 	}
 }
+
+
+
+
+
+
+// Iterates over each commodity but skips money
+template<typename F>
+void for_each_commodity_no_money(sys::state& state, F&& func) {
+	uint32_t total_commodities = state.world.commodity_size();
+	for(uint32_t i = 1; i < total_commodities; ++i) {
+		dcon::commodity_id cid{ dcon::commodity_id::value_base_t(i) };
+		func(cid);
+	}
+}
+
+
 } // namespace economy

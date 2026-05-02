@@ -19,6 +19,7 @@
 #include "economy_constants.hpp"
 #include "commands.hpp"
 #include "commands_constants.hpp"
+#include <economy.hpp>
 
 namespace military {
 
@@ -10026,6 +10027,677 @@ maximum-strength x (technology-repair-rate + provincial-modifier-to-repair-rate 
 		}
 	}
 }
+
+float get_national_supply_cost_modifiers(const sys::state& state, dcon::nation_id nation) {
+	return std::max(0.01f, state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::supply_consumption) + 1.0f);;
+}
+
+
+float get_regiment_supply_cost_modifiers(const sys::state& state, dcon::nation_id owner, dcon::regiment_id regiment) {
+	auto unit_type = state.world.regiment_get_type(regiment);
+	auto strength = state.world.regiment_get_strength(regiment);
+	auto unit_supply_cost_mod = state.world.nation_get_unit_stats(owner, unit_type).supply_consumption;
+	return unit_supply_cost_mod * strength;
+}
+
+float get_ship_supply_cost_modifiers(const sys::state& state, dcon::nation_id owner, dcon::ship_id ship) {
+	auto unit_type = state.world.ship_get_type(ship);
+	auto strength = state.world.ship_get_strength(ship);
+	auto unit_supply_cost_mod = state.world.nation_get_unit_stats(owner, unit_type).supply_consumption;
+	return unit_supply_cost_mod * strength;
+}
+
+
+float combine_naval_supply_cost_modifiers(float national_modifiers, float ship_modifiers) {
+	return national_modifiers * ship_modifiers;;
+}
+
+float combine_land_supply_cost_modifiers(float national_modifiers, float regiment_modifiers) {
+	return national_modifiers * regiment_modifiers;
+}
+
+float get_naval_supply_cost_modifiers(sys::state& state, dcon::ship_id ship) {
+	auto navy = state.world.ship_get_navy_from_navy_membership(ship);
+	auto nation = state.world.navy_get_controller_from_navy_control(navy);
+	return combine_naval_supply_cost_modifiers(get_national_supply_cost_modifiers(state, nation), get_ship_supply_cost_modifiers(state, nation, ship));
+}
+
+float get_land_supply_cost_modifiers(sys::state& state, dcon::regiment_id regiment) {
+	auto army = state.world.regiment_get_army_from_army_membership(regiment);
+	auto nation = state.world.army_get_controller_from_army_control(army);
+	return combine_land_supply_cost_modifiers(get_national_supply_cost_modifiers(state, nation), get_regiment_supply_cost_modifiers(state, nation, regiment));
+}
+
+float get_land_national_reinforcement_modifiers(const sys::state& state, dcon::nation_id nation) {
+	auto combined = state.defines.reinforce_speed  * (1.0f + state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::reinforce_speed) + state.world.nation_get_modifier_values(nation,sys::national_mod_offsets::reinforce_rate));
+
+	assert(std::isfinite(combined));
+	return combined;
+}
+
+float get_naval_national_reinforcement_modifiers(const sys::state& state, dcon::nation_id nation) {
+	auto main_mods = state.defines.reinforce_speed * (1.0f + state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::reinforce_speed));
+	float oversize_amount =
+		state.world.nation_get_naval_supply_points(nation) > 0
+		? std::min(float(state.world.nation_get_used_naval_supply_points(nation)) / float(state.world.nation_get_naval_supply_points(nation)), 1.75f)
+		: 1.75f;
+	float over_size_penalty = oversize_amount > 1.0f ? 2.0f - oversize_amount : 1.0f;
+
+	assert(std::isfinite(main_mods));
+	assert(std::isfinite(oversize_amount));
+	return main_mods * oversize_amount;
+}
+
+float get_army_reinforcement_modifiers(sys::state& state, dcon::army_id army) {
+	if(state.world.army_get_is_retreating(army)) {
+		return 0.0f;
+	}
+	float location_modifier;
+	auto army_battle = state.world.army_get_battle_from_army_battle_participation(army);
+	auto army_owner = state.world.army_get_controller_from_army_control(army);
+	if(army_battle) {
+		location_modifier = calculate_location_reinforce_modifier_battle(state, state.world.land_battle_get_location_from_land_battle_location(army_battle), army_owner);
+	} else {
+		location_modifier = calculate_location_reinforce_modifier_no_battle(state, state.world.land_battle_get_location_from_land_battle_location(army_battle), army_owner);
+	}
+	return location_modifier;
+}
+
+
+float get_navy_reinforcement_modifiers(sys::state& state, dcon::navy_id navy) {
+	auto location = state.world.navy_get_location_from_navy_location(navy);
+	auto naval_base_lvl = state.world.province_get_building_level(location, uint8_t(economy::province_building_type::naval_base));
+	if(naval_base_lvl < 1) {
+		return 0.0f;
+	}
+	auto repair_mod = state.world.province_get_modifier_values(location, sys::provincial_mod_offsets::local_repair) + 1.0f;
+	return repair_mod;
+}
+
+
+float get_regiment_reinforcement_modifiers(sys::state& state, dcon::regiment_id regiment) {
+	auto pop = state.world.regiment_get_pop_from_regiment_source(regiment);
+	auto army = state.world.regiment_get_army_from_army_membership(regiment);
+	auto battle = state.world.army_get_battle_from_army_battle_participation(army);
+	return (!battle || ( !pop || (battle && is_regiment_in_reserve(state, regiment))) ? 1.0f : 0.0f);
+}
+
+float combine_land_reinforcement_modifiers(float national_modifiers, float army_modifiers, float regiment_modifiers) {
+	return national_modifiers * army_modifiers * regiment_modifiers;
+}
+float combine_naval_reinforcement_modifiers(float national_modifiers, float army_modifiers) {
+	return national_modifiers * army_modifiers;
+}
+
+float get_land_reinforcement_modifiers(sys::state& state, dcon::regiment_id regiment) {
+	auto army = state.world.regiment_get_army_from_army_membership(regiment);
+	auto nation = state.world.army_get_controller_from_army_control(army);
+	return combine_land_reinforcement_modifiers(get_land_national_reinforcement_modifiers(state, nation), get_army_reinforcement_modifiers(state, army), get_regiment_reinforcement_modifiers(state, regiment));
+
+}
+
+float get_naval_reinforcement_modifiers(sys::state& state, dcon::ship_id ship) {
+	auto navy = state.world.ship_get_navy_from_navy_membership(ship);
+	auto nation = state.world.navy_get_controller_from_navy_control(navy);
+	return combine_naval_reinforcement_modifiers(get_naval_national_reinforcement_modifiers(state, nation), get_navy_reinforcement_modifiers(state, navy));
+
+}
+
+// interval_type: Do we estimate the reinforcement per day, or per month?
+// supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
+// potential_reinforcement: Do we cap the reinforcement at max strength, or not?
+template<reinforcement_interval_estimation interval_type, reinforcement_supply_estimation supply_type, bool potential_reinforcement>
+float calculate_regiment_reinforcement(sys::state& state, dcon::regiment_id regiment, float reinforcement_mods) {
+	float reinf_fufillment;
+	if constexpr(interval_type == reinforcement_interval_estimation::daily) {
+		if constexpr(supply_type == reinforcement_supply_estimation::based_on_satisfaction) {
+			reinf_fufillment = std::clamp(state.world.regiment_get_reinforcement_satisfaction_buffer(regiment) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+		}
+		// full supply always
+		else {
+			reinf_fufillment = std::clamp(1.0f / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+		}
+	}
+	// monthly
+	else {
+		if constexpr(supply_type == reinforcement_supply_estimation::based_on_satisfaction) {
+			reinf_fufillment = state.world.regiment_get_reinforcement_satisfaction_buffer(regiment);
+		}
+		// full supply always
+		else {
+			reinf_fufillment = 1.0f;
+		}
+	}
+	auto pop = state.world.regiment_get_pop_from_regiment_source(regiment);
+	auto combined = reinf_fufillment * reinforcement_mods;
+	float newstr;
+	float curstr = state.world.regiment_get_strength(regiment);
+	auto pop_size = state.world.pop_get_size(pop);
+	if constexpr(!potential_reinforcement) {
+		auto limit_fraction = std::max(state.defines.alice_full_reinforce, std::min(1.0f, pop_size / state.defines.pop_size_per_regiment));
+		newstr = std::min(curstr + combined, limit_fraction);
+		return newstr - curstr;
+	} else {
+		return combined;
+	}
+
+}
+
+
+template<reinforcement_interval_estimation interval_type, reinforcement_supply_estimation supply_type, bool potential_reinforcement>
+float calculate_regiment_reinforcement(sys::state& state, dcon::regiment_id regiment) {
+	auto mods = get_land_reinforcement_modifiers(state, regiment);
+	return calculate_regiment_reinforcement<interval_type, supply_type, potential_reinforcement>(state, regiment, mods);
+
+}
+
+
+
+// interval_type: Do we estimate the reinforcement per day, or per month?
+// supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
+// potential_reinforcement: Do we cap the reinforcement at max strength, or not?
+template<reinforcement_interval_estimation interval_type, reinforcement_supply_estimation supply_type, bool potential_reinforcement>
+float calculate_ship_reinforcement(sys::state& state, dcon::ship_id ship, float reinforcement_mods) {
+	float reinf_fufillment;
+	if constexpr(interval_type == reinforcement_interval_estimation::daily) {
+		if constexpr(supply_type == reinforcement_supply_estimation::based_on_satisfaction) {
+			reinf_fufillment = std::clamp(state.world.ship_get_reinforcement_satisfaction_buffer(ship) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+		}
+		// full supply always
+		else {
+			reinf_fufillment = std::clamp(1.0f / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+		}
+	}
+	// monthly
+	else {
+		if constexpr(supply_type == reinforcement_supply_estimation::based_on_satisfaction) {
+			reinf_fufillment = state.world.ship_get_reinforcement_satisfaction_buffer(ship);
+		}
+		// full supply always
+		else {
+			reinf_fufillment = 1.0f;
+		}
+	}
+	auto combined = reinf_fufillment * reinforcement_mods;
+	float newstr;
+	float curstr = state.world.ship_get_strength(ship);
+	if constexpr(!potential_reinforcement) {
+		newstr = std::min(curstr + combined, 1.0f);
+		return newstr - curstr;
+	} else {
+		return combined;
+	}
+
+}
+
+
+
+// interval_type: Do we estimate the reinforcement per day, or per month?
+// supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
+// potential_reinforcement: Do we cap the reinforcement at max strength, or not?
+template<reinforcement_interval_estimation interval_type, reinforcement_supply_estimation supply_type, bool potential_reinforcement>
+float calculate_ship_reinforcement(sys::state& state, dcon::ship_id ship) {
+	auto mods = get_naval_reinforcement_modifiers(state, ship);
+	return calculate_ship_reinforcement<interval_type, supply_type, potential_reinforcement>(state, ship, mods);
+
+}
+
+
+void update_regiment_supply_reinforcement_satisfaction_serial(sys::state& state) {
+
+
+	// Helper to set up the best stockpiles buffer, to be consumed from first
+	// Prefer stockpiles which are closest by direct distance
+	auto setup_best_stockpiles_buffer = [&](tagged_vector<std::vector<dcon::state_instance_id>, dcon::commodity_id>& best_stockpiles_buf, dcon::province_id supply_prov, dcon::nation_id nation_as) {
+		state.world.for_each_commodity([&](dcon::commodity_id commodity) {
+			best_stockpiles_buf[commodity].clear();
+			province::for_each_controlled_state_instance(state, nation_as, [&](dcon::state_instance_id state_instance) {
+				best_stockpiles_buf[commodity].push_back(state_instance);
+			});
+			std::sort(best_stockpiles_buf[commodity].begin(), best_stockpiles_buf[commodity].end(), [&](auto state_instance_a, auto state_instance_b) {
+				auto si_a_capital = state.world.state_instance_get_capital(state_instance_a);
+				auto si_b_capital = state.world.state_instance_get_capital(state_instance_b);
+				if(state_instance_a.index() != state_instance_b.index()) {
+					return province::direct_distance(state, si_a_capital, supply_prov) > province::direct_distance(state, si_b_capital, supply_prov);
+				} else {
+					return state_instance_a.index() > state_instance_b.index();
+				}
+			 });
+		});
+
+	};
+
+
+	using unit = std::variant<dcon::army_id, dcon::navy_id>;
+	static std::vector<unit> sorted_units;
+	sorted_units.clear();
+	for(auto army : state.world.in_army) {
+		sorted_units.push_back(army);
+	}
+	for(auto navy : state.world.in_navy) {
+		sorted_units.push_back(navy);
+	}
+	// Sort units by supply priority, if same prio then armies take precedence, otherwise sort by index
+	std::sort(sorted_units.begin(), sorted_units.end(), [&](unit unit_a, unit unit_b) {
+		bool a_is_army = (std::holds_alternative<dcon::army_id>(unit_a) ? true : false);
+		bool b_is_army = (std::holds_alternative<dcon::army_id>(unit_b) ? true : false);
+		uint8_t a_supply_prio = (a_is_army ? state.world.army_get_supply_priority(*std::get_if<dcon::army_id>(&unit_a)) : state.world.navy_get_supply_priority(*std::get_if<dcon::navy_id>(&unit_a)));
+		uint8_t b_supply_prio = (b_is_army ? state.world.army_get_supply_priority(*std::get_if<dcon::army_id>(&unit_b)) : state.world.navy_get_supply_priority(*std::get_if<dcon::navy_id>(&unit_b)));
+		if(a_supply_prio != b_supply_prio) {
+			return a_supply_prio > b_supply_prio;
+		}
+		if(a_is_army != b_is_army) {
+			return a_is_army > b_is_army;
+		}
+		uint16_t a_index = (a_is_army ? std::get_if<dcon::army_id>(&unit_a)->index() : std::get_if<dcon::navy_id>(&unit_a)->index());
+		uint16_t b_index = (b_is_army ? std::get_if<dcon::army_id>(&unit_b)->index() : std::get_if<dcon::navy_id>(&unit_b)->index());
+		return a_index > b_index;
+	});
+	// Handle supply consumption
+	for(auto unit : sorted_units) {
+		static tagged_vector<std::vector<dcon::state_instance_id>, dcon::commodity_id> best_stockpiles;
+		// Handle armies
+		if(std::holds_alternative<dcon::army_id>(unit)) {
+			auto army = *std::get_if<dcon::army_id>(&unit);
+			auto nation = state.world.army_get_controller_from_army_control(army);
+			auto location = state.world.army_get_location_from_army_location(army);
+			// Handle non-rebel units
+			if(nation) {
+				setup_best_stockpiles_buffer(best_stockpiles, location, nation);
+				auto national_sup_mods = get_national_supply_cost_modifiers(state, nation);
+				for(auto r : state.world.army_get_army_membership(army)) {
+					auto regiment = r.get_regiment();
+					auto unit_type = state.world.regiment_get_type(regiment);
+					const auto& base_supply_cost = state.military_definitions.unit_base_definitions[unit_type].supply_cost;
+					auto reg_supply_mods = get_regiment_supply_cost_modifiers(state, nation, regiment);
+					auto total_sup_mods = combine_land_supply_cost_modifiers(national_sup_mods, reg_supply_mods);
+					float accumulated_satisfaction = 0.0f;
+					uint8_t commodity_count = 0;
+					// Find out what needs to be consumed from the stockpile, and set the satisfaction
+					for(uint32_t j = 0; j < base_supply_cost.set_size; ++j) {
+						if(base_supply_cost.commodity_type[j]) {
+							auto required_commodity = base_supply_cost.commodity_type[j];
+							auto required_amount = base_supply_cost.commodity_amounts[j];
+							auto actual_required_amount = required_amount * total_sup_mods;
+							// Iterate over each stockpile in the preferred order, and consume from them until the required supply is satisfied, or there are no more stockpiles
+							for(auto stockpile_state : best_stockpiles[required_commodity]) {
+								auto stockpile_market = state.world.state_instance_get_market_from_local_market(stockpile_state);
+								auto current_stockpile = state.world.market_get_government_stockpile(stockpile_market, required_commodity);
+								accumulated_satisfaction += current_stockpile / actual_required_amount;
+								economy::set_government_stockpile(state, nation, stockpile_market, required_commodity, std::min(current_stockpile - actual_required_amount, 0.0f));
+								actual_required_amount = actual_required_amount - current_stockpile;
+								// If the final required amount is negative or zero, we can skip the rest of the stockpiles for this commodity we have 100% satisfied commodity requirements
+								if(actual_required_amount <= 0.0f) {
+									break;
+								}
+							}
+							commodity_count++;
+						} else {
+							break;
+						}
+					}
+					// If the unit requires no commodity supply cost, then it shall always have max supply satisfaction
+					if(commodity_count != 0) {
+						state.world.regiment_set_supply_satisfaction(regiment, accumulated_satisfaction / commodity_count);
+					}
+					else {
+						state.world.regiment_set_supply_satisfaction(regiment, 100.0f);
+					}
+				}
+			}
+			// handle rebel units. For now they get full satisfaction no matter what
+			else {
+				for(auto r : state.world.army_get_army_membership(army)) {
+					auto regiment = r.get_regiment();
+					state.world.regiment_set_supply_satisfaction(regiment, 1.0f);
+				}
+			}
+		}
+		// Handle  navies
+		else {
+			auto navy = *std::get_if<dcon::navy_id>(&unit);
+			auto nation = state.world.navy_get_controller_from_navy_control(navy);
+			auto location = state.world.navy_get_location_from_navy_location(navy);
+			setup_best_stockpiles_buffer(best_stockpiles, location, nation);
+			auto national_sup_mods = get_national_supply_cost_modifiers(state, nation);
+
+			for(auto r : state.world.navy_get_navy_membership(navy)) {
+				auto ship = r.get_ship();
+				auto unit_type = state.world.ship_get_type(ship);
+				const auto& base_supply_cost = state.military_definitions.unit_base_definitions[unit_type].supply_cost;
+				auto reg_supply_mods = get_ship_supply_cost_modifiers(state, nation, ship);
+				auto total_sup_mods = combine_land_supply_cost_modifiers(national_sup_mods, reg_supply_mods);
+				float accumulated_satisfaction = 0.0f;
+				uint8_t commodity_count = 0;
+				// Find out what needs to be consumed from the stockpile, and set the satisfaction
+				for(uint32_t j = 0; j < base_supply_cost.set_size; ++j) {
+					if(base_supply_cost.commodity_type[j]) {
+						auto required_commodity = base_supply_cost.commodity_type[j];
+						auto required_amount = base_supply_cost.commodity_amounts[j];
+						auto actual_required_amount = required_amount * total_sup_mods;
+						// Iterate over each stockpile in the preferred order, and consume from them until the required supply is satisfied, or there are no more stockpiles
+						for(auto stockpile_state : best_stockpiles[required_commodity]) {
+							auto stockpile_market = state.world.state_instance_get_market_from_local_market(stockpile_state);
+							auto current_stockpile = state.world.market_get_government_stockpile(stockpile_market, required_commodity);
+							actual_required_amount = actual_required_amount - current_stockpile;
+							accumulated_satisfaction += current_stockpile / actual_required_amount;
+							economy::set_government_stockpile(state, nation, stockpile_market, required_commodity, std::min(current_stockpile - actual_required_amount, 0.0f));
+							// If the final required amount is negative or zero, we can skip the rest of the stockpiles for this commodity we have 100% satisfied commodity requirements
+							if(actual_required_amount <= 0.0f) {
+								break;
+							}
+						}
+						commodity_count++;
+					} else {
+						break;
+					}
+				}
+				// If the unit requires no commodity supply cost, then it shall always have max supply satisfaction
+				if(commodity_count != 0) {
+					state.world.ship_set_supply_satisfaction(ship, accumulated_satisfaction / commodity_count);
+				} else {
+					state.world.ship_set_supply_satisfaction(ship, 100.0f);
+				}
+			}
+		}
+	}
+
+	// Sort units by reinforcement priority, if same prio then armies take precedence, otherwise sort by index
+	std::sort(sorted_units.begin(), sorted_units.end(), [&](unit unit_a, unit unit_b) {
+		bool a_is_army = (std::holds_alternative<dcon::army_id>(unit_a) ? true : false);
+		bool b_is_army = (std::holds_alternative<dcon::army_id>(unit_b) ? true : false);
+		uint8_t a_supply_prio = (a_is_army ? state.world.army_get_reinforcement_priority(*std::get_if<dcon::army_id>(&unit_a)) : state.world.navy_get_reinforcement_priority(*std::get_if<dcon::navy_id>(&unit_a)));
+		uint8_t b_supply_prio = (b_is_army ? state.world.army_get_reinforcement_priority(*std::get_if<dcon::army_id>(&unit_b)) : state.world.navy_get_reinforcement_priority(*std::get_if<dcon::navy_id>(&unit_b)));
+		if(a_supply_prio != b_supply_prio) {
+			return a_supply_prio > b_supply_prio;
+		}
+		if(a_is_army != b_is_army) {
+			return a_is_army > b_is_army;
+		}
+		uint16_t a_index = (a_is_army ? std::get_if<dcon::army_id>(&unit_a)->index() : std::get_if<dcon::navy_id>(&unit_a)->index());
+		uint16_t b_index = (b_is_army ? std::get_if<dcon::army_id>(&unit_b)->index() : std::get_if<dcon::navy_id>(&unit_b)->index());
+		return a_index > b_index;
+	});
+	// Handle reinforcement
+	for(auto unit : sorted_units) {
+		static tagged_vector<std::vector<dcon::state_instance_id>, dcon::commodity_id> best_stockpiles;
+		// Handle armies
+		if(std::holds_alternative<dcon::army_id>(unit)) {
+			auto army = *std::get_if<dcon::army_id>(&unit);
+
+			auto location = state.world.army_get_location_from_army_location(army);
+			auto nation = state.world.army_get_controller_from_army_control(army);
+			auto national_reinf_mods = get_land_national_reinforcement_modifiers(state, nation);
+			auto army_reinf_mods = get_army_reinforcement_modifiers(state, army);
+			// Handle non-rebel units
+			if(nation) {
+				setup_best_stockpiles_buffer(best_stockpiles, location, nation);
+				for(auto r : state.world.army_get_army_membership(army)) {
+					auto regiment = r.get_regiment();
+					auto regiment_reinf_mods = get_regiment_reinforcement_modifiers(state, regiment);
+					auto total_reinf_mods = combine_land_reinforcement_modifiers(national_reinf_mods, army_reinf_mods, regiment_reinf_mods);
+					auto unit_type = state.world.regiment_get_type(regiment);
+					const auto& base_build_cost = state.military_definitions.unit_base_definitions[unit_type].build_cost;
+					auto potential_reinforcement = calculate_regiment_reinforcement<reinforcement_interval_estimation::daily, reinforcement_supply_estimation::full_supply_always, false>(state, regiment, total_reinf_mods);
+					float accumulated_satisfaction = 0.0f;
+					uint8_t commodity_count = 0;
+					// Find out what needs to be consumed from the stockpile, and set the satisfaction
+					for(uint32_t j = 0; j < base_build_cost.set_size; ++j) {
+						if(base_build_cost.commodity_type[j]) {
+							auto required_commodity = base_build_cost.commodity_type[j];
+							auto required_amount = base_build_cost.commodity_amounts[j];
+							auto actual_required_amount = required_amount * potential_reinforcement;
+							// Iterate over each stockpile in the preferred order, and consume from them until the required supply is satisfied, or there are no more stockpiles
+							for(auto stockpile_state : best_stockpiles[required_commodity]) {
+								auto stockpile_market = state.world.state_instance_get_market_from_local_market(stockpile_state);
+								auto current_stockpile = state.world.market_get_government_stockpile(stockpile_market, required_commodity);
+								accumulated_satisfaction += current_stockpile / actual_required_amount;
+								economy::set_government_stockpile(state, nation, stockpile_market, required_commodity, std::min(current_stockpile - actual_required_amount, 0.0f));
+								actual_required_amount = actual_required_amount - current_stockpile;
+								// If the final required amount is negative or zero, we can skip the rest of the stockpiles for this commodity we have 100% satisfied commodity requirements
+								if(actual_required_amount <= 0.0f) {
+									break;
+								}
+							}
+							commodity_count++;
+						} else {
+							break;
+						}
+					}
+					// If there are no build costs, then there will always be 100% reinforcement satisfaction
+					auto current = state.world.regiment_get_reinforcement_satisfaction_buffer(regiment);
+					if(commodity_count != 0) {
+						state.world.regiment_set_reinforcement_satisfaction_buffer(regiment, current + (accumulated_satisfaction / commodity_count));
+					}
+					else {
+						state.world.regiment_set_reinforcement_satisfaction_buffer(regiment, current + (potential_reinforcement / economy::unit_reinforcement_demand_divisor));
+					}
+				}
+			}
+			// handle rebel units. Currently they get reinforcement satisfaction equal to getting full supplies
+			else {
+				for(auto r : state.world.army_get_army_membership(army)) {
+					auto regiment = r.get_regiment();
+					auto regiment_reinf_mods = get_regiment_reinforcement_modifiers(state, regiment);
+					auto total_reinf_mods = combine_land_reinforcement_modifiers(national_reinf_mods, army_reinf_mods, regiment_reinf_mods);
+					auto unit_type = state.world.regiment_get_type(regiment);
+					const auto& base_build_cost = state.military_definitions.unit_base_definitions[unit_type].build_cost;
+					auto potential_reinforcement = calculate_regiment_reinforcement<reinforcement_interval_estimation::daily, reinforcement_supply_estimation::full_supply_always, false>(state, regiment, total_reinf_mods);
+					auto current = state.world.regiment_get_reinforcement_satisfaction_buffer(regiment);
+					state.world.regiment_set_reinforcement_satisfaction_buffer(regiment, current + (potential_reinforcement / economy::unit_reinforcement_demand_divisor));
+				}
+
+			}
+		}
+		else {
+			auto navy = *std::get_if<dcon::navy_id>(&unit);
+			auto nation = state.world.navy_get_controller_from_navy_control(navy);
+			auto location = state.world.navy_get_location_from_navy_location(navy);
+			setup_best_stockpiles_buffer(best_stockpiles, location, nation);
+			auto national_reinf_mods = get_naval_national_reinforcement_modifiers(state, nation);
+			auto army_reinf_mods = get_navy_reinforcement_modifiers(state, navy);
+			auto total_reinf_mods = combine_naval_reinforcement_modifiers(national_reinf_mods, army_reinf_mods);
+
+			for(auto r : state.world.navy_get_navy_membership(navy)) {
+				auto ship = r.get_ship();
+				auto unit_type = state.world.ship_get_type(ship);
+				const auto& base_build_cost = state.military_definitions.unit_base_definitions[unit_type].build_cost;
+				auto potential_reinforcement = calculate_ship_reinforcement<reinforcement_interval_estimation::daily, reinforcement_supply_estimation::full_supply_always, false>(state, ship, total_reinf_mods);
+				float accumulated_satisfaction = 0.0f;
+				uint8_t commodity_count = 0;
+				// Find out what needs to be consumed from the stockpile, and set the satisfaction
+				for(uint32_t j = 0; j < base_build_cost.set_size; ++j) {
+					if(base_build_cost.commodity_type[j]) {
+						auto required_commodity = base_build_cost.commodity_type[j];
+						auto required_amount = base_build_cost.commodity_amounts[j];
+						auto actual_required_amount = required_amount * potential_reinforcement;
+						// Iterate over each stockpile in the preferred order, and consume from them until the required supply is satisfied, or there are no more stockpiles
+						for(auto stockpile_state : best_stockpiles[required_commodity]) {
+							auto stockpile_market = state.world.state_instance_get_market_from_local_market(stockpile_state);
+							auto current_stockpile = state.world.market_get_government_stockpile(stockpile_market, required_commodity);
+							
+							accumulated_satisfaction += current_stockpile / actual_required_amount;
+							economy::set_government_stockpile(state, nation, stockpile_market, required_commodity, std::min(current_stockpile - actual_required_amount, 0.0f));
+							actual_required_amount = actual_required_amount - current_stockpile;
+							// If the final required amount is negative or zero, we can skip the rest of the stockpiles for this commodity we have 100% satisfied commodity requirements
+							if(actual_required_amount <= 0.0f) {
+								break;
+							}
+						}
+						commodity_count++;
+					} else {
+						break;
+					}
+				}
+				// If there are no build costs, then there will always be 100% reinforcement satisfaction
+				auto current = state.world.ship_get_reinforcement_satisfaction_buffer(ship);
+				if(commodity_count != 0) {
+					state.world.ship_set_reinforcement_satisfaction_buffer(ship, current + (accumulated_satisfaction / commodity_count));
+				} else {
+					state.world.ship_set_reinforcement_satisfaction_buffer(ship, current + (potential_reinforcement / economy::unit_reinforcement_demand_divisor));
+				}
+			}
+		}
+		
+	}
+
+
+}
+
+
+
+
+void update_regiment_supply_reinforcement_satisfaction(sys::state& state) {
+
+	static tagged_vector<std::vector<dcon::army_id>, dcon::nation_id> sorted_armies_by_nation;
+	sorted_armies_by_nation.resize(state.world.nation_size());
+	// Process rebel and non-rebel units in parallel
+	concurrency::parallel_invoke([&](){
+		// Supply armies controlled by a nation in parallel
+		concurrency::parallel_for(uint32_t(0), state.world.nation_size(), [&](int32_t i) {
+			dcon::nation_id nation{ dcon::nation_id::value_base_t(i) };
+			// skip dead nations
+			if(state.world.nation_get_owned_province_count(nation) == 0) {
+				return;
+			}
+			auto nation_armies = state.world.nation_get_army_control(nation);
+			auto& sorted_armies = sorted_armies_by_nation[nation];
+			auto national_sup_mods = get_national_supply_cost_modifiers(state, nation);
+			// Create a copy of the nations' armies
+			sorted_armies.clear();
+			for(auto a : nation_armies) {
+				sorted_armies.push_back(a.get_army());
+			}
+			// Sort armies by supply priority
+			std::sort(sorted_armies.begin(),sorted_armies.end(), [&](dcon::army_id army_a, dcon::army_id army_b) {
+				if(state.world.army_get_supply_priority(army_a) != state.world.army_get_supply_priority(army_b)) {
+					return state.world.army_get_supply_priority(army_a) > state.world.army_get_supply_priority(army_b);
+				}
+				else {
+					return army_a.index() > army_b.index();
+				}
+			});
+			for(auto army : sorted_armies) {
+				for(auto r : state.world.army_get_army_membership(army)) {
+					auto regiment = r.get_regiment();
+					auto source_state = state.world.province_get_state_membership(state.world.pop_get_province_from_pop_location( state.world.regiment_get_pop_from_regiment_source(regiment)));
+					auto source_market = state.world.state_instance_get_market_from_local_market(source_state);
+					auto unit_type = state.world.regiment_get_type(regiment);
+					const auto& base_supply_cost = state.military_definitions.unit_base_definitions[unit_type].supply_cost;
+					auto reg_supply_mods = get_regiment_supply_cost_modifiers(state, nation, regiment);
+					auto total_sup_mods = combine_land_supply_cost_modifiers(national_sup_mods, reg_supply_mods);
+					float accumulated_satisfaction = 0.0f;
+					uint8_t commodity_count = 0;
+					// Find out what needs to be consumed from the stockpile, and set the satisfaction
+					for(uint32_t j = 0; j < base_supply_cost.set_size; ++j) {
+						if(base_supply_cost.commodity_type[j]) {
+							auto actual_supply_consumption = base_supply_cost.commodity_amounts[j] * total_sup_mods;
+							auto current_stockpile = state.world.market_get_government_stockpile(source_market, base_supply_cost.commodity_type[j]);
+							accumulated_satisfaction += current_stockpile / actual_supply_consumption;
+							commodity_count++;
+							economy::set_government_stockpile(state, nation, source_market, base_supply_cost.commodity_type[j], current_stockpile - actual_supply_consumption);
+						}
+						else {
+							break;
+						}
+					}
+					commodity_count = (commodity_count == 0 ? 1 : commodity_count);
+					state.world.regiment_set_supply_satisfaction(regiment, accumulated_satisfaction / commodity_count);
+				}
+			}
+		});
+	},[&] { 
+		// handle rebel factions
+		concurrency::parallel_for(uint32_t(0), state.world.rebel_faction_size(), [&](int32_t i) {
+			dcon::rebel_faction_id reb_faction{ dcon::rebel_faction_id::value_base_t(i) };
+			auto rebel_units = state.world.rebel_faction_get_army_rebel_control(reb_faction);
+			for(auto reb_army : rebel_units) {
+				for(auto reb_reg : state.world.army_get_army_membership(reb_army.get_army())) {
+					// Rebels get full satisfaction for now
+					state.world.regiment_set_supply_satisfaction(reb_reg.get_regiment(), 1.0f);
+				}
+			}
+		});
+		}
+	);
+
+
+
+
+	// Do it again, but this time for reinforcement instead and reuse the previous buffer
+	concurrency::parallel_invoke([&]() {
+		// Supply armies controlled by a nation in parallel
+		concurrency::parallel_for(uint32_t(0), state.world.nation_size(), [&](int32_t i) {
+			dcon::nation_id nation{ dcon::nation_id::value_base_t(i) };
+			// skip dead nations
+			if(state.world.nation_get_owned_province_count(nation) == 0) {
+				return;
+			}
+			auto nation_armies = state.world.nation_get_army_control(nation);
+			auto& sorted_armies = sorted_armies_by_nation[nation];
+			auto national_reinf_mods = get_land_national_reinforcement_modifiers(state, nation);
+			// Create a copy of the nations' armies
+			sorted_armies.clear();
+			for(auto a : nation_armies) {
+				sorted_armies.push_back(a.get_army());
+			}
+			// Sort armies by supply priority
+			std::sort(sorted_armies.begin(), sorted_armies.end(), [&](dcon::army_id army_a, dcon::army_id army_b) {
+				if(state.world.army_get_supply_priority(army_a) != state.world.army_get_supply_priority(army_b)) {
+					return state.world.army_get_supply_priority(army_a) > state.world.army_get_supply_priority(army_b);
+				} else {
+					return army_a.index() > army_b.index();
+				}
+			});
+			for(auto army : sorted_armies) {
+				auto army_reinf_mods = get_army_reinforcement_modifiers(state, army);
+				for(auto r : state.world.army_get_army_membership(army)) {
+					auto regiment = r.get_regiment();
+					auto regiment_reinf_mods = get_regiment_reinforcement_modifiers(state, regiment);
+					auto total_reinf_mods = combine_land_reinforcement_modifiers(national_reinf_mods, army_reinf_mods, regiment_reinf_mods);
+					auto source_state = state.world.province_get_state_membership(state.world.pop_get_province_from_pop_location(state.world.regiment_get_pop_from_regiment_source(regiment)));
+					auto source_market = state.world.state_instance_get_market_from_local_market(source_state);
+					auto unit_type = state.world.regiment_get_type(regiment);
+					const auto& base_build_cost = state.military_definitions.unit_base_definitions[unit_type].build_cost;
+					auto potential_reinforcement = calculate_regiment_reinforcement<reinforcement_interval_estimation::daily, reinforcement_supply_estimation::full_supply_always, false>(state, regiment, total_reinf_mods);
+					float accumulated_satisfaction = 0.0f;
+					uint8_t commodity_count = 0;
+					// Find out what needs to be consumed from the stockpile, and set the satisfaction
+					for(uint32_t j = 0; j < base_build_cost.set_size; ++j) {
+						if(base_build_cost.commodity_type[j]) {
+							auto actual_supply_consumption = base_build_cost.commodity_amounts[j] * potential_reinforcement;
+							auto current_stockpile = state.world.market_get_government_stockpile(source_market, base_build_cost.commodity_type[j]);
+							accumulated_satisfaction += current_stockpile / actual_supply_consumption;
+							commodity_count++;
+							economy::set_government_stockpile(state, nation, source_market, base_build_cost.commodity_type[j], current_stockpile - actual_supply_consumption);
+						} else {
+							break;
+						}
+					}
+					commodity_count = (commodity_count == 0 ? 1 : commodity_count);
+					auto current = state.world.regiment_get_reinforcement_satisfaction_buffer(regiment);
+					state.world.regiment_set_reinforcement_satisfaction_buffer(regiment, current + (accumulated_satisfaction / commodity_count));
+				}
+			}
+		});
+	}, [&] {
+		// handle rebel factions
+		concurrency::parallel_for(uint32_t(0), state.world.rebel_faction_size(), [&](int32_t i) {
+			dcon::rebel_faction_id reb_faction{ dcon::rebel_faction_id::value_base_t(i) };
+			auto rebel_units = state.world.rebel_faction_get_army_rebel_control(reb_faction);
+			for(auto reb_army : rebel_units) {
+				for(auto reb_reg : state.world.army_get_army_membership(reb_army.get_army())) {
+					// Rebels get full satisfaction for now
+					state.world.regiment_set_reinforcement_satisfaction_buffer(reb_reg.get_regiment(), 1.0f);
+				}
+			}
+		});
+		}
+	);
+
+}
+
+
 
 /* === Mobilization === */
 void start_mobilization(sys::state& state, dcon::nation_id n) {

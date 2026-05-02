@@ -1959,6 +1959,14 @@ object {
 		type{ float }
 		tag{ save }
 	}
+	property{
+		name { supply_satisfaction }
+		type{ float }
+	}
+	property{
+		name { reinforcement_satisfaction_buffer }
+		type{ float }
+	}
 	property{	
 		name{ pending_combat_damage }
 		type{ float }
@@ -2141,6 +2149,14 @@ object {
 		type{ unit_type_id }
 		tag{ save }
 	}
+	property{
+		name { supply_satisfaction }
+		type{ float }
+	}
+	property{
+		name { reinforcement_satisfaction_buffer }
+		type{ float }
+	}
 	property{	
 		name{ strength }
 		type{ float }
@@ -2183,6 +2199,16 @@ object {
 	property{
 		name{ is_rebel_hunter }
 		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ reinforcement_priority }
+		type{ uint8_t }
+		tag{ save }
+	}
+	property{
+		name{ supply_priority }
+		type{ uint8_t }
 		tag{ save }
 	}
 	property{
@@ -2274,6 +2300,16 @@ object {
 	property{
 		name{ unused_travel_days }
 		type{ float }
+		tag{ save }
+	}
+	property{
+		name{ reinforcement_priority }
+		type{ uint8_t }
+		tag{ save }
+	}
+	property{
+		name{ supply_priority }
+		type{ uint8_t }
 		tag{ save }
 	}
 	property{
@@ -4227,6 +4263,11 @@ object {
 		tag{ save }
 	}
 	property {
+		name{ total_stockpiles }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
 		name{ national_bank }
 		type{ float }
 		tag{ save }
@@ -4467,6 +4508,11 @@ object{
 	}
 	property {
 		name{ stockpile }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
+		name{ government_stockpile }
 		type{ array{commodity_id}{float} }
 		tag{ save }
 	}

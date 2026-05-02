@@ -2226,12 +2226,20 @@ void create_nation_based_on_template(sys::state& state, dcon::nation_id n, dcon:
 	politics::update_displayed_identity(state, n);
 }
 
+bool exists(sys::state& state, dcon::nation_id nation) {
+	return state.world.nation_get_owned_province_count(nation) > 0;
+}
+
 bool exists_or_is_utility_tag(sys::state& state, dcon::nation_id nation) {
-	return state.world.nation_get_owned_province_count(nation) > 0 || state.world.nation_get_utility_tag(nation);
+	return exists(state, nation) || state.world.nation_get_utility_tag(nation);
+}
+
+ve::mask_vector exists(sys::state& state, ve::contiguous_tags<dcon::nation_id> nations) {
+	return state.world.nation_get_owned_province_count(nations) > 0;
 }
 
 ve::mask_vector exists_or_is_utility_tag(sys::state& state, ve::contiguous_tags<dcon::nation_id> nations) {
-	return (state.world.nation_get_owned_province_count(nations) != 0) || state.world.nation_get_utility_tag(nations);
+	return exists(state, nations) || state.world.nation_get_utility_tag(nations);
 }
 
 

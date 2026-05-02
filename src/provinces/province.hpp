@@ -92,6 +92,9 @@ void set_rgo(sys::state& state, dcon::province_id prov, dcon::commodity_id c);
 void enable_canal(sys::state& state, int32_t id);
 void upgrade_colonial_state(sys::state& state, dcon::nation_id owner, dcon::state_instance_id si);
 
+// Gets who is considered to "control" the state (for purposes of state-specific logic)
+dcon::nation_id state_instance_controller(sys::state& state, dcon::state_instance_id state_instance);
+
 // distance from a state to a given province (does not pathfind)
 float state_distance(sys::state& state, dcon::state_instance_id state_id, dcon::province_id prov_id);
 // distance between to adjacent provinces

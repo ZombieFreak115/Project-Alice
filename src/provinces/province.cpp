@@ -11,6 +11,7 @@
 #include "triggers.hpp"
 #include "economy_stats.hpp"
 #include "events.hpp"
+#include "economy_templates.hpp"
 #include <set>
 
 namespace province {
@@ -520,6 +521,7 @@ void set_province_controller(sys::state& state, dcon::province_id p, dcon::natio
 		return;
 	}
 	if(old_con != n) {
+		auto state_inst = state.world.province_get_state_membership(p);
 		state.world.province_set_last_control_change(p, state.current_date);
 		state.trade_route_cached_values_out_of_date = true;
 		auto rc = state.world.province_get_rebel_faction_from_province_rebel_control(p);
@@ -993,6 +995,11 @@ struct queue_node {
 	dcon::province_id prov_id;
 };
 
+dcon::nation_id state_instance_controller(sys::state& state, dcon::state_instance_id state_instance) {
+	auto capital = state.world.state_instance_get_capital(state_instance);
+	return state.world.province_get_nation_from_province_control(capital);
+}
+
 float state_distance(sys::state& state, dcon::state_instance_id state_id, dcon::province_id prov_id) {
 	return direct_distance(state, state.world.state_instance_get_capital(state_id), prov_id);
 }
@@ -1370,6 +1377,13 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 					nations::cleanup_crisis(state);
 			}
 			auto local_market = state.world.state_instance_get_market_from_local_market(old_si);
+
+			// Update total stockpile count as the local stockpile is about to be deleted
+			economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
+				float del_stockpile_amount = state.world.market_get_government_stockpile(local_market, commodity);
+				float curr_total_stockpile = state.world.nation_get_total_stockpiles(old_owner, commodity);
+				state.world.nation_set_total_stockpiles(old_owner, commodity, curr_total_stockpile - del_stockpile_amount );
+			});
 
 			state.world.delete_market(local_market);
 			state.world.delete_state_instance(old_si);

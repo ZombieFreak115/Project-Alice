@@ -229,6 +229,9 @@ float primary_warscore_from_battles(sys::state& state, dcon::war_id w);
 float primary_warscore_from_war_goals(sys::state& state, dcon::war_id w);
 float primary_warscore_from_blockades(sys::state& state, dcon::war_id w);
 
+void update_regiment_supply_reinforcement_satisfaction_serial(sys::state& state);
+void update_regiment_supply_reinforcement_satisfaction(sys::state& state);
+
 // war score from the perspective of the primary nation offering peace to the secondary nation; 0 to 100
 // DO NOT use this when calculating the overall score of the war or when looking at a peace deal between primary attacker and
 // defender
@@ -404,6 +407,12 @@ enum class reinforcement_estimation_type {
 	today, monthly, full_supplies
 };
 
+enum class reinforcement_interval_estimation {
+	daily, monthly
+};
+enum class reinforcement_supply_estimation {
+	based_on_satisfaction, full_supply_always
+};
 
 template<reinforcement_estimation_type reinf_est_type>
 float calculate_army_combined_reinforce(sys::state& state, dcon::army_id a);
@@ -525,6 +534,25 @@ void repair_ships(sys::state& state);
 void run_gc(sys::state& state);
 void update_blackflag_status(sys::state& state);
 void send_rebel_hunter_to_next_province(sys::state& state, dcon::army_id ar, dcon::province_id prov);
+
+// Gets the net total supply cost modifier for the naval unit,with all modifiers included
+float get_naval_supply_cost_modifiers(sys::state& state, dcon::ship_id ship);
+
+// Gets the net total supply cost modifier for the land unit, with all modifiers included
+float get_land_supply_cost_modifiers(sys::state& state, dcon::regiment_id regiment);
+
+
+// interval_type: Do we estimate the reinforcement per day, or per month?
+// supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
+// potential_reinforcement: Do we cap the reinforcement at max strength, or not?
+template<reinforcement_interval_estimation interval_type, reinforcement_supply_estimation supply_type, bool potential_reinforcement>
+float calculate_regiment_reinforcement(sys::state& state, dcon::regiment_id regiment);
+
+// interval_type: Do we estimate the reinforcement per day, or per month?
+// supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
+// potential_reinforcement: Do we cap the reinforcement at max strength, or not?
+template<reinforcement_interval_estimation interval_type, reinforcement_supply_estimation supply_type, bool potential_reinforcement>
+float calculate_ship_reinforcement(sys::state& state, dcon::ship_id ship);
 
 bool is_battle_retreatable(sys::state& state, dcon::naval_battle_id battle, retreat_type retreat_type);
 bool is_battle_retreatable(sys::state& state, dcon::land_battle_id battle);

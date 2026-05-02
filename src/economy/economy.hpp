@@ -22,6 +22,7 @@ float subsistence_max_pseudoemployment(sys::state& state, dcon::province_id p);
 bool has_building(sys::state const& state, dcon::state_instance_id si, dcon::factory_type_id fac);
 bool is_bankrupt_debtor_to(sys::state& state, dcon::nation_id debt_holder, dcon::nation_id debtor);
 
+void set_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount);
 
 bool nation_is_constructing_factories(sys::state& state, dcon::nation_id n);
 bool nation_has_closed_factories(sys::state& state, dcon::nation_id n);
@@ -124,6 +125,8 @@ bool get_commodity_uses_potentials(sys::state& state, dcon::commodity_id c);
 float calculate_province_factory_limit(sys::state& state, dcon::province_id pid, dcon::commodity_id c);
 float calculate_state_factory_limit(sys::state& state, dcon::state_instance_id sid, dcon::commodity_id c);
 float calculate_nation_factory_limit(sys::state& state, dcon::nation_id nid, dcon::commodity_id c);
+
+void update_total_government_stockpiles(sys::state& state);
 
 bool do_resource_potentials_allow_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::factory_type_id type);
 bool do_resource_potentials_allow_upgrade(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::factory_type_id type);

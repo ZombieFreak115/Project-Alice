@@ -3034,6 +3034,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	world.market_resize_stockpile(world.commodity_size());
 	world.market_resize_consumption(world.commodity_size());
 	world.market_resize_intermediate_demand(world.commodity_size());
+	world.market_resize_government_stockpile(world.commodity_size());
 
 	world.market_resize_life_needs_costs(world.pop_type_size());
 	world.market_resize_everyday_needs_costs(world.pop_type_size());
@@ -3075,6 +3076,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	advanced_province_buildings::initialize_size_of_dcon_arrays(*this);
 
 	world.nation_resize_stockpile_targets(world.commodity_size());
+	world.nation_resize_total_stockpiles(world.commodity_size());
 	world.nation_resize_drawing_on_stockpiles(world.commodity_size());
 	world.commodity_resize_price_record(economy::price_history_length);
 	world.nation_resize_gdp_record(economy::gdp_history_length);
@@ -4515,6 +4517,7 @@ void state::single_game_tick() {
 			break;
 		case 10:
 			province::update_crimes(*this);
+			economy::update_total_government_stockpiles(*this);
 			break;
 		case 11:
 			province::update_nationalism(*this);
