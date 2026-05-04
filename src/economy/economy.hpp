@@ -119,6 +119,8 @@ bool can_take_loans(sys::state& state, dcon::nation_id n);
 float interest_payment(sys::state& state, dcon::nation_id n);
 float max_loan(sys::state& state, dcon::nation_id n);
 
+// Returns the closest available market states from the location as the nation as a sorted vector
+void get_closest_available_market_states(sys::state& state, std::vector<dcon::state_instance_id>& out_buffer, dcon::nation_id nation_as, dcon::province_id location_from);
 float estimate_investment_pool_daily_loss(sys::state& state, dcon::nation_id n);
 
 bool get_commodity_uses_potentials(sys::state& state, dcon::commodity_id c);

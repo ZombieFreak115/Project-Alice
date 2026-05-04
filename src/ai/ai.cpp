@@ -1308,10 +1308,8 @@ bool army_ready_for_battle(sys::state& state, dcon::nation_id n, dcon::army_id a
 	}
 
 
-	auto spending_level = state.world.nation_get_effective_land_spending(n);
-	auto max_org = 0.25f + 0.75f * spending_level;
-
-	return state.world.regiment_get_org(sample_reg) > 0.7f * max_org;
+	// org cap is always 100% no matter supply
+	return state.world.regiment_get_org(sample_reg) > 0.5f;
 }
 
 // MP compliant

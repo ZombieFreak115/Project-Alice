@@ -314,6 +314,27 @@ struct commodity_set {
 	bool operator!=(const commodity_set& other) const {
 		return !(other == *this);
 	}
+	template<typename F>
+	void for_each_commodity(const F&& function) const {
+		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
+			if(commodity_type[i]) {
+				function(commodity_type[i], commodity_amounts[i]);
+			}
+			else {
+				break;
+			}
+		}
+	}
+	template<typename F>
+	void for_each_commodity(F&& function) {
+		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
+			if(commodity_type[i]) {
+				function(commodity_type[i], commodity_amounts[i]);
+			} else {
+				break;
+			}
+		}
+	}
 
 };
 static_assert(sizeof(commodity_set) ==

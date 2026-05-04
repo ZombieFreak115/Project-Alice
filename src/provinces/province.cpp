@@ -513,6 +513,17 @@ dcon::province_id pick_capital(sys::state& state, dcon::nation_id n) {
 	return best_choice;
 }
 
+void set_state_controller(sys::state& state, dcon::state_instance_id state_inst, dcon::nation_id new_controller) {
+	auto market = state.world.state_instance_get_market_from_local_market(state_inst);
+	state.world.force_create_state_control(state_inst, new_controller);
+	economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
+		auto curr_local_stockpile = state.world.market_get_government_stockpile(market, commodity);
+		auto curr_total_stockpile = state.world.nation_get_total_stockpiles(new_controller, commodity);
+		assert( curr_total_stockpile >= curr_local_stockpile);
+		state.world.nation_set_total_stockpiles(new_controller, commodity, curr_total_stockpile - curr_local_stockpile );
+	});
+}
+
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::nation_id n) {
 	auto old_con = state.world.province_get_nation_from_province_control(p);
 	auto curr_owner = state.world.province_get_nation_from_province_ownership(p);
@@ -522,6 +533,10 @@ void set_province_controller(sys::state& state, dcon::province_id p, dcon::natio
 	}
 	if(old_con != n) {
 		auto state_inst = state.world.province_get_state_membership(p);
+		// Check if the state needs to also change controller
+		if(state_inst && state.world.state_instance_get_capital(state_inst) == p) {
+			set_state_controller(state, state_inst, n);
+		}
 		state.world.province_set_last_control_change(p, state.current_date);
 		state.trade_route_cached_values_out_of_date = true;
 		auto rc = state.world.province_get_rebel_faction_from_province_rebel_control(p);
@@ -995,10 +1010,7 @@ struct queue_node {
 	dcon::province_id prov_id;
 };
 
-dcon::nation_id state_instance_controller(sys::state& state, dcon::state_instance_id state_instance) {
-	auto capital = state.world.state_instance_get_capital(state_instance);
-	return state.world.province_get_nation_from_province_control(capital);
-}
+
 
 float state_distance(sys::state& state, dcon::state_instance_id state_id, dcon::province_id prov_id) {
 	return direct_distance(state, state.world.state_instance_get_capital(state_id), prov_id);
@@ -1128,6 +1140,7 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 			new_si = state.world.create_state_instance();
 			state.world.state_instance_set_definition(new_si, state_def);
 			state.world.try_create_state_ownership(new_si, new_owner);
+			state.world.try_create_state_control(new_si, new_owner);
 
 			state.world.state_instance_set_capital(new_si, id);
 			state.world.province_set_is_colonial(id, will_be_colonial);

@@ -683,6 +683,7 @@ void generate_initial_state_instances(sys::state& state) {
 	for(int32_t i = 0; i < state.province_definitions.first_sea_province.index(); ++i) {
 		dcon::province_id pid{dcon::province_id::value_base_t(i)};
 		auto owner = state.world.province_get_nation_from_province_ownership(pid);
+		auto controller = state.world.province_get_nation_from_province_control(pid);
 		if(owner && !(state.world.province_get_state_membership(pid))) {
 			auto state_instance = fatten(state.world, state.world.create_state_instance());
 			auto new_market = state.world.create_market();
@@ -693,6 +694,7 @@ void generate_initial_state_instances(sys::state& state) {
 			state_instance.set_definition(abstract_state);
 			state_instance.set_capital(pid);
 			state.world.force_create_state_ownership(state_instance, owner);
+			state.world.force_create_state_control(state_instance, controller);
 
 			for(auto mprov : state.world.state_definition_get_abstract_state_membership(abstract_state)) {
 				auto prov = mprov.get_province();
@@ -2178,8 +2180,10 @@ void create_nation_based_on_template(sys::state& state, dcon::nation_id n, dcon:
 	state.world.nation_set_land_spending(n, int8_t(100));
 	state.world.nation_set_naval_spending(n, int8_t(100));
 	state.world.nation_set_construction_spending(n, int8_t(100));
-	state.world.nation_set_effective_land_spending(n, 1.0f);
-	state.world.nation_set_effective_naval_spending(n, 1.0f);
+	state.world.nation_set_naval_supply_consumption(n, int8_t(100));
+	state.world.nation_set_naval_reinforcement_consumption(n, int8_t(100));
+	state.world.nation_set_land_supply_consumption(n, int8_t(100));
+	state.world.nation_set_naval_supply_consumption(n, int8_t(100));
 	state.world.nation_set_effective_construction_spending(n, 1.0f);
 	state.world.nation_set_spending_level(n, 1.0f);
 	state.world.nation_set_poor_tax(n, int8_t(50));

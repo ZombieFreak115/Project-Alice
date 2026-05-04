@@ -1967,6 +1967,10 @@ object {
 		name { reinforcement_satisfaction_buffer }
 		type{ float }
 	}
+	property{
+		name { last_reinforcement_satisfaction }
+		type{ float }
+	}
 	property{	
 		name{ pending_combat_damage }
 		type{ float }
@@ -2155,6 +2159,10 @@ object {
 	}
 	property{
 		name { reinforcement_satisfaction_buffer }
+		type{ float }
+	}
+	property{
+		name { last_reinforcement_satisfaction }
 		type{ float }
 	}
 	property{	
@@ -3385,6 +3393,24 @@ relationship{
 	}
 }
 
+
+relationship{
+	name{ state_control }
+	tag{ save }
+
+	link{
+		object{state_instance}
+		name{state}
+		type{unique}
+	}
+	link{
+		object{nation}
+		name{nation}
+		type{many}
+		index_storage{array}
+	}
+}
+
 relationship{
 	name{ flashpoint_focus }
 	tag{ save }
@@ -4080,25 +4106,26 @@ object {
 		tag{ save }
 	}
 	property {
-		name{ land_reinforcement_buffer }
-		type{ float }
+		name{ land_supply_consumption }
+		type{ int8_t }
 		tag{ save }
 	}
 	property {
-		name{ naval_reinforcement_buffer }
-		type{ float }
+		name{ land_reinforcement_consumption }
+		type{ int8_t }
 		tag{ save }
 	}
 	property {
-		name{ effective_land_spending }
-		type{ float }
+		name{ naval_supply_consumption }
+		type{ int8_t }
 		tag{ save }
 	}
 	property {
-		name{ effective_naval_spending }
-		type{ float }
+		name{ naval_reinforcement_consumption }
+		type{ int8_t }
 		tag{ save }
 	}
+	
 	property {
 		name{ effective_construction_spending }
 		type{ float }
@@ -4533,6 +4560,11 @@ object{
 	}
 	property {
 		name{ navy_demand }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
+		name{ government_stockpile_demand }
 		type{ array{commodity_id}{float} }
 		tag{ save }
 	}

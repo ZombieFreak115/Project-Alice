@@ -81,16 +81,6 @@ void for_each_nation_province_parallel_over_nation(sys::state& state, F const& f
 	});
 }
 
-template<typename F>
-void for_each_controlled_state_instance(sys::state& state, dcon::nation_id nation, F const& func) {
-	state.world.nation_for_each_state_ownership(nation, [&](dcon::state_ownership_id so) {
-		auto state_instance = state.world.state_ownership_get_state(so);
-		if(province::state_instance_controller(state, state_instance) == nation) {
-			func(state_instance);
-		}
-	});
-}
-
 
 struct retreat_province_and_distance {
 	float distance_covered = 0.0f;
