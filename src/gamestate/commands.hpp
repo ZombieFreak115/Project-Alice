@@ -126,7 +126,10 @@ enum class command_type : uint8_t {
 		toggle_production_directive = 114,
 		load_saved_game = 115,
 		change_naval_unit_type = 116,
-
+		set_army_supply_priority = 117,
+		set_army_reinforcement_priority = 118,
+		set_navy_supply_priority = 119,
+		set_navy_reinforcement_priority = 120,
 
 		// network
 		notify_player_timeout = 233,// Sent to every client in the lobby to notify a client has timed out. Is also sent to the timed-out client socket, incase they get can receive it.
@@ -584,6 +587,21 @@ struct production_directive_data {
 	dcon::production_directive_id id;
 };
 
+struct set_army_priority_data {
+	military::unit_priority priority;
+	uint8_t padding;
+	dcon::army_id army;
+};
+static_assert(sizeof(set_army_priority_data) == sizeof(set_army_priority_data::priority) + sizeof(set_army_priority_data::padding) + sizeof(set_army_priority_data::army));
+
+struct set_navy_priority_data {
+	military::unit_priority priority;
+	uint8_t padding;
+	dcon::navy_id navy;
+};
+static_assert(sizeof(set_navy_priority_data) == sizeof(set_navy_priority_data::priority) + sizeof(set_navy_priority_data::padding) + sizeof(set_navy_priority_data::navy));
+
+
 
 
 
@@ -737,6 +755,10 @@ constexpr enum_array<command_type, command_handler> command_type_handlers = {
 	{ command_type::change_game_rule_setting, command_handler{ sizeof(command::change_gamerule_setting_data), sizeof(command::change_gamerule_setting_data), &command_handler::false_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	{ command_type::toggle_production_directive, command_handler{ sizeof(command::production_directive_data), sizeof(command::production_directive_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	{ command_type::load_saved_game, command_handler{sizeof(command::load_save_game_data), sizeof(command::load_save_game_data) + FILENAME_MAX, &command_handler::false_is_host_receive_command, &command_handler::false_is_host_broadcast_command } },
+	{ command_type::set_army_supply_priority,command_handler{ sizeof(command::set_army_priority_data), sizeof(command::set_army_priority_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
+	{ command_type::set_army_reinforcement_priority,command_handler{ sizeof(command::set_army_priority_data), sizeof(command::set_army_priority_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
+	{ command_type::set_navy_supply_priority,command_handler{ sizeof(command::set_navy_priority_data), sizeof(command::set_navy_priority_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
+	{ command_type::set_navy_reinforcement_priority,command_handler{ sizeof(command::set_navy_priority_data), sizeof(command::set_navy_priority_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	// network
 	{ command_type::notify_oos_gamestate, command_handler{ sizeof(command::notify_oos_gamestate_data), sizeof(command::notify_oos_gamestate_data) + max_mp_state_size, &notify_oos_gamestate_is_host_receive_command, &command_handler::false_is_host_broadcast_command   } },
 	{ command_type::notify_player_ban, command_handler{ sizeof(command::notify_player_ban_data), sizeof(command::notify_player_ban_data), &command_handler::false_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },

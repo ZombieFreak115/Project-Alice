@@ -83,6 +83,11 @@ struct full_construction_province {
 	province_building_type type = province_building_type::railroad;
 };
 
+struct consume_stockpile_result {
+	float amount_consumed;
+	float satisfaction;
+};
+
 std::vector<full_construction_factory> estimate_private_investment_upgrade(sys::state& state, dcon::nation_id nid, float est_private_const_spending);
 std::vector<full_construction_factory> estimate_private_investment_construct(sys::state& state, dcon::nation_id nid, bool craved, float est_private_const_spending, bool& potential_target_exists);
 std::vector<full_construction_province> estimate_private_investment_province(sys::state& state, dcon::nation_id nid, float est_private_const_spending);
@@ -121,6 +126,12 @@ float max_loan(sys::state& state, dcon::nation_id n);
 
 // Returns the closest available market states from the location as the nation as a sorted vector
 void get_closest_available_market_states(sys::state& state, std::vector<dcon::state_instance_id>& out_buffer, dcon::nation_id nation_as, dcon::province_id location_from);
+
+// Consumes goods from any of the provided government stockpiles with the given supply-to province and nation.
+// The "to_consume" commodity set will be decremented over time and after the call will only hold the commoditiy quantities which it was unable to fufll.
+// Make SURE that commodity set passed in is ok to be modified
+float consume_from_government_stockpiles(sys::state& state, economy::commodity_set& to_consume, std::span<const dcon::state_instance_id> stockpile_states, dcon::province_id location_from, dcon::nation_id nation_as);
+
 float estimate_investment_pool_daily_loss(sys::state& state, dcon::nation_id n);
 
 bool get_commodity_uses_potentials(sys::state& state, dcon::commodity_id c);

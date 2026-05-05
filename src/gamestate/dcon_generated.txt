@@ -2211,12 +2211,12 @@ object {
 	}
 	property{
 		name{ reinforcement_priority }
-		type{ uint8_t }
+		type{ military::unit_priority }
 		tag{ save }
 	}
 	property{
 		name{ supply_priority }
-		type{ uint8_t }
+		type{ military::unit_priority }
 		tag{ save }
 	}
 	property{
@@ -2312,12 +2312,12 @@ object {
 	}
 	property{
 		name{ reinforcement_priority }
-		type{ uint8_t }
+		type{ military::unit_priority }
 		tag{ save }
 	}
 	property{
 		name{ supply_priority }
-		type{ uint8_t }
+		type{ military::unit_priority }
 		tag{ save }
 	}
 	property{

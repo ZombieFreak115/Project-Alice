@@ -59,6 +59,7 @@ constexpr inline int32_t river_crossing_modifier = -1;
 constexpr inline int32_t strait_crossing_modifier = -2;
 
 
+
 struct wg_summary {
 	dcon::nation_id secondary_nation;
 	dcon::national_identity_id wg_tag;
@@ -591,6 +592,25 @@ bool pop_eligible_for_mobilization(sys::state& state, dcon::pop_id p);
 
 template<regiment_dmg_source damage_source>
 void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id);
+
+template<command::actor Actor>
+bool can_set_army_supply_priority(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+template<command::actor Actor>
+void set_army_supply_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+template<command::actor Actor>
+bool can_set_army_reinforcement_priority(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+template<command::actor Actor>
+void set_army_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+template<command::actor Actor>
+bool can_set_navy_supply_priority(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+template<command::actor Actor>
+void set_navy_supply_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+template<command::actor Actor>
+bool can_set_navy_reinforcement_priority(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+template<command::actor Actor>
+void set_navy_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+
+
 
 
 bool can_attack(sys::state& state, dcon::nation_id n);

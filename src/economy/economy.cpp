@@ -399,7 +399,6 @@ void convert_commodities_into_ingredients(
 
 
 void get_closest_available_market_states(sys::state& state, std::vector<dcon::state_instance_id>& out_buffer, dcon::nation_id nation_as, dcon::province_id location_from) {
-	out_buffer.clear();
 	state.world.nation_for_each_state_control(nation_as, [&](dcon::state_control_id sc) {
 		dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
 		out_buffer.push_back(state_instance);
@@ -415,6 +414,48 @@ void get_closest_available_market_states(sys::state& state, std::vector<dcon::st
 	});
 
 }
+
+
+
+consume_stockpile_result consume_single_government_stockpile(sys::state& state, dcon::nation_id state_controller, dcon::state_instance_id stockpile_state, dcon::commodity_id commodity, float amount) {
+	auto stockpile_market = state.world.state_instance_get_market_from_local_market(stockpile_state);
+	auto current_stockpile = state.world.market_get_government_stockpile(stockpile_market, commodity);
+	float clamped_req_amount = std::min(amount, current_stockpile); // We may not consume more than exists in the stockpile
+	float satisfaction = current_stockpile / clamped_req_amount;
+	// Consume it
+	economy::set_government_stockpile(state, state_controller, stockpile_market, commodity, current_stockpile - clamped_req_amount);
+
+	return consume_stockpile_result {amount - clamped_req_amount,satisfaction};
+}
+
+
+
+float consume_from_government_stockpiles(sys::state& state, economy::commodity_set& to_consume, std::span<const dcon::state_instance_id> stockpile_states, dcon::province_id location_from, dcon::nation_id nation_as) {
+	float accumulated_satisfaction = 0.0f;
+
+	for(uint32_t i = 0; i < to_consume.set_size; i++) {
+		if(to_consume.commodity_type[i]) {
+			float& required_amount = to_consume.commodity_amounts[i];
+			dcon::commodity_id required_commodity = to_consume.commodity_type[i];
+			// Iterate over each stockpile in the preferred order, and consume from them until the required supply is satisfied, or there are no more stockpiles
+			for(auto stockpile_state : stockpile_states) {
+				// Find out what needs to be consumed from the stockpile, and set the satisfaction. We modify the commodity set over time.
+				auto result = consume_single_government_stockpile(state, nation_as, stockpile_state, required_commodity, required_amount);
+				accumulated_satisfaction += result.satisfaction;
+				required_amount -= result.amount_consumed;
+				// If no more goods are required we can exit early
+				if(required_amount <= 0.0f) {
+					break;
+				}
+			}
+		} else {
+			break;
+		}
+	}
+	return accumulated_satisfaction;
+
+}
+
 
 
 // sets the passed vector to the weights for each controlled market and commodity for stockpile demand. Returns the total weight. Will be used to decide which government stockpiles shall receive demand from military and stockpile demand
