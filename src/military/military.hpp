@@ -6,7 +6,7 @@
 #include "modifiers.hpp"
 #include "military_constants.hpp"
 #include "constants_dcon.hpp"
-#include <commands_constants.hpp>
+#include "commands_constants.hpp"
 
 namespace military {
 namespace cb_flag {
@@ -166,12 +166,25 @@ enum class battle_line : uint8_t {
 	backline = 1
 };
 
+enum class interval_estimation {
+	daily, monthly
+};
+enum class supply_estimation {
+	based_on_satisfaction, full_supply_always
+};
+
 struct ai_path_length {
 	uint32_t length = 0;
 	bool operator==(const ai_path_length& other) const = default;
 	bool operator!=(const ai_path_length& other) const = default;
 
 };
+
+
+
+
+
+
 
 void reset_unit_stats(sys::state& state);
 void apply_base_unit_stat_modifiers(sys::state& state);
@@ -230,7 +243,7 @@ float primary_warscore_from_battles(sys::state& state, dcon::war_id w);
 float primary_warscore_from_war_goals(sys::state& state, dcon::war_id w);
 float primary_warscore_from_blockades(sys::state& state, dcon::war_id w);
 
-void update_regiment_supply_reinforcement_satisfaction_serial(sys::state& state);
+// Consumes from national stockpiles and updates supply and reinforcement satisfaction values accordingly
 void update_regiment_supply_reinforcement_satisfaction(sys::state& state);
 
 // war score from the perspective of the primary nation offering peace to the secondary nation; 0 to 100
@@ -404,12 +417,6 @@ float attrition_amount(sys::state& state, dcon::navy_id a);
 float attrition_amount(sys::state& state, dcon::army_id a);
 float peacetime_attrition_limit(sys::state& state, dcon::nation_id n, dcon::province_id prov);
 
-enum class interval_estimation {
-	daily, monthly
-};
-enum class supply_estimation {
-	based_on_satisfaction, full_supply_always
-};
 
 // reduces strength of regiment by value and handles if value is greater than the total strength. Returns the actual reduction performed
 float reduce_regiment_strength_safe(sys::state& state, dcon::regiment_id reg, float value);
@@ -520,9 +527,6 @@ float calculate_average_battle_location_modifier(sys::state& state, dcon::land_b
 float calculate_average_battle_national_modifiers(sys::state& state, dcon::land_battle_id b, bool attacker);
 
 
-template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float calculate_army_reinforcement(sys::state& state, dcon::army_id army);
-
 void reinforce_regiments(sys::state& state);
 void repair_ships(sys::state& state);
 void run_gc(sys::state& state);
@@ -536,17 +540,8 @@ float get_naval_supply_cost_modifiers(sys::state& state, dcon::ship_id ship);
 float get_land_supply_cost_modifiers(sys::state& state, dcon::regiment_id regiment);
 
 
-// interval_type: Do we estimate the reinforcement per day, or per month?
-// supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
-// potential_reinforcement: Do we cap the reinforcement at max strength, or not?
-template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float calculate_regiment_reinforcement(sys::state& state, dcon::regiment_id regiment);
-
-// interval_type: Do we estimate the reinforcement per day, or per month?
-// supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
-// potential_reinforcement: Do we cap the reinforcement at max strength, or not?
-template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float calculate_ship_reinforcement(sys::state& state, dcon::ship_id ship);
+float get_land_reinforcement_modifiers(sys::state& state, dcon::regiment_id regiment);
+float get_naval_reinforcement_modifiers(sys::state& state, dcon::ship_id ship);
 
 bool is_battle_retreatable(sys::state& state, dcon::naval_battle_id battle, retreat_type retreat_type);
 bool is_battle_retreatable(sys::state& state, dcon::land_battle_id battle);

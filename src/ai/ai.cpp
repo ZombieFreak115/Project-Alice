@@ -1355,6 +1355,8 @@ float estimate_balanced_composition_factor(sys::state& state, dcon::army_id a) {
 	float str_cav = 0.f;
 	for(const auto reg : regs) {
 		float str = reg.get_regiment().get_strength() * reg.get_regiment().get_org();
+		assert(std::isfinite(reg.get_regiment().get_strength()));
+		assert(std::isfinite(reg.get_regiment().get_org()));
 		if(auto utid = reg.get_regiment().get_type(); utid) {
 			switch(state.military_definitions.unit_base_definitions[utid].type) {
 			case military::unit_type::infantry:

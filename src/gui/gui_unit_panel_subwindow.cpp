@@ -4,6 +4,7 @@
 #include "gui_listbox_templates.hpp"
 #include "gui_templates.hpp"
 #include "commands.hpp"
+#include <military_templates.hpp>
 
 namespace ui {
 

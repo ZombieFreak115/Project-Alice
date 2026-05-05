@@ -9123,8 +9123,15 @@ bool siege_potential(sys::state& state, dcon::nation_id army_controller, dcon::n
 
 // US5AC2 Army siege
 void update_siege_progress(sys::state& state) {
-	static auto new_nation_controller = ve::vectorizable_buffer<dcon::nation_id, dcon::province_id>(state.world.province_size());
-	static auto new_rebel_controller = ve::vectorizable_buffer<dcon::rebel_faction_id, dcon::province_id>(state.world.province_size());
+	static auto new_nation_controller = ve::vectorizable_buffer<dcon::nation_id, dcon::province_id>(uint32_t(1));
+	static auto new_rebel_controller = ve::vectorizable_buffer<dcon::rebel_faction_id, dcon::province_id>(uint32_t(1));
+	static uint32_t old_count = 1;
+	auto new_count = state.world.province_size();
+	if(new_count > old_count) {
+		new_rebel_controller = ve::vectorizable_buffer<dcon::rebel_faction_id, dcon::province_id>(state.world.province_size());
+		new_nation_controller = ve::vectorizable_buffer<dcon::nation_id, dcon::province_id>(state.world.province_size());
+		old_count = new_count;
+	}
 	province::ve_for_each_land_province(state, [&](auto ids) {
 		new_nation_controller.set(ids, dcon::nation_id{});
 		new_rebel_controller.set(ids, dcon::rebel_faction_id{});
@@ -9596,12 +9603,14 @@ void recover_org(sys::state& state) {
 	for(auto regiment : state.world.in_regiment) {
 
 		auto org_regain = calculate_regiment_org_regain<supply_estimation::based_on_satisfaction, false>(state, regiment);
+		assert(std::isfinite(org_regain));
 		regiment.set_org(regiment.get_org() + org_regain);
 	}
 
 	// US17
 	for(auto ship : state.world.in_ship) {
 		auto org_regain = calculate_ship_org_regain<supply_estimation::based_on_satisfaction, false>(state, ship);
+		assert(std::isfinite(org_regain));
 		ship.set_org(ship.get_org() + org_regain);
 	}
 }
@@ -9907,6 +9916,7 @@ max possible regiments (feels like a bug to me) or 0.5 if mobilized)
 		auto in_nation = army.get_controller_from_army_control();
 		auto reinforcement = calculate_regiment_reinforcement<interval_estimation::monthly, supply_estimation::based_on_satisfaction, false>(state, regiment);
 		assert(std::isfinite(reinforcement));
+		assert(std::isfinite(regiment.get_strength()));
 		regiment.set_strength(regiment.get_strength() + reinforcement);
 		auto old_experience = regiment.get_experience();
 		auto lost_xp = old_experience - (old_experience / (reinforcement / 3 + 1));
@@ -10011,7 +10021,7 @@ float get_army_reinforcement_modifiers(sys::state& state, dcon::army_id army) {
 	if(army_battle) {
 		location_modifier = calculate_location_reinforce_modifier_battle(state, state.world.land_battle_get_location_from_land_battle_location(army_battle), army_owner);
 	} else {
-		location_modifier = calculate_location_reinforce_modifier_no_battle(state, state.world.land_battle_get_location_from_land_battle_location(army_battle), army_owner);
+		location_modifier = calculate_location_reinforce_modifier_no_battle(state, state.world.army_get_location_from_army_location(army), army_owner);
 	}
 	return location_modifier;
 }
@@ -10070,128 +10080,6 @@ float get_naval_reinforcement_modifiers(sys::state& state, dcon::ship_id ship) {
 
 
 
-// interval_type: Do we estimate the reinforcement per day, or per month?
-// supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
-// potential_reinforcement: Do we cap the reinforcement at max strength, or not?
-template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float calculate_regiment_reinforcement(sys::state& state, dcon::regiment_id regiment, float reinforcement_mods) {
-	float reinf_fufillment;
-	if constexpr(interval_type == interval_estimation::daily) {
-		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = std::clamp(state.world.regiment_get_reinforcement_satisfaction_buffer(regiment) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
-		}
-		// full supply always
-		else {
-			reinf_fufillment = std::clamp(1.0f / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
-		}
-	}
-	// monthly
-	else {
-		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = state.world.regiment_get_reinforcement_satisfaction_buffer(regiment);
-		}
-		// full supply always
-		else {
-			reinf_fufillment = 1.0f;
-		}
-	}
-	auto pop = state.world.regiment_get_pop_from_regiment_source(regiment);
-	auto combined = reinf_fufillment * reinforcement_mods;
-	float newstr;
-	float curstr = state.world.regiment_get_strength(regiment);
-	auto pop_size = state.world.pop_get_size(pop);
-	if constexpr(!potential_reinforcement) {
-		auto limit_fraction = std::max(state.defines.alice_full_reinforce, std::min(1.0f, pop_size / state.defines.pop_size_per_regiment));
-		newstr = std::min(curstr + combined, limit_fraction);
-		return newstr - curstr;
-	} else {
-		return combined;
-	}
-
-}
-
-// US14 Calculates reinforcement for a particular regiment
-template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float calculate_regiment_reinforcement(sys::state& state, dcon::regiment_id regiment) {
-	auto mods = get_land_reinforcement_modifiers(state, regiment);
-	return calculate_regiment_reinforcement<interval_type, supply_type, potential_reinforcement>(state, regiment, mods);
-
-}
-
-template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float calculate_army_reinforcement(sys::state& state, dcon::army_id army) {
-	float total_reinforcement = 0.0f;
-	for(auto r : state.world.army_get_army_membership(army)) {
-		auto regiment = r.get_regiment();
-		total_reinforcement += calculate_regiment_reinforcement<interval_type, supply_type, potential_reinforcement>(state, regiment);
-	}
-	return total_reinforcement;
-
-}
-
-
-
-// interval_type: Do we estimate the reinforcement per day, or per month?
-// supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
-// potential_reinforcement: Do we cap the reinforcement at max strength, or not?
-template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float calculate_ship_reinforcement(sys::state& state, dcon::ship_id ship, float reinforcement_mods) {
-	float reinf_fufillment;
-	if constexpr(interval_type == interval_estimation::daily) {
-		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = std::clamp(state.world.ship_get_reinforcement_satisfaction_buffer(ship) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
-		}
-		// full supply always
-		else {
-			reinf_fufillment = std::clamp(1.0f / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
-		}
-	}
-	// monthly
-	else {
-		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = state.world.ship_get_reinforcement_satisfaction_buffer(ship);
-		}
-		// full supply always
-		else {
-			reinf_fufillment = 1.0f;
-		}
-	}
-	auto combined = reinf_fufillment * reinforcement_mods;
-	float newstr;
-	float curstr = state.world.ship_get_strength(ship);
-	if constexpr(!potential_reinforcement) {
-		newstr = std::min(curstr + combined, 1.0f);
-		return newstr - curstr;
-	} else {
-		return combined;
-	}
-
-}
-
-
-
-// interval_type: Do we estimate the reinforcement per day, or per month?
-// supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
-// potential_reinforcement: Do we cap the reinforcement at max strength, or not?
-template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float calculate_ship_reinforcement(sys::state& state, dcon::ship_id ship) {
-	auto mods = get_naval_reinforcement_modifiers(state, ship);
-	return calculate_ship_reinforcement<interval_type, supply_type, potential_reinforcement>(state, ship, mods);
-
-}
-
-
-template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float calculate_navy_reinforcement(sys::state& state, dcon::navy_id navy) {
-	float total_reinforcement = 0.0f;
-	for(auto r : state.world.navy_get_navy_membership(navy)) {
-		auto ship = r.get_ship();
-		total_reinforcement += calculate_ship_reinforcement<interval_type, supply_type, potential_reinforcement>(state, ship);
-	}
-	return total_reinforcement;
-
-}
-
 
 
 struct unit {
@@ -10216,7 +10104,7 @@ struct unit {
 	unit() = default;
 };
 
-void update_regiment_supply_reinforcement_satisfaction_serial(sys::state& state) {
+void update_regiment_supply_reinforcement_satisfaction(sys::state& state) {
 
 
 	// Helper to set up the stockpiles buffer, to be consumed from first
@@ -10302,6 +10190,7 @@ void update_regiment_supply_reinforcement_satisfaction_serial(sys::state& state)
 						commodity_count++;
 					});
 					float accumulated_satisfaction = economy::consume_from_government_stockpiles(state, base_supply_cost, closest_stockpiles, location, nation) * state.world.nation_get_land_supply_consumption(nation);
+					assert(std::isfinite(accumulated_satisfaction));
 					// If the unit requires no commodity supply cost, then it shall always have max supply satisfaction
 					if(commodity_count != 0) {
 						state.world.regiment_set_supply_satisfaction(regiment, accumulated_satisfaction / commodity_count);
@@ -10342,6 +10231,7 @@ void update_regiment_supply_reinforcement_satisfaction_serial(sys::state& state)
 					commodity_count++;
 				});
 				float accumulated_satisfaction = economy::consume_from_government_stockpiles(state, base_supply_cost, closest_stockpiles, location, nation) * state.world.nation_get_naval_supply_consumption(nation);
+				assert(std::isfinite(accumulated_satisfaction));
 				// If the unit requires no commodity supply cost, then it shall always have max supply satisfaction
 				if(commodity_count != 0) {
 					state.world.ship_set_supply_satisfaction(ship, accumulated_satisfaction / commodity_count);
@@ -10399,6 +10289,7 @@ void update_regiment_supply_reinforcement_satisfaction_serial(sys::state& state)
 						commodity_count++;
 					});
 					float accumulated_satisfaction = economy::consume_from_government_stockpiles(state, base_build_cost, closest_stockpiles, location, nation) * state.world.nation_get_land_supply_consumption(nation);
+					assert(std::isfinite(accumulated_satisfaction));
 					// If there are no build costs, then there will always be 100% reinforcement satisfaction
 					auto current = state.world.regiment_get_reinforcement_satisfaction_buffer(regiment);
 					if(commodity_count != 0) {
@@ -10446,6 +10337,7 @@ void update_regiment_supply_reinforcement_satisfaction_serial(sys::state& state)
 					commodity_count++;
 				});
 				float accumulated_satisfaction = economy::consume_from_government_stockpiles(state, base_build_cost, closest_stockpiles, location, nation) * state.world.nation_get_naval_supply_consumption(nation);
+				assert(std::isfinite(accumulated_satisfaction));
 				// If there are no build costs, then there will always be 100% reinforcement satisfaction
 				auto current = state.world.ship_get_reinforcement_satisfaction_buffer(ship);
 				if(commodity_count != 0) {
@@ -11053,10 +10945,15 @@ bool can_set_army_supply_priority(const sys::state& state, dcon::nation_id sourc
 	}
 	return true;
 }
+template bool can_set_army_supply_priority<command::actor::ai>(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+template bool can_set_army_supply_priority<command::actor::player>(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+
 template<command::actor Actor>
 void set_army_supply_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority) {
 	state.world.army_set_supply_priority(army, priority);
 }
+template void set_army_supply_priority<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+template void set_army_supply_priority<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
 
 
 template<command::actor Actor>
@@ -11074,10 +10971,16 @@ bool can_set_army_reinforcement_priority(const sys::state& state, dcon::nation_i
 	}
 	return true;
 }
+template bool can_set_army_reinforcement_priority<command::actor::ai>(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+template bool can_set_army_reinforcement_priority<command::actor::player>(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+
 template<command::actor Actor>
 void set_army_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority) {
 	state.world.army_set_reinforcement_priority(army, priority);
 }
+template void set_army_reinforcement_priority<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+template void set_army_reinforcement_priority<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+
 
 template<command::actor Actor>
 bool can_set_navy_supply_priority(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority) {
@@ -11094,11 +10997,15 @@ bool can_set_navy_supply_priority(const sys::state& state, dcon::nation_id sourc
 	}
 	return true;
 }
+template bool can_set_navy_supply_priority<command::actor::ai>(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+template bool can_set_navy_supply_priority<command::actor::player>(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+
 template<command::actor Actor>
 void set_navy_supply_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority) {
 	state.world.navy_set_supply_priority(navy, priority);
 }
-
+template void set_navy_supply_priority<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+template void set_navy_supply_priority<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
 
 
 template<command::actor Actor>
@@ -11116,11 +11023,16 @@ bool can_set_navy_reinforcement_priority(const sys::state& state, dcon::nation_i
 	}
 	return true;
 }
+template bool can_set_navy_reinforcement_priority<command::actor::ai>(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+template bool can_set_navy_reinforcement_priority<command::actor::player>(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+
+
 template<command::actor Actor>
 void set_navy_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority) {
 	state.world.navy_set_reinforcement_priority(navy, priority);
 }
-
+template void set_navy_reinforcement_priority<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+template void set_navy_reinforcement_priority<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
 
 
 

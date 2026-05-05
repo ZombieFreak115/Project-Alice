@@ -3054,6 +3054,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	world.market_resize_army_demand(world.commodity_size());
 	world.market_resize_navy_demand(world.commodity_size());
 	world.market_resize_construction_demand(world.commodity_size());
+	world.market_resize_government_stockpile_demand(world.commodity_size());
 	world.market_resize_private_construction_demand(world.commodity_size());
 	world.market_resize_actual_probability_to_buy(world.commodity_size());
 	world.market_resize_actual_probability_to_sell(world.commodity_size());
@@ -3492,6 +3493,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	// ai::update_ai_research(*this);
 	ai::update_influence_priorities(*this);
 	ai::update_focuses(*this);
+	military::update_regiment_supply_reinforcement_satisfaction(*this);
 
 	military::recover_org(*this);
 
@@ -4439,6 +4441,19 @@ void state::single_game_tick() {
 		//
 		// ALTERNATE PAR DEMO START POINT B
 		//
+		// Run some compatible things in parallel
+		concurrency::parallel_invoke([this]() {
+			military::update_regiment_supply_reinforcement_satisfaction(*this);
+			},
+			[this]() {
+				military::update_cbs(*this); // may add/remove cbs to a nation
+		 }, [this]() {
+			 nations::update_industrial_scores(*this);
+			 },
+			 [this]() {
+			 nations::update_military_scores(*this); // depends on ship score, land unit average
+			 }
+		);
 
 		military::recover_org(*this);
 		military::update_siege_progress(*this);
@@ -4449,12 +4464,12 @@ void state::single_game_tick() {
 		military::advance_mobilizations(*this);
 
 		province::update_colonization(*this);
-		military::update_cbs(*this); // may add/remove cbs to a nation
+		//military::update_cbs(*this); // may add/remove cbs to a nation
 
 		culture::update_research(*this, uint32_t(ymd_date.year));
 
-		nations::update_industrial_scores(*this);
-		nations::update_military_scores(*this); // depends on ship score, land unit average
+		//nations::update_industrial_scores(*this);
+		//nations::update_military_scores(*this); // depends on ship score, land unit average
 		nations::update_rankings(*this);				// depends on industrial score, military scores
 		nations::update_great_powers(*this);		// depends on rankings
 		nations::update_influence(*this);				// depends on rankings, great powers
