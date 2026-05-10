@@ -1084,6 +1084,11 @@ bool can_disband_undermanned_regiments(sys::state& state, dcon::nation_id source
 
 void split_navy(sys::state& state, dcon::nation_id source, dcon::navy_id a, std::span<const dcon::ship_id> ships_to_split, fixed_bool_t select_both_armies = false);
 
+void set_army_supply_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+void set_army_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+void set_navy_supply_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+void set_navy_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+
 void change_land_unit_type(sys::state& state, dcon::nation_id source, std::span<const dcon::regiment_id> regiments, dcon::unit_type_id new_type);
 bool can_change_land_unit_type(sys::state& state, dcon::nation_id source, command_data& command);
 void execute_change_land_unit_type(sys::state& state, dcon::nation_id source, std::span<const dcon::regiment_id> regiments, dcon::unit_type_id new_type);
