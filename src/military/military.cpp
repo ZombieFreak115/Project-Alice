@@ -10930,6 +10930,30 @@ void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id) {
 	demographics::reduce_pop_size_safe(state, base_pop, int32_t(state.world.regiment_get_strength(reg_id) * state.defines.pop_size_per_regiment * state.defines.soldier_to_pop_damage));
 	military::delete_regiment_safe_wrapper(state, reg_id);
 }
+
+military::unit_priority increment_priority(military::unit_priority priority) {
+	switch(priority) {
+	case military::unit_priority::high_priority:
+		return military::unit_priority::low_priority;
+	case military::unit_priority::low_priority:
+		return military::unit_priority::normal_priority;
+	case military::unit_priority::normal_priority:
+		return military::unit_priority::high_priority;
+	}
+}
+military::unit_priority decrement_priority(military::unit_priority priority) {
+	switch(priority) {
+	case military::unit_priority::high_priority:
+		return military::unit_priority::normal_priority;
+	case military::unit_priority::low_priority:
+		return military::unit_priority::high_priority;
+	case military::unit_priority::normal_priority:
+		return military::unit_priority::low_priority;
+	}
+}
+
+
+
 template<command::actor Actor>
 bool can_set_army_supply_priority(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority) {
 	if constexpr(Actor == command::actor::player) {

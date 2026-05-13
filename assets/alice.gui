@@ -1614,7 +1614,12 @@ guiTypes = {
 		guiButtonType = {
 			name ="reinforcement_prio_button"
 			spriteType = "GFX_reinforcement_prio_buttons"
-			position = { x= 220 y = 6 }
+			position = { x= 220 y = 4 }
+		}
+		guiButtonType = {
+			name ="supply_prio_button"
+			spriteType = "GFX_supply_prio_buttons"
+			position = { x= 186 y = 4 }
 		}
 		guiButtonType = {
 			name = "splitinhalf"
@@ -1739,6 +1744,16 @@ guiTypes = {
 			name = "disband_multiunit"
 			position = { 215 4 }
 			quadTextureSprite ="GFX_unit_disband"
+		}
+		guiButtonType = {
+			name = "reinforcement_priority_button_multiunit"
+			position = { 180 4 }
+			spriteType = "GFX_reinforcement_prio_buttons"
+		}
+		guiButtonType = {
+			name = "supply_priority_button_multiunit"
+			position = { 146 4 }
+			spriteType = "GFX_supply_prio_buttons"
 		}
 
 		listboxType = 	{

@@ -1994,8 +1994,6 @@ alice_num_units_targeting_dug_in_tooltip;?Y$COUNT$?W units are targeting dug in 
 alice_unit_dug_in;Unit has a dig-in lvl of ?Y$NUM$?W
 alice_unit_targeting_dug_in_modifier;Unit receives a ?Y$NUM$?W modifier to its combat roll targeting a dug-in unit
 add_wargoal_wargoal_count;Will add ?Y$COUNT$?W wargoal(s) when proceeding
-unit_priority_high;high priority
-unit_priority_normal;normal priority
 unit_supply_priority_low_tooltip_1;This unit currently has ?Rlow?W priority on receiving supplies
 unit_supply_priority_normal_tooltip_1;This unit currently has ?Ymedium?W priority on receiving supplies
 unit_supply_priority_high_tooltip_1;This unit currently has ?Ghigh?W priority on receiving supplies
@@ -2003,3 +2001,13 @@ unit_reinforcement_priority_low_tooltip_1;This unit currently has ?Rlow?W priori
 unit_reinforcement_priority_normal_tooltip_1;This unit currently has ?Ymedium?W priority on receiving reinforcements
 unit_reinforcement_priority_high_tooltip_1;This unit currently has ?Ghigh?W priority on receiving reinforcements
 unit_priority_tooltip_2;Increase priority with ?Yleft-click?W, and decrement with ?Yright-click?W
+
+selected_units_supply_priority_low_tooltip_1;All selected units currently has ?Rlow?W priority on receiving supplies
+selected_units_supply_priority_normal_tooltip_1;All selected units currently has ?Ymedium?W priority on receiving supplies
+selected_units_supply_priority_high_tooltip_1;All selected units currently has ?Ghigh?W priority on receiving supplies
+selected_units_supply_priority_unknown_tooltip_1;All selected units currently has ?Odiffering?W priority on receiving supplies
+selected_units_reinforcement_priority_low_tooltip_1;All selected units currently has ?Rlow?W priority on receiving reinforcements
+selected_units_reinforcement_priority_normal_tooltip_1;All selected units currently has ?Ymedium?W priority on receiving reinforcements
+selected_units_reinforcement_priority_high_tooltip_1;All selected units currently has ?Ghigh?W priority on receiving reinforcements
+selected_units_reinforcement_priority_high_tooltip_1;All selected units currently has ?Odiffering?W priority on receiving reinforcements
+selected_units_priority_tooltip_2;Increase priority for all units with ?Yleft-click?W, and decrement with ?Yright-click?W

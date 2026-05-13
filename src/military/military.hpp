@@ -588,6 +588,10 @@ bool pop_eligible_for_mobilization(sys::state& state, dcon::pop_id p);
 template<regiment_dmg_source damage_source>
 void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id);
 
+military::unit_priority increment_priority(military::unit_priority priority);
+military::unit_priority decrement_priority(military::unit_priority priority);
+
+
 template<command::actor Actor>
 bool can_set_army_supply_priority(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
 template<command::actor Actor>
