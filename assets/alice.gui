@@ -1612,6 +1612,11 @@ guiTypes = {
 			quadTextureSprite ="GFX_unit_disband"
 		}
 		guiButtonType = {
+			name ="reinforcement_prio_button"
+			spriteType = "GFX_reinforcement_prio_buttons"
+			position = { x= 220 y = 6 }
+		}
+		guiButtonType = {
 			name = "splitinhalf"
 			position = { 279 6 }
 			quadTextureSprite ="GFX_unit_splitinhalf"
@@ -1622,6 +1627,13 @@ guiTypes = {
 			position = { 303 6 }
 			quadTextureSprite = "GFX_unit_close"
 			shortcut = "x"
+		}
+		guiButtonType = {
+			name = "only_unit_from_selection_button"
+			position = { x = 327 y = 15 }
+			quadTextureSprite ="GFX_unit_selectonly"
+			buttonText = "Select"
+			buttonFont = "vic_18_black"
 		}
 		iconType = {
 			name = "unit_inf"
@@ -2093,7 +2105,7 @@ guiTypes = {
 			Orientation = "UPPER_LEFT"
 		}
 
-		iconType = {
+		guiButtonType = {
 			name ="reinforcement_prio_button"
 			spriteType = "GFX_reinforcement_prio_buttons"
 			position = { x= 116 y = -18 }
@@ -2188,7 +2200,7 @@ guiTypes = {
 			Orientation = "UPPER_LEFT"
 		}
 
-		iconType = {
+		guiButtonType = {
 			name ="supply_prio_button"
 			spriteType = "GFX_supply_prio_buttons"
 			position = { x= 116 y = 6 }
