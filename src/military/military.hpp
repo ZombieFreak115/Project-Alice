@@ -491,7 +491,7 @@ float naval_battle_get_coordination_penalty(sys::state& state, uint32_t friendly
 float naval_battle_get_coordination_bonus(sys::state& state, uint32_t friendly_ships, uint32_t enemy_ships);
 uint32_t get_reserves_count_by_side(sys::state& state, dcon::land_battle_id b, bool attacker);
 float get_damage_reduction_stacking_penalty(sys::state& state, uint32_t friendly_ships, uint32_t enemy_ships);
-bool is_regiment_in_reserve(sys::state& state, dcon::regiment_id reg);
+bool is_regiment_in_reserve(const sys::state& state, dcon::regiment_id reg);
 void sort_reserves_by_deployment_order(sys::state& state, dcon::dcon_vv_fat_id<battle_regiment> reserves);
 // calculates the effective dig-in of a battle regiment with the given amount of recon being opposed to it
 uint8_t get_effective_regiment_dig_in(const sys::state& state, battle_regiment bat_regiment, float recon);

@@ -5750,7 +5750,6 @@ void delete_regiment_safe_wrapper(sys::state& state, dcon::regiment_id reg) {
 }
 
 void cleanup_army(sys::state& state, dcon::army_id n) {
-	assert(!state.world.army_get_battle_from_army_battle_participation(n));
 
 	auto regs = state.world.army_get_army_membership(n);
 	while(regs.begin() != regs.end()) {
@@ -5800,7 +5799,6 @@ void cleanup_army(sys::state& state, dcon::army_id n) {
 }
 
 void cleanup_navy(sys::state& state, dcon::navy_id n) {
-	assert(!state.world.navy_get_battle_from_navy_battle_participation(n));
 
 	auto shps = state.world.navy_get_navy_membership(n);
 	while(shps.begin() != shps.end()) {
@@ -6782,7 +6780,7 @@ battle_regiment pop_regiment_from_reserves(sys::state& state, dcon::dcon_vv_fat_
 	return reg;
 }
 
-bool is_regiment_in_reserve(sys::state& state, dcon::regiment_id reg) {
+bool is_regiment_in_reserve(const sys::state& state, dcon::regiment_id reg) {
 	auto army = state.world.regiment_get_army_from_army_membership(reg);
 	auto bat = state.world.army_get_battle_from_army_battle_participation(army);
 	assert(bat);
@@ -9424,11 +9422,11 @@ economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id ow
 		auto reg = fatten(state.world, r);
 		auto type = state.world.regiment_get_type(r.get_regiment());
 
-		auto o_sc_mod = std::max(0.01f, state.world.nation_get_modifier_values(owner, sys::national_mod_offsets::supply_consumption) + 1.0f);
-		auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
+		auto mods = get_land_supply_cost_modifiers(state, reg.get_regiment());
+		const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
 		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
 			if(supply_cost.commodity_type[i]) {
-				commodities.commodity_amounts[i] += supply_cost.commodity_amounts[i] * state.world.nation_get_unit_stats(owner, type).supply_consumption * o_sc_mod;
+				commodities.commodity_amounts[i] += supply_cost.commodity_amounts[i] * mods;
 				commodities.commodity_type[i] = supply_cost.commodity_type[i];
 			} else {
 				break;
@@ -9455,13 +9453,11 @@ economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id ow
 		auto type = state.world.ship_get_type(sh.get_ship());
 
 		if(owner) {
-			auto o_sc_mod = std::max(0.01f, state.world.nation_get_modifier_values(owner, sys::national_mod_offsets::supply_consumption) + 1.0f);
-			auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
+			auto mods = get_naval_supply_cost_modifiers(state, shp);
+			const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
 			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
 				if(supply_cost.commodity_type[i]) {
-					commodities.commodity_amounts[i] +=
-						supply_cost.commodity_amounts[i] * state.world.nation_get_unit_stats(owner, type).supply_consumption *
-						o_sc_mod;
+					commodities.commodity_amounts[i] += supply_cost.commodity_amounts[i] * mods;
 					commodities.commodity_type[i] = supply_cost.commodity_type[i];
 				} else {
 					break;
@@ -9478,7 +9474,9 @@ economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id ow
 float get_land_org_regain_modifiers(const sys::state& state, dcon::regiment_id regiment) {
 	auto army = state.world.regiment_get_army_from_army_membership(regiment);
 	auto tech_nation = tech_nation_for_army(state, army);
-	if(state.world.army_get_navy_from_army_transport(army) || state.world.army_get_black_flag(army))
+	auto battle = state.world.army_get_battle_from_army_battle_participation(army);
+	bool is_on_frontline_in_battle = (battle && !is_regiment_in_reserve(state, regiment));
+	if(is_on_frontline_in_battle || state.world.army_get_navy_from_army_transport(army) || state.world.army_get_black_flag(army))
 		return 0.0f;
 
 	auto leader = state.world.army_get_general_from_army_leadership(army);
@@ -9492,6 +9490,10 @@ float get_land_org_regain_modifiers(const sys::state& state, dcon::regiment_id r
 
 float get_naval_org_regain_modifiers(const sys::state& state, dcon::ship_id ship) {
 	auto navy = state.world.ship_get_navy_from_navy_membership(ship);
+	auto battle = state.world.navy_get_battle_from_navy_battle_participation(navy);
+	if(battle) {
+		return 0.0f;
+	}
 	auto tech_nation = state.world.navy_get_controller_from_navy_control(navy);
 
 	float oversize_amount =

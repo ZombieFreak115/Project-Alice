@@ -832,6 +832,7 @@ public:
 		text::add_line(state, contents, "province_market_production", text::variable_type::val, text::fp_two_places{ std::max(0.f, state.world.market_get_supply(market, target.commodity) - economy::trade_supply(state, market, target.commodity)) });
 		text::add_line(state, contents, "province_market_consumption", text::variable_type::val, text::fp_two_places{ std::max(0.f, state.world.market_get_demand(market, target.commodity) - economy::trade_demand(state, market, target.commodity)) });
 		text::add_line(state, contents, "province_market_stockpiles", text::variable_type::val, text::fp_two_places{ state.world.market_get_stockpile(market, target.commodity) });
+		text::add_line(state, contents, "province_market_government_stockpiles", text::variable_type::val, text::fp_two_places{ state.world.market_get_government_stockpile(market, target.commodity) });
 		{
 			auto supply = state.world.market_get_supply(market, target.commodity);
 			auto demand = state.world.market_get_demand(market, target.commodity);

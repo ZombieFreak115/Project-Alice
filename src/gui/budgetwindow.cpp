@@ -707,8 +707,6 @@ void  budgetwindow_main_military_table_t::update(sys::state& state, layout_windo
 	add_neutral_spacer();
 	add_section_header(budget_categories::land_reinforcement);
 	add_neutral_spacer();
-	add_section_header(budget_categories::land_supply);
-	add_neutral_spacer();
 	add_section_header(budget_categories::naval_supply);
 	add_neutral_spacer();
 	add_section_header(budget_categories::naval_reinforcement);
@@ -2180,7 +2178,7 @@ void budgetwindow_main_satisfaction_percent_t::on_update(sys::state& state) noex
 	budgetwindow_main_t& main = *((budgetwindow_main_t*)(parent)); 
 // BEGIN main::satisfaction_percent::update
 
-	// Compute the desired satisfaction percentage so the user can get a quick idea of how well their military can satisfy the current needs
+	// Compute the average satisfaction percentage for all military consumption
 	// TODO FOR LATER: show which goods are lacking
 	float avg_naval_reinf_satisfaction = military::average_naval_consumption_satisfaction<military::unit_consumption_type::reinforcement>(state, state.local_player_nation);
 	float avg_land_reinf_satisfaction = military::average_land_consumption_satisfaction<military::unit_consumption_type::reinforcement>(state, state.local_player_nation);
@@ -2200,12 +2198,8 @@ void budgetwindow_main_satisfaction_percent_t::on_update(sys::state& state) noex
 	float naval_supply_consumption = state.world.nation_get_naval_supply_consumption(state.local_player_nation) / 100.0f;
 	naval_supply_consumption = (naval_supply_consumption == 0 ? 1.0f : naval_supply_consumption);
 
-	float total_desired_satisfaction = (avg_naval_reinf_satisfaction / naval_reinf_consumption) +
-		(avg_land_reinf_satisfaction / land_reinf_consumption) +
-		(avg_naval_supply_satisfaction / naval_supply_consumption) +
-		(avg_land_supply_satisfaction / land_supply_consumption);
-	float avg_desired_satisfaction = total_desired_satisfaction / 4.0f;
-	set_text(state, text::format_percentage(avg_desired_satisfaction, 2));
+	float avg_satisfaction = (avg_naval_reinf_satisfaction + avg_naval_supply_satisfaction + avg_land_reinf_satisfaction + avg_land_supply_satisfaction ) / 4.0f;
+	set_text(state, text::format_percentage(avg_satisfaction, 2));
 
 
 // END
@@ -3589,10 +3583,10 @@ void budgetwindow_section_header_total_amount_t::on_update(sys::state& state) no
 	case budget_categories::navy_upkeep: set_text(state, adjust_spending_value(spending_details.military_supplies_navy.actual_spending)); break;
 	case budget_categories::debt_payment: set_text(state, adjust_spending_value(spending_details.interest.actual_spending)); break;
 	case budget_categories::stockpile: set_text(state, adjust_spending_value(spending_details.stockpile.actual_spending)); break;
-	case budget_categories::land_reinforcement: set_text(state, adjust_military_value(military::average_land_consumption_satisfaction<military::unit_consumption_type::reinforcement>(state, state.local_player_nation)));
-	case budget_categories::land_supply: set_text(state, adjust_military_value(military::average_land_consumption_satisfaction<military::unit_consumption_type::supply>(state, state.local_player_nation)));
-	case budget_categories::naval_reinforcement: set_text(state, adjust_military_value(military::average_naval_consumption_satisfaction<military::unit_consumption_type::reinforcement>(state, state.local_player_nation)));
-	case budget_categories::naval_supply: set_text(state, adjust_military_value(military::average_naval_consumption_satisfaction<military::unit_consumption_type::supply>(state, state.local_player_nation)));
+	case budget_categories::land_reinforcement: set_text(state, adjust_military_value(military::average_land_consumption_satisfaction<military::unit_consumption_type::reinforcement>(state, state.local_player_nation))); break;
+	case budget_categories::land_supply: set_text(state, adjust_military_value(military::average_land_consumption_satisfaction<military::unit_consumption_type::supply>(state, state.local_player_nation))); break;
+	case budget_categories::naval_reinforcement: set_text(state, adjust_military_value(military::average_naval_consumption_satisfaction<military::unit_consumption_type::reinforcement>(state, state.local_player_nation))); break;
+	case budget_categories::naval_supply: set_text(state, adjust_military_value(military::average_naval_consumption_satisfaction<military::unit_consumption_type::supply>(state, state.local_player_nation))); break;
 	default: set_text(state, ""); break;
 	}
 // END

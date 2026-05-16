@@ -136,7 +136,6 @@ float estimate_regiment_reinforcement(sys::state& state, dcon::regiment_id regim
 	float pending_reinf = state.world.regiment_get_reinforcement_satisfaction_buffer(regiment);
 	if constexpr(!potential_reinforcement) {
 		combined = std::min(combined, 1.0f - (curstr + pending_reinf)); // Can only reinforce up to the amount of missing strength
-		assert(combined >= 0.0f);
 		auto limit_fraction = std::max(state.defines.alice_full_reinforce, std::min(1.0f, pop_size / state.defines.pop_size_per_regiment));
 		newstr = std::min(curstr + combined, limit_fraction);
 		return std::max(newstr - curstr, 0.0f); 
@@ -199,7 +198,6 @@ float estimate_ship_reinforcement(sys::state& state, dcon::ship_id ship, float r
 	float pending_reinf = state.world.ship_get_reinforcement_satisfaction_buffer(ship);
 	if constexpr(!potential_reinforcement) {
 		combined = std::min(combined, 1.0f - (curstr + pending_reinf)); // Can only reinforce up to the amount of missing strength
-		assert(combined >= 0.0f);
 		return std::max(combined, 0.0f);
 	} else {
 		return combined;
