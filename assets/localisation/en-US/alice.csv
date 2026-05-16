@@ -2019,3 +2019,4 @@ land_supply_consumption;Army supply
 naval_reinforcement_consumption;Navy reinforcements
 naval_supply_consumption;Navy supply
 budget_military_settings;Satisfaction
+government_stockpiles_target;Current target: $val$

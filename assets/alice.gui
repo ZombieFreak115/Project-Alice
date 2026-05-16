@@ -6033,13 +6033,12 @@ guiTypes = {
 			}
 			
 			instantTextBoxType = {
-				position = {x= 362 y =291}
+				position = {x= 50 y = 240}
 				name = "slider_value"
-				font = "vic_22_black"
-				text = "1000"	
-				maxWidth = 50
+				font = "vic_18_black"
+				text = "1000"
+				maxWidth = 350
 				maxHeight = 40
-				format = centre
 			}
 			
 			guiButtonType = {

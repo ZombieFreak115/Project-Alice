@@ -1404,9 +1404,10 @@ public:
 class trade_slider_amount : public simple_text_element_base {
 public:
 	void on_update(sys::state& state) noexcept override {
-		auto com = retrieve<dcon::commodity_id>(state, parent);
 		auto val = retrieve<get_stockpile_target>(state, parent);
-		set_text(state, text::prettify(int64_t(val.value)));
+		text::substitution_map m;
+		text::add_to_substitution_map(m, text::variable_type::val, text::pretty_integer{ int64_t(val.value) });
+		set_text(state, text::resolve_string_substitution(state, "government_stockpiles_target", m));
 	}
 };
 

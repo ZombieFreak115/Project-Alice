@@ -344,7 +344,6 @@ float supply(
 	state.world.nation_for_each_state_ownership(s, [&](auto soid) {
 		auto sid = state.world.state_ownership_get_state(soid);
 		auto market = state.world.state_instance_get_market_from_local_market(sid);
-
 		auto local_supply = state.world.market_get_supply(market, c);
 		total_supply += local_supply;
 	});
