@@ -757,8 +757,13 @@ void update_budget(sys::state& state, bool presim) {
 			ratio_naval /= 10.f;
 		}
 		n.set_land_spending(int8_t(ratio_land));
+		n.set_land_supply_consumption(int8_t(ratio_land));
+		n.set_land_reinforcement_consumption(int8_t(ratio_land));
+
 		n.set_naval_spending(int8_t(ratio_naval));
-	
+		n.set_naval_supply_consumption(int8_t(ratio_naval));
+		n.set_naval_reinforcement_consumption(int8_t(ratio_naval));
+
 		n.set_administrative_spending(15);
 		n.set_subsidies_spending(3);
 

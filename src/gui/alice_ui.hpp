@@ -1007,7 +1007,11 @@ inline constexpr int32_t army_upkeep = 16;
 inline constexpr int32_t navy_upkeep = 17;
 inline constexpr int32_t debt_payment = 18;
 inline constexpr int32_t stockpile = 19;
-inline constexpr int32_t category_count = 20;
+inline constexpr int32_t land_reinforcement = 20;
+inline constexpr int32_t land_supply = 21;
+inline constexpr int32_t naval_reinforcement = 22;
+inline constexpr int32_t naval_supply = 23;
+inline constexpr int32_t category_count = 24;
 inline static bool expanded[category_count] = { false };
 }
 

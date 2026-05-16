@@ -65,6 +65,7 @@ float estimate_war_subsidies_income(sys::state& state, dcon::nation_id n);
 float estimate_reparations_income(sys::state& state, dcon::nation_id n);
 float estimate_overseas_penalty_spending(sys::state& state, dcon::nation_id n);
 float estimate_stockpile_filling_spending(sys::state& state, dcon::nation_id n);
+float estimate_single_stockpile_filling_spending(sys::state& state, dcon::market_id market, dcon::commodity_id commodity);
 
 struct full_construction_factory {
 	float cost = 0.0f;

@@ -2196,9 +2196,7 @@ public:
 		auto army = retrieve<dcon::army_id>(state, parent);
 		auto navy = retrieve<dcon::navy_id>(state, parent);
 
-		economy::commodity_set commodities;
 
-		dcon::nation_id owner{};
 		float total_supply = 0.0f;
 		uint32_t unit_count = 1;
 		// grab avg supply for all regiments in the army
@@ -2306,9 +2304,6 @@ public:
 		auto army = retrieve<dcon::army_id>(state, parent);
 		auto navy = retrieve<dcon::navy_id>(state, parent);
 
-		economy::commodity_set commodities;
-
-		dcon::nation_id owner{};
 		float total_reinf = 0.0f;
 		uint32_t unit_count = 1;
 		// grab avg supply for all regiments in the army
@@ -2317,14 +2312,14 @@ public:
 			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
 			for(auto r : state.world.army_get_army_membership(army)) {
 				auto regiment = r.get_regiment();
-				total_reinf += regiment.get_supply_satisfaction();
+				total_reinf += regiment.get_last_reinforcement_satisfaction();
 			}
 		} else if(navy) {
 			unit_count = state.world.navy_get_navy_membership(navy).end() - state.world.navy_get_navy_membership(navy).begin();
 			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
 			for(auto r : state.world.navy_get_navy_membership(navy)) {
 				auto ship = r.get_ship();
-				total_reinf += ship.get_supply_satisfaction();
+				total_reinf += ship.get_last_reinforcement_satisfaction();
 			}
 		}
 		progress = total_reinf / unit_count;
@@ -3539,21 +3534,18 @@ public:
 		}
 	}
 };
-enum class unit_priority_type {
-	supply,
-	reinforcement
-};
+
 
 static const int8_t unknown_unit_priority = -128;
 // Tries to get the aggregated priority across all selected units as a int8_t. Returns unknown_priority if no single aggregate was found
-template<unit_priority_type prio_type>
+template<military::unit_consumption_type prio_type>
 int8_t selected_units_aggregated_priority(const sys::state& state) {
 	uint32_t low_prio = 0;
 	uint32_t med_prio = 0;
 	uint32_t high_prio = 0;
 	for(auto army : state.selected_armies) {
 		military::unit_priority priority;
-		if constexpr(prio_type == unit_priority_type::reinforcement) {
+		if constexpr(prio_type == military::unit_consumption_type::reinforcement) {
 			priority = state.world.army_get_reinforcement_priority(army);
 		}
 		else {
@@ -3573,7 +3565,7 @@ int8_t selected_units_aggregated_priority(const sys::state& state) {
 	}
 	for(auto navy : state.selected_navies) {
 		military::unit_priority priority;
-		if constexpr(prio_type == unit_priority_type::reinforcement) {
+		if constexpr(prio_type == military::unit_consumption_type::reinforcement) {
 			priority = state.world.navy_get_reinforcement_priority(navy);
 		} else {
 			priority = state.world.navy_get_supply_priority(navy);
@@ -3607,7 +3599,7 @@ private:
 
 
 	void on_update(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<unit_priority_type::reinforcement>(state);
+		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::reinforcement>(state);
 		switch(priority) {
 		case int8_t(military::unit_priority::high_priority):
 			frame = 0;
@@ -3624,7 +3616,7 @@ private:
 		}
 	}
 	void button_action(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<unit_priority_type::reinforcement>(state);
+		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::reinforcement>(state);
 		military::unit_priority converted_priority = (priority == unknown_unit_priority ? military::unit_priority::normal_priority : military::unit_priority(priority));
 		for(auto army : state.selected_armies) {
 			if(military::can_set_army_reinforcement_priority<command::actor::player>(state, state.local_player_nation, army, military::increment_priority(converted_priority))) {
@@ -3638,7 +3630,7 @@ private:
 		}
 	}
 	void button_right_action(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<unit_priority_type::reinforcement>(state);
+		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::reinforcement>(state);
 		military::unit_priority converted_priority = (priority == unknown_unit_priority ? military::unit_priority::normal_priority : military::unit_priority(priority));
 		for(auto army : state.selected_armies) {
 			if(military::can_set_army_reinforcement_priority<command::actor::player>(state, state.local_player_nation, army, military::decrement_priority(converted_priority))) {
@@ -3656,7 +3648,7 @@ private:
 		return tooltip_behavior::tooltip;
 	}
 	virtual void update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept override {
-		auto priority = selected_units_aggregated_priority<unit_priority_type::reinforcement>(state);
+		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::reinforcement>(state);
 		switch(priority) {
 		case int8_t(military::unit_priority::high_priority):
 			text::add_line(state, contents, "selected_units_reinforcement_priority_high_tooltip_1");
@@ -3684,7 +3676,7 @@ private:
 
 
 	void on_update(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<unit_priority_type::supply>(state);
+		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::supply>(state);
 		switch(priority) {
 		case int8_t(military::unit_priority::high_priority):
 			frame = 0;
@@ -3701,7 +3693,7 @@ private:
 		}
 	}
 	void button_action(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<unit_priority_type::supply>(state);
+		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::supply>(state);
 		military::unit_priority converted_priority = (priority == unknown_unit_priority ? military::unit_priority::normal_priority : military::unit_priority(priority));
 		for(auto army : state.selected_armies) {
 			if(military::can_set_army_supply_priority<command::actor::player>(state, state.local_player_nation, army, military::increment_priority(converted_priority))) {
@@ -3715,7 +3707,7 @@ private:
 		}
 	}
 	void button_right_action(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<unit_priority_type::supply>(state);
+		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::supply>(state);
 		military::unit_priority converted_priority = (priority == unknown_unit_priority ? military::unit_priority::normal_priority : military::unit_priority(priority));
 		for(auto army : state.selected_armies) {
 			if(military::can_set_army_supply_priority<command::actor::player>(state, state.local_player_nation, army, military::decrement_priority(converted_priority))) {
@@ -3733,7 +3725,7 @@ private:
 		return tooltip_behavior::tooltip;
 	}
 	virtual void update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept override {
-		auto priority = selected_units_aggregated_priority<unit_priority_type::supply>(state);
+		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::supply>(state);
 		switch(priority) {
 		case int8_t(military::unit_priority::high_priority):
 			text::add_line(state, contents, "selected_units_supply_priority_high_tooltip_1");

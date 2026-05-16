@@ -1192,6 +1192,18 @@ void execute_change_budget_settings(sys::state& state, dcon::nation_id source, b
 	if(values.subsidies != int8_t(-127)) {
 		state.world.nation_set_subsidies_spending(source, std::clamp(values.subsidies, int8_t(0), int8_t(100)));
 	}
+	if(values.land_reinforcement != int8_t(-127)) {
+		state.world.nation_set_land_reinforcement_consumption(source, std::clamp(values.land_reinforcement, int8_t(0), int8_t(100)));
+	}
+	if(values.land_supply != int8_t(-127)) {
+		state.world.nation_set_land_supply_consumption(source, std::clamp(values.land_supply, int8_t(0), int8_t(100)));
+	}
+	if(values.naval_reinforcement != int8_t(-127)) {
+		state.world.nation_set_naval_reinforcement_consumption(source, std::clamp(values.naval_reinforcement, int8_t(0), int8_t(100)));
+	}
+	if(values.naval_supply != int8_t(-127)) {
+		state.world.nation_set_naval_supply_consumption(source, std::clamp(values.naval_supply, int8_t(0), int8_t(100)));
+	}
 	economy::bound_budget_settings(state, source);
 }
 

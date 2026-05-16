@@ -297,6 +297,10 @@ struct budget_settings_data {
 	int8_t domestic_investment;
 	int8_t overseas;
 	int8_t subsidies;
+	int8_t land_reinforcement;
+	int8_t land_supply;
+	int8_t naval_reinforcement;
+	int8_t naval_supply;
 };
 
 struct war_target_data {
@@ -870,7 +874,11 @@ inline budget_settings_data make_empty_budget_settings() {
 		.tariffs_export = int8_t(-127),
 		.domestic_investment = int8_t(-127),
 		.overseas = int8_t(-127),
-		.subsidies = int8_t(-127)
+		.subsidies = int8_t(-127),
+		.land_reinforcement = int8_t(-127),
+		.land_supply = int8_t(-127),
+		.naval_reinforcement = int8_t(-127),
+		.naval_supply = int8_t(-127)
 	};
 }
 // when sending new budget settings, leaving any value as int8_t(-127) will cause it to be ignored, leaving the setting the same

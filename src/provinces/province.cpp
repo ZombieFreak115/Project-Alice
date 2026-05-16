@@ -13,6 +13,7 @@
 #include "events.hpp"
 #include "economy_templates.hpp"
 #include <set>
+#include "economy.hpp"
 
 namespace province {
 
@@ -515,12 +516,19 @@ dcon::province_id pick_capital(sys::state& state, dcon::nation_id n) {
 
 void set_state_controller(sys::state& state, dcon::state_instance_id state_inst, dcon::nation_id new_controller) {
 	auto market = state.world.state_instance_get_market_from_local_market(state_inst);
+	auto old_controller = state.world.state_instance_get_nation_from_state_control(state_inst);
 	state.world.force_create_state_control(state_inst, new_controller);
 	economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
 		auto curr_local_stockpile = state.world.market_get_government_stockpile(market, commodity);
-		auto curr_total_stockpile = state.world.nation_get_total_stockpiles(new_controller, commodity);
-		assert( curr_total_stockpile >= curr_local_stockpile);
-		state.world.nation_set_total_stockpiles(new_controller, commodity, curr_total_stockpile - curr_local_stockpile );
+		auto old_controller_total_stockpile = state.world.nation_get_total_stockpiles(old_controller, commodity);
+		auto new_controller_total_stockpile = state.world.nation_get_total_stockpiles(new_controller, commodity);
+		if(old_controller) {
+			assert(old_controller_total_stockpile >= curr_local_stockpile);
+			state.world.nation_set_total_stockpiles(old_controller, commodity, std::max(old_controller_total_stockpile - curr_local_stockpile, 0.0f));
+		}
+		if(new_controller) {
+			state.world.nation_set_total_stockpiles(new_controller, commodity, new_controller_total_stockpile + curr_local_stockpile);
+		}
 	});
 }
 
@@ -1391,12 +1399,28 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 			}
 			auto local_market = state.world.state_instance_get_market_from_local_market(old_si);
 
-			// Update total stockpile count as the local stockpile is about to be deleted
-			economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
-				float del_stockpile_amount = state.world.market_get_government_stockpile(local_market, commodity);
-				float curr_total_stockpile = state.world.nation_get_total_stockpiles(old_owner, commodity);
-				state.world.nation_set_total_stockpiles(old_owner, commodity, curr_total_stockpile - del_stockpile_amount );
-			});
+			// Update total stockpile count
+			// If a new state was created in its place and there is both a owner to take the state from and an owner to receive the state (ie no uncolonized), transfer stockpile contents to the new state
+			if(new_si && old_owner && new_owner) {
+				economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
+					auto new_market = state.world.state_instance_get_market_from_local_market(new_si);
+					float move_stockpile_amount = state.world.market_get_government_stockpile(local_market, commodity);
+					float old_owner_total_stockpile = state.world.nation_get_total_stockpiles(old_owner, commodity);
+					float new_owner_total_stockpile = state.world.nation_get_total_stockpiles(new_owner, commodity);
+					float current_stockpile_amount = state.world.market_get_government_stockpile(new_market, commodity);
+					economy::set_government_stockpile(state, new_owner, new_market, commodity, current_stockpile_amount + move_stockpile_amount);
+					state.world.nation_set_total_stockpiles(old_owner, commodity, std::max(old_owner_total_stockpile - move_stockpile_amount, 0.0f));
+					state.world.nation_set_total_stockpiles(new_owner, commodity, new_owner_total_stockpile + move_stockpile_amount);
+				});
+			}
+			// Otherwise, simply delete stockpile contents from the old owner if applicable
+			else if(old_owner) {
+				economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
+					float move_stockpile_amount = state.world.market_get_government_stockpile(local_market, commodity);
+					float old_owner_total_stockpile = state.world.nation_get_total_stockpiles(old_owner, commodity);
+					state.world.nation_set_total_stockpiles(old_owner, commodity, std::max(old_owner_total_stockpile - move_stockpile_amount, 0.0f));
+				});
+			}
 
 			state.world.delete_market(local_market);
 			state.world.delete_state_instance(old_si);

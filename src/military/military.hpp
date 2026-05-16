@@ -172,6 +172,10 @@ enum class interval_estimation {
 enum class supply_estimation {
 	based_on_satisfaction, full_supply_always
 };
+enum class unit_consumption_type : uint8_t {
+	supply,
+	reinforcement
+};
 
 struct ai_path_length {
 	uint32_t length = 0;
@@ -587,6 +591,13 @@ bool pop_eligible_for_mobilization(sys::state& state, dcon::pop_id p);
 
 template<regiment_dmg_source damage_source>
 void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id);
+
+// Gets the average good satisfaction for all navies a nation has. Does not include constructions
+template<unit_consumption_type consumption_type>
+float average_naval_consumption_satisfaction(const sys::state& state, dcon::nation_id nation);
+// Gets the average good satisfaction for all regiments a nation has. Does not include constructions
+template<unit_consumption_type consumption_type>
+float average_land_consumption_satisfaction(const sys::state& state, dcon::nation_id nation);
 
 military::unit_priority increment_priority(military::unit_priority priority);
 military::unit_priority decrement_priority(military::unit_priority priority);
