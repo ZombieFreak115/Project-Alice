@@ -781,7 +781,7 @@ national_modifiers;National modifiers
 trade_fill;Fill
 trade_use;Draw upon
 trade_stockpile_target;Stockpile target amount:
-trade_stockpile_current;Current stockpile: 
+trade_stockpile_current;Amount in government stockpiles: 
 diplomacy_wx_1;Monthly war exhaustion: 
 influence_explain_1;We are currently banned and accumulate no influence with this nation
 influence_explain_2;We have a truce with this nation and accumulate no influence with it
@@ -1738,7 +1738,7 @@ province_market_demand;Demand: ?R$val$?!
 province_market_production;Production: ?G$val$?!
 province_market_consumption;Consumption: ?R$val$?!
 province_market_stockpiles;Stockpiles: ?Y$val$?!
-province_market_government_stockpiles;Stockpiles: ?Y$val$?!
+province_market_government_stockpiles;Government Stockpiles: ?Y$val$?!
 province_market_balance;Balance: ?Y$val$?!
 province_market_trade_in;Trade in: ?G$val$?!
 province_market_trade_out;Trade out: ?R$val$?!

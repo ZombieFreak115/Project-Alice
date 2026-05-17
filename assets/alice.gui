@@ -6033,8 +6033,16 @@ guiTypes = {
 			}
 			
 			instantTextBoxType = {
-				position = {x= 50 y = 240}
+				position = {x= 20 y = 240}
 				name = "slider_value"
+				font = "vic_18_black"
+				text = "1000"
+				maxWidth = 350
+				maxHeight = 40
+			}
+			instantTextBoxType = {
+				position = {x= 20 y = 270}
+				name = "goods_stockpile_amount"
 				font = "vic_18_black"
 				text = "1000"
 				maxWidth = 350
@@ -6075,7 +6083,7 @@ guiTypes = {
 				maxHeight = 40
 			}
 			instantTextBoxType = {
-				position = { x= 50 y = 210 }
+				position = { x= 20 y = 210 }
 				name = "produced_detail_desc"
 				font = "vic_18_black"
 				text = "PRODUCED_DETAIL"	
