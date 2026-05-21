@@ -26,7 +26,7 @@
 #include <algorithm>
 #include "economy_pops_constants.hpp"
 #include "economy_templates.hpp"
-#include <military_templates.hpp>
+#include "military_templates.hpp"
 
 namespace economy {
 
@@ -442,10 +442,10 @@ float consume_from_government_stockpiles(sys::state& state, economy::commodity_s
 			dcon::commodity_id required_commodity = to_consume.commodity_type[i];
 			// Iterate over each stockpile in the preferred order, and consume from them until the required supply is satisfied, or there are no more stockpiles
 			for(auto stockpile_state : stockpile_states) {
-				// Find out what needs to be consumed from the stockpile, and set the satisfaction. We modify the commodity set over time.
-				auto result = consume_single_government_stockpile(state, nation_as, stockpile_state, required_commodity, required_amount);
-				required_amount -= result.amount_consumed;
-				consumed_commodities += result.amount_consumed;
+			// Find out what needs to be consumed from the stockpile, and set the satisfaction. We modify the commodity set over time.
+			auto result = consume_single_government_stockpile(state, nation_as, stockpile_state, required_commodity, required_amount);
+			required_amount -= result.amount_consumed;
+			consumed_commodities += result.amount_consumed;
 				// If no more goods are required we can exit early
 				if(required_amount <= 0.0f) {
 					break;

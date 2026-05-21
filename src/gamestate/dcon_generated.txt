@@ -1735,6 +1735,11 @@ object {
 		tag{ save }
 	}
 	property{
+		name{ used_supply_throughput }
+		type{ float }
+		tag{ save }
+	}
+	property{
 		name{ is_blockaded }
 		type{ bitfield }
 		
@@ -4544,6 +4549,10 @@ object{
 		tag{ save }
 	}
 	property {
+		name{ govt_stockpile_satisfaction_buffer }
+		type{ array{commodity_id}{float} }
+	}
+	property {
 		name{ wealth }
 		type{ float }
 		tag{ save }
@@ -4808,6 +4817,189 @@ relationship{
 		tag{ save }
 	}
 }
+
+
+
+relationship{
+	name{ army_supply_route }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{army}
+		name{army}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{market}
+		name{origin}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{origin_army_pair}
+		index{army}
+		index{origin}
+	}
+
+	property{
+		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ path }
+		type{vector_pool{5000}{province_id}}
+		tag{ save }
+	}
+	property{
+		name{ route_attrition }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ throughput }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ volume }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ buffered_supply_goods }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property{
+		name{ buffered_reinforcement_goods }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+
+}
+
+
+relationship{
+	name{ navy_supply_route }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{navy}
+		name{navy}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{market}
+		name{origin}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{origin_navy_pair}
+		index{navy}
+		index{origin}
+	}
+	property{
+		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ path }
+		type{vector_pool{5000}{province_id}}
+		tag{ save }
+	}
+	property{
+		name{ route_attrition }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ throughput }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ volume }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ buffered_supply_goods }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property{
+		name{ buffered_reinforcement_goods }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+
+}
+
+
+
+
+relationship{
+	name{ navy_supply_route_node }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{province}
+		name{province}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{navy_supply_route}
+		name{supply_route}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{route_province_pair}
+		index{province}
+		index{supply_route}
+	}
+
+}
+
+
+relationship{
+	name{ army_supply_route_node }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{province}
+		name{province}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{army_supply_route}
+		name{supply_route}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{route_province_pair}
+		index{province}
+		index{supply_route}
+	}
+
+}
+
 
 relationship{
 	name{ diplomatic_relation }

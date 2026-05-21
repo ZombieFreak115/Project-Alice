@@ -83,6 +83,7 @@ bool can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definiti
 bool fast_can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d, int32_t free_points, dcon::province_id coastal_target, bool& adjacent);
 bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
 bool is_colonizing(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
+float get_infrastructure(const sys::state& state, dcon::province_id province);
 void update_colonization(sys::state& state);
 void increase_colonial_investment(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
 
@@ -168,6 +169,7 @@ std::vector<dcon::province_id> make_land_manual_retreat_path(sys::state& state, 
 std::vector<dcon::province_id> make_path_to_nearest_coast(sys::state& state, dcon::nation_id nation_as, dcon::province_id start);
 std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& state, dcon::province_id start);
 
+void make_military_supply_path(sys::state& state, dcon::state_instance_id start_si, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result);
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::nation_id n);
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::rebel_faction_id rf);
 

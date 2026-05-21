@@ -129,23 +129,29 @@ struct path_node_heuristic {
 	}
 };
 
-// Creates a path from start province to end province,with given template functions to decide various factors
+
+
+
+
+
+
+// Creates a path from start province to end province,with given template functions to decide various factors. Returns the path in the passed-in buffer, and can thusly be used with static buffers. Expects the buffer to be empty
+// 
 // HeuristicModifier: Modifier to the heuristic used (direct distance). The higher this value is, the less accurate but more performant the pathfinding will be. If 0.0f, it will always find the optimal path
 // AdjFunc: Lambda which takes the following as parameters (to_prov, from_prov, adjacency)  and returns a bool. Decides if the passage between the two provinces is possible.
 // ProvFunc: Lambda which takes a province_id as parameter and returns a bool. Decides if the given province is passable from any direction
 // MovementCostFunc: Lambda which takes the following as parameters (to_prov, from_prov, adjacency, distance) and returns a float. The returned value is used as movement cost in pathfinding
 template<float HeuristicModifier, typename AdjFunc, typename ProvFunc, typename MovementCostFunc>
-std::vector<dcon::province_id> make_path_to_prov(sys::state& state, dcon::province_id start, dcon::province_id end, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func) {
+void make_path_to_prov(sys::state& state, dcon::province_id start, dcon::province_id end, std::vector<dcon::province_id>& path_result, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func) {
 
 	// uses an A* implementation with direct distance as heuristic
 
-	std::vector<dcon::province_id> path_result;
-
 	if(start == end || !prov_func(end)) // early exit if start is already at destination, or if the end province would fail the province check
-		return path_result;
+		return;
 
 
-	std::vector<dcon::province_id> open_queue; // prioity queue of nodes to be processed, ordered by computed distance. Smallest distance goes first
+	static thread_local std::vector<dcon::province_id> open_queue; // prioity queue of nodes to be processed, ordered by computed distance. Smallest distance goes first
+	open_queue.clear();
 	// contains nodes for all provinces, including if they are in the open queue, are closed and its parent for constructing path later. It is allocated as a static thread local buffer, as it is possible both the UI and update thread will calculate paths
 	static thread_local tagged_vector<path_node_heuristic, dcon::province_id> path_node_container;
 
@@ -186,7 +192,7 @@ std::vector<dcon::province_id> make_path_to_prov(sys::state& state, dcon::provin
 		if(current_prov == end) {
 			fill_path_result(current_prov);
 			assert_path_result(path_result);
-			return path_result;
+			return;
 		}
 		// add current to closed list immediately
 		current_node.is_in_closed_list = true;
@@ -208,11 +214,10 @@ std::vector<dcon::province_id> make_path_to_prov(sys::state& state, dcon::provin
 					float approx_dist_to_end;
 					if constexpr(HeuristicModifier != 0.0f) {
 						approx_dist_to_end = direct_distance(state, other_prov, end) * HeuristicModifier;
-					}
-					else {
+					} else {
 						approx_dist_to_end = 0.0f;
 					}
-					
+
 					// if not present in the open queue add it to the open queue for processing later
 					if(!neighbor_node.is_in_open_list) {
 						// set distance and parent, then add it to the open queue
@@ -239,6 +244,19 @@ std::vector<dcon::province_id> make_path_to_prov(sys::state& state, dcon::provin
 	}
 
 	assert_path_result(path_result);
+
+}
+
+// Creates a path from start province to end province,with given template functions to decide various factors
+// HeuristicModifier: Modifier to the heuristic used (direct distance). The higher this value is, the less accurate but more performant the pathfinding will be. If 0.0f, it will always find the optimal path
+// AdjFunc: Lambda which takes the following as parameters (to_prov, from_prov, adjacency)  and returns a bool. Decides if the passage between the two provinces is possible.
+// ProvFunc: Lambda which takes a province_id as parameter and returns a bool. Decides if the given province is passable from any direction
+// MovementCostFunc: Lambda which takes the following as parameters (to_prov, from_prov, adjacency, distance) and returns a float. The returned value is used as movement cost in pathfinding
+template<float HeuristicModifier, typename AdjFunc, typename ProvFunc, typename MovementCostFunc>
+std::vector<dcon::province_id> make_path_to_prov(sys::state& state, dcon::province_id start, dcon::province_id end, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func) {
+
+	std::vector<dcon::province_id> path_result;
+	make_path_to_prov<HeuristicModifier>(state, start, end, path_result, adj_func, prov_func, movementcost_func);
 	return path_result;
 
 }
@@ -351,7 +369,8 @@ std::vector<dcon::province_id> make_path_to_expression(sys::state& state, dcon::
 
 	// uses an Dijkstra's algorithm implementation to find the best possible path to the end expression
 
-	std::vector<dcon::province_id> open_queue; // prioity queue of nodes to be processed, ordered by computed distance. Smallest distance goes first
+	static thread_local std::vector<dcon::province_id> open_queue; // prioity queue of nodes to be processed, ordered by computed distance. Smallest distance goes first
+	open_queue.clear();
 	// contains nodes for all provinces, including if they are in the open queue, are closed and its parent for constructing path later. It is allocated as a static thread local buffer, as it is possible both the UI and update thread will calculate paths
 	static thread_local tagged_vector<path_node, dcon::province_id> path_node_container;
 
