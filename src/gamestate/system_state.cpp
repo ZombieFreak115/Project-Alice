@@ -3037,6 +3037,11 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	world.market_resize_government_stockpile(world.commodity_size());
 	world.market_resize_govt_stockpile_satisfaction_buffer(world.commodity_size());
 
+	world.army_supply_route_resize_buffered_reinforcement_goods(world.commodity_size());
+	world.army_supply_route_resize_buffered_supply_goods(world.commodity_size());
+	world.navy_supply_route_resize_buffered_reinforcement_goods(world.commodity_size());
+	world.navy_supply_route_resize_buffered_supply_goods(world.commodity_size());
+
 	world.market_resize_life_needs_costs(world.pop_type_size());
 	world.market_resize_everyday_needs_costs(world.pop_type_size());
 	world.market_resize_luxury_needs_costs(world.pop_type_size());
@@ -3494,7 +3499,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	// ai::update_ai_research(*this);
 	ai::update_influence_priorities(*this);
 	ai::update_focuses(*this);
-	military::update_regiment_supply_reinforcement_satisfaction(*this);
+	military::update_supply_routes_daily(*this);
 
 	military::recover_org(*this);
 
@@ -4442,20 +4447,12 @@ void state::single_game_tick() {
 		//
 		// ALTERNATE PAR DEMO START POINT B
 		//
-		// Run some compatible things in parallel
-		concurrency::parallel_invoke([this]() {
-			military::update_regiment_supply_reinforcement_satisfaction(*this);
-			},
-			[this]() {
-				military::update_cbs(*this); // may add/remove cbs to a nation
-		 }, [this]() {
-			 nations::update_industrial_scores(*this);
-			 },
-			 [this]() {
-			 nations::update_military_scores(*this); // depends on ship score, land unit average
-			 }
-		);
+		military::update_supply_routes_daily(*this);
 
+		military::update_cbs(*this); // may add/remove cbs to a nation
+		nations::update_industrial_scores(*this);
+
+		nations::update_military_scores(*this); // depends on ship score, land unit average
 		military::recover_org(*this);
 		military::update_siege_progress(*this);
 		military::update_movement(*this);
@@ -4576,6 +4573,7 @@ void state::single_game_tick() {
 			ai::update_ai_embargoes(*this);
 			break;
 		case 22:
+			military::update_supply_routes_monthly(*this);
 			ai::take_reforms(*this);
 			break;
 		case 23:

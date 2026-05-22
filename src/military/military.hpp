@@ -592,6 +592,9 @@ bool pop_eligible_for_mobilization(sys::state& state, dcon::pop_id p);
 template<regiment_dmg_source damage_source>
 void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id);
 
+void update_supply_routes_daily(sys::state& state);
+void update_supply_routes_monthly(sys::state& state);
+
 // Gets the average good satisfaction for all navies a nation has. Does not include constructions
 template<unit_consumption_type consumption_type>
 float average_naval_consumption_satisfaction(const sys::state& state, dcon::nation_id nation);
