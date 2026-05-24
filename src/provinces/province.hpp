@@ -21,6 +21,16 @@ inline constexpr dcon::province_id from_map_id(uint16_t id) {
 		return dcon::province_id(id - 1);
 }
 
+inline bool is_sea(const sys::state& state, dcon::province_id prov) {
+	assert(prov);
+	return state.province_definitions.first_sea_province.index() <= prov.index();
+}
+
+inline bool is_land(const sys::state& state, dcon::province_id prov) {
+	assert(prov);
+	return state.province_definitions.first_sea_province.index() > prov.index();
+}
+
 struct naval_range_data {
 	float distance;
 	bool is_reachable;

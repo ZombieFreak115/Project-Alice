@@ -408,7 +408,7 @@ void get_closest_available_market_states(sys::state& state, std::vector<dcon::st
 		auto si_a_capital = state.world.state_instance_get_capital(state_instance_a);
 		auto si_b_capital = state.world.state_instance_get_capital(state_instance_b);
 		if(state_instance_a.index() != state_instance_b.index()) {
-			return province::direct_distance(state, si_a_capital, location_from) > province::direct_distance(state, si_b_capital, location_from);
+			return province::direct_distance(state, si_b_capital, location_from) > province::direct_distance(state, si_a_capital, location_from);
 		} else {
 			return state_instance_a.index() > state_instance_b.index();
 		}

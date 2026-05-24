@@ -298,6 +298,12 @@ bool can_pop_form_regiment(sys::state& state, dcon::pop_id pop, float divisor);
 int32_t total_regiments(sys::state& state, dcon::nation_id n);
 int32_t total_ships(sys::state& state, dcon::nation_id n);
 
+// Schedules a path update on all supply paths passing through the given province
+void schedule_supply_paths_update(sys::state& state, dcon::province_id to_update);
+
+// Schedules a path update on all supply paths passing through the given province which are hostile to nation_as
+void schedule_enemy_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation_as);
+
 dcon::regiment_id create_new_regiment(sys::state& state, dcon::nation_id n, dcon::unit_type_id t);
 dcon::ship_id create_new_ship(sys::state& state, dcon::nation_id n, dcon::unit_type_id t);
 
@@ -476,6 +482,7 @@ void update_blackflag_status(sys::state& state, dcon::province_id p);
 void eject_ships(sys::state& state, dcon::province_id p);
 void update_movement(sys::state& state);
 bool siege_potential(sys::state& state, dcon::nation_id army_controller, dcon::nation_id province_controller);
+void set_siege_progress(sys::state& state, dcon::province_id prov, float new_val);
 void update_siege_progress(sys::state& state);
 void single_ship_start_retreat(sys::state& state, ship_in_battle& ship, dcon::naval_battle_id battle);
 
@@ -604,7 +611,7 @@ float average_land_consumption_satisfaction(const sys::state& state, dcon::natio
 
 float max_supply_thoughput(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 float province_supply_attrition(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
-float adjacency_supply_attrition(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
+float adjacency_supply_attrition(sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
 
 military::unit_priority increment_priority(military::unit_priority priority);
 military::unit_priority decrement_priority(military::unit_priority priority);

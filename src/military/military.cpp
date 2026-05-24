@@ -70,6 +70,7 @@ constexpr inline float land_org_dam_scaler = 6.0f; // 6.0 will match same org da
 constexpr inline float land_str_dam_scaler = 600.0f; // 600.0 will match same str damage as base vic2
 // magic number to scale org damage to match that of Vic2
 constexpr inline float naval_org_dam_scaler = 100.0f;// 100.0 will match same org damage as base vic2
+// Naval strength damage is already accurate without any additional scaler
 
 int32_t total_regiments(sys::state& state, dcon::nation_id n) {
 	return state.world.nation_get_active_regiments(n);
@@ -81,6 +82,45 @@ int32_t total_ships(sys::state& state, dcon::nation_id n) {
 		total += int32_t(srange.end() - srange.begin());
 	}
 	return total;
+}
+
+void schedule_supply_paths_update(sys::state& state, dcon::province_id to_update) {
+	for(auto r : state.world.province_get_army_supply_route_node(to_update)) {
+		auto route = r.get_supply_route();
+		route.set_path_out_of_date(true);
+	}
+	for(auto r : state.world.province_get_navy_supply_route_node(to_update)) {
+		auto route = r.get_supply_route();
+		route.set_path_out_of_date(true);
+	}
+}
+
+// Schedules a path update on all supply paths passing through the given province which are hostile to nation_as
+void schedule_enemy_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation_as) {
+	for(auto r : state.world.province_get_army_supply_route_node(to_update)) {
+		auto route = r.get_supply_route();
+		auto route_owner = route.get_army().get_controller_from_army_control();
+		if(are_enemies(state, nation_as, route_owner)) {
+			route.set_path_out_of_date(true);
+		}
+	}
+	for(auto r : state.world.province_get_navy_supply_route_node(to_update)) {
+		auto route = r.get_supply_route();
+		auto route_owner = route.get_navy().get_controller_from_navy_control();
+		if(are_enemies(state, nation_as, route_owner)) {
+			route.set_path_out_of_date(true);
+		}
+	}
+}
+
+
+void set_siege_progress(sys::state& state, dcon::province_id prov, float new_val) {
+	state.world.province_set_siege_progress(prov, new_val);
+	// Only schedule a supply route path update if the new value is 0 (siege stopped), or every 5 days otherwise
+	if(new_val == 0.0f || state.current_date.value % 5 == 0) {
+		schedule_supply_paths_update(state, prov);
+	}
+
 }
 
 bool is_infantry_better(sys::state& state, dcon::nation_id n, dcon::unit_type_id best, dcon::unit_type_id given) {
@@ -2860,7 +2900,7 @@ void add_to_war(sys::state& state, dcon::war_id w, dcon::nation_id n, bool as_at
 			continue;
 
 		auto loc = o.get_navy().get_location_from_navy_location();
-		if(loc.id.index() >= state.province_definitions.first_sea_province.index())
+		if(province::is_sea(state, loc))
 			navy_arrives_in_province(state, o.get_navy(), loc);
 	}
 }
@@ -3224,7 +3264,7 @@ void remove_from_war(sys::state& state, dcon::war_id w, dcon::nation_id n, bool 
 	for(auto p : state.world.nation_get_province_ownership(n)) {
 		if(auto c = p.get_province().get_nation_from_province_control(); c && c != n) {
 			if(!military::are_at_war(state, c, n)) {
-				state.world.province_set_siege_progress(p.get_province(), 0.0f);
+				set_siege_progress(state, p.get_province(), 0.0f);
 				province::set_province_controller(state, p.get_province(), n);
 				military::eject_ships(state, p.get_province());
 			}
@@ -3234,7 +3274,7 @@ void remove_from_war(sys::state& state, dcon::war_id w, dcon::nation_id n, bool 
 	for(auto p : state.world.nation_get_province_control(n)) {
 		if(auto c = p.get_province().get_nation_from_province_ownership(); c && c != n) {
 			if(!military::are_at_war(state, c, n)) {
-				state.world.province_set_siege_progress(p.get_province(), 0.0f);
+				set_siege_progress(state, p.get_province(), 0.0f);
 				province::set_province_controller(state, p.get_province(), c);
 				military::eject_ships(state, p.get_province());
 			}
@@ -4925,16 +4965,16 @@ float effective_navy_speed(sys::state& state, dcon::navy_id n) {
 }
 float get_avg_movement_cost_modifier(sys::state& state, dcon::nation_id as_nation, dcon::province_id prov_a, dcon::province_id prov_b) {
 	// take the average of the modifiers in the two provinces. If prov is a sea prov use 1.0f as the movement_cost.
-	float prov_a_mod = prov_a.index() < state.province_definitions.first_sea_province.index() ? province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_a, sys::provincial_mod_offsets::movement_cost) : 1.0f;
-	float prov_b_mod = prov_b.index() < state.province_definitions.first_sea_province.index() ? province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_b, sys::provincial_mod_offsets::movement_cost) : 1.0f;
+	float prov_a_mod = province::is_land(state, prov_a) ? province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_a, sys::provincial_mod_offsets::movement_cost) : 1.0f;
+	float prov_b_mod = province::is_land(state, prov_b) ? province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_b, sys::provincial_mod_offsets::movement_cost) : 1.0f;
 	float avg_mods = (prov_a_mod + prov_b_mod) / 2.0f;
 	return avg_mods;
 }
 
 float get_avg_movement_cost_modifier_unowned(sys::state& state, dcon::province_id prov_a, dcon::province_id prov_b) {
 	// take the average of the modifiers in the two provinces. If prov is a sea prov use 1.0f as the movement_cost.
-	float prov_a_mod = prov_a.index() < state.province_definitions.first_sea_province.index() ? state.world.province_get_modifier_values(prov_a, sys::provincial_mod_offsets::movement_cost) : 1.0f;
-	float prov_b_mod = prov_b.index() < state.province_definitions.first_sea_province.index() ? state.world.province_get_modifier_values(prov_b, sys::provincial_mod_offsets::movement_cost) : 1.0f;
+	float prov_a_mod = province::is_land(state, prov_a) ? state.world.province_get_modifier_values(prov_a, sys::provincial_mod_offsets::movement_cost) : 1.0f;
+	float prov_b_mod = province::is_land(state, prov_b) ? state.world.province_get_modifier_values(prov_b, sys::provincial_mod_offsets::movement_cost) : 1.0f;
 	float avg_mods = (prov_a_mod + prov_b_mod) / 2.0f;
 	return avg_mods;
 }
@@ -5151,10 +5191,26 @@ void army_arrives_in_province(sys::state& state, dcon::army_id a, dcon::province
 	assert(state.world.army_is_valid(a));
 	assert(!state.world.army_get_battle_from_army_battle_participation(a));
 
+	auto prev_location = state.world.army_get_location_from_army_location(a);
 
 	state.world.army_set_location_from_army_location(a, p);
+
+	// Schedule a supply route paths update if the location was changed from the previous one, and updates supply routes passing through destination and previous location if they are enemies with the army owner
+	if(prev_location != p) {
+		for(auto sup_route : state.world.army_get_army_supply_route(a)) {
+			sup_route.set_path_out_of_date(true);
+		}
+		auto prev_loc_controller = state.world.province_get_nation_from_province_control(prev_location);
+		auto new_loc_controller = state.world.province_get_nation_from_province_control(p);
+		auto army_owner = state.world.army_get_controller_from_army_control(a);
+		schedule_enemy_supply_paths_update(state, prev_location, army_owner);
+		schedule_enemy_supply_paths_update(state, p, army_owner);
+		
+	}
+
+	bool is_sea_prov = province::is_sea(state, p);
 	auto regs = state.world.army_get_army_membership(a);
-	if(!state.world.army_get_black_flag(a) && !state.world.army_get_is_retreating(a) && regs.begin() != regs.end()) {
+	if(!is_sea_prov && !state.world.army_get_black_flag(a) && !state.world.army_get_is_retreating(a) && regs.begin() != regs.end()) {
 		auto owner_nation = state.world.army_get_controller_from_army_control(a);
 
 		// look for existing battle
@@ -6517,8 +6573,9 @@ float peacetime_attrition_limit(sys::state& state, dcon::nation_id n, dcon::prov
 bool will_recieve_attrition(sys::state& state, dcon::army_id a) {
 	auto prov = state.world.army_get_location_from_army_location(a);
 
-	if(prov.index() >= state.province_definitions.first_sea_province.index())
+	if(province::is_sea(state, prov)) {
 		return true;
+	}
 
 	return relative_attrition_amount(state, a, prov) > 0.0f;
 }
@@ -6536,7 +6593,7 @@ float relative_attrition_amount(sys::state& state, dcon::navy_id a, dcon::provin
 
 	auto navy_controller = state.world.navy_get_controller_from_navy_control(a);
 	if(bool(state.world.navy_get_battle_from_navy_battle_participation(a))
-		|| prov.index() < state.province_definitions.first_sea_province.index()
+		|| province::is_land(state, prov)
 		|| province::sea_province_is_adjacent_to_accessible_coast(state, prov, navy_controller)) {
 		return 0.0f;
 	}
@@ -6636,7 +6693,7 @@ float relative_attrition_amount(sys::state& state, dcon::army_id a, dcon::provin
 	auto ar = fatten(state.world, a);
 	auto army_controller = ar.get_controller_from_army_control();
 	// if sea province, use the sea transport attrition, and apply national attrition modifiers
-	if(prov.index() >= state.province_definitions.first_sea_province.index()) {
+	if(province::is_sea(state, prov)) {
 		auto value = state.defines.alice_army_sea_transport_attrition * (1.0f + army_controller.get_modifier_values(sys::national_mod_offsets::land_attrition));
 		return value * 0.01f;
 	}
@@ -8670,8 +8727,26 @@ void navy_arrives_in_province(sys::state& state, dcon::navy_id n, dcon::province
 	assert(!state.world.navy_get_battle_from_navy_battle_participation(n));
 
 
+	auto prev_location = state.world.navy_get_location_from_navy_location(n);
+
+	// Schedule a supply route paths update if the location was changed from the previous one, and updates supply routes passing through destination and previous location if they are enemies with the army owner
+	if(prev_location != p) {
+		for(auto sup_route : state.world.navy_get_navy_supply_route(n)) {
+			sup_route.set_path_out_of_date(true);
+		}
+		auto prev_loc_controller = state.world.province_get_nation_from_province_control(prev_location);
+		auto new_loc_controller = state.world.province_get_nation_from_province_control(p);
+		auto army_owner = state.world.navy_get_controller_from_navy_control(n);
+		schedule_enemy_supply_paths_update(state, prev_location, army_owner);
+		schedule_enemy_supply_paths_update(state, p, army_owner);
+
+	}
+
+	bool is_sea_prov = province::is_sea(state, p);
+
+
 	state.world.navy_set_location_from_navy_location(n, p);
-	if(p.index() < state.province_definitions.first_sea_province.index()) {
+	if(!is_sea_prov) {
 		state.world.navy_set_months_outside_naval_range(n, uint8_t(0));
 	}
 	else {
@@ -8681,7 +8756,7 @@ void navy_arrives_in_province(sys::state& state, dcon::navy_id n, dcon::province
 		}
 	}
 	auto ships = state.world.navy_get_navy_membership(n);
-	if(!state.world.navy_get_is_retreating(n) && p.index() >= state.province_definitions.first_sea_province.index() && ships.begin() != ships.end()) {
+	if(!state.world.navy_get_is_retreating(n) && is_sea_prov && ships.begin() != ships.end()) {
 		auto owner_nation = state.world.navy_get_controller_from_navy_control(n);
 
 		// look for existing battle
@@ -8800,11 +8875,11 @@ void update_movement(sys::state& state) {
 			auto adj = state.world.get_province_adjacency_by_province_pair(dest, from);
 			crossing_type crossing = get_crossing_type(state, adj);
 			// Can the army reach the target
-			if(dest.index() >= state.province_definitions.first_sea_province.index()) { // sea province
+			if(province::is_sea(state, dest)) { // sea province
 				// check for embarkation possibility, then embark
 				auto to_navy = find_embark_target(state, a.get_controller_from_army_control(), dest, a);
 				if(to_navy) {
-					a.set_location_from_army_location(dest);
+					army_arrives_in_province<apply_attrition_on_arrival::no>(state, a, dest, crossing_type::none);
 					a.set_navy_from_army_transport(to_navy);
 					a.set_black_flag(false);
 				} else {
@@ -8926,7 +9001,7 @@ void update_movement(sys::state& state) {
 			auto dest = path.at(path.size() - 1);
 			path.pop_back();
 
-			if(dest.index() < state.province_definitions.first_sea_province.index()) { // land province
+			if(province::is_land(state, dest)) { // land province
 				if(province::has_naval_access_to_province(state, n.get_controller_from_navy_control(), dest)) {
 
 					navy_arrives_in_province(state, n, dest, dcon::naval_battle_id{ });
@@ -8938,12 +9013,13 @@ void update_movement(sys::state& state) {
 
 						a.set_navy_from_army_transport(dcon::navy_id{});
 						stop_army_movement(state, a);
+						army_arrives_in_province<apply_attrition_on_arrival::no>(state, a, dest, crossing_type::sea);
+
 						auto acontroller = a.get_controller_from_army_control();
 
 						// ai code
 						if(acontroller && !acontroller.get_is_player_controlled()) {
 							auto army_dest = a.get_ai_province();
-							a.set_location_from_army_location(dest);
 							if(army_dest && army_dest != dest) {
 								auto apath = province::make_land_unit_path(state, dest, army_dest, acontroller, a);
 								if(apath.size() > 0) {
@@ -8961,7 +9037,6 @@ void update_movement(sys::state& state) {
 								a.set_ai_activity(uint8_t(ai::army_activity::on_guard));
 							}
 						}
-						army_arrives_in_province(state, a, dest, military::crossing_type::sea, dcon::land_battle_id{});
 					}
 				} else {
 					// if the destination province becomes inaccesible by the time the movement happens, stop movement and check for enemy navy collision
@@ -8985,7 +9060,7 @@ void update_movement(sys::state& state) {
 
 					// take embarked units along with
 					for(auto a : state.world.navy_get_army_transport(n)) {
-						a.get_army().set_location_from_army_location(dest);
+						army_arrives_in_province<apply_attrition_on_arrival::no>(state, a.get_army(), dest, crossing_type::none);
 						stop_army_movement(state, a.get_army());
 					}
 				}
@@ -9252,7 +9327,7 @@ void update_siege_progress(sys::state& state) {
 				// ongoing battle: do nothing
 			} else {
 				auto& progress = state.world.province_get_siege_progress(prov);
-				state.world.province_set_siege_progress(prov, std::max(0.0f, progress - 0.1f));
+				set_siege_progress(state, prov, std::max(0.0f, progress - 0.1f));
 			}
 		} else {
 			assert(bool(first_army));
@@ -9304,7 +9379,7 @@ void update_siege_progress(sys::state& state) {
 				(owner_involved ? 1.25f : (core_owner_involved ? 1.1f : 1.0f)) / (effective_fort_level * state.defines.alice_fort_siege_slowdown + 1.0f); // US101AC2 Forts reduce siege speed by alice_fort_siege_slowdown factor (0.75 by default) per level.
 
 			auto& progress = state.world.province_get_siege_progress(prov);
-			state.world.province_set_siege_progress(prov, progress + siege_speed_mul * added_progress);
+			set_siege_progress(state, prov, progress + siege_speed_mul * added_progress);
 
 			if(progress >= 1.0f) {
 				progress = 0.0f;
@@ -9435,7 +9510,7 @@ void eject_ships(sys::state& state, dcon::province_id p) {
 		navy_arrives_in_province(state, n, sea_zone, dcon::naval_battle_id{});
 
 		for(auto a : state.world.navy_get_army_transport(n)) {
-			a.get_army().set_location_from_army_location(sea_zone);
+			army_arrives_in_province<apply_attrition_on_arrival::no>(state, a.get_army(), sea_zone, crossing_type::none);
 			stop_army_movement(state, a.get_army());
 		}
 	}
@@ -9765,7 +9840,7 @@ bool get_allied_prov_adjacency_reinforcement_bonus(sys::state& state, dcon::prov
 		auto indx = adj.get_connected_provinces(0).id != location ? 0 : 1;
 		auto prov = adj.get_connected_provinces(indx);
 
-		if(prov.id.index() >= state.province_definitions.first_sea_province.index() || province::is_crossing_blocked(state, our_nation, location, prov) ||
+		if(province::is_sea(state, prov) || province::is_crossing_blocked(state, our_nation, location, prov) ||
 			!state.world.province_get_nation_from_province_ownership(prov)) {
 			// if its a sea province, a blockaded sea strait or uncolonized
 			return false;
@@ -9860,7 +9935,7 @@ float calculate_location_reinforce_modifier_battle(sys::state& state, dcon::prov
 	for(auto adj : state.world.province_get_province_adjacency(location)) {
 		auto indx = adj.get_connected_provinces(0).id != location ? 0 : 1;
 		auto prov = adj.get_connected_provinces(indx);
-		if(prov.id.index() >= state.province_definitions.first_sea_province.index() || province::is_crossing_blocked(state, in_nation, location, prov)) {
+		if(province::is_sea(state, prov) || province::is_crossing_blocked(state, in_nation, location, prov)) {
 			// if it is a sea province, or a blockaded sea strait, ignore it
 			continue;
 		}
@@ -10168,234 +10243,15 @@ struct unit {
 	unit() = default;
 };
 
-void update_regiment_supply_reinforcement_satisfaction(sys::state& state) {
-
-
-	// Helper to set up the stockpiles buffer, to be consumed from first
-	// Prefer stockpiles which are closest by direct distance
-	auto update_closest_stockpiles_buffer = [&]<typename unit_type>(tagged_vector<std::vector<dcon::state_instance_id>, unit_type>& best_stockpiles_buf, unit_type unit, dcon::nation_id nation_as) {
-
-
-		best_stockpiles_buf[unit].clear();
-		state.world.nation_for_each_state_control(nation_as, [&](dcon::state_control_id sc) {
-			dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
-			best_stockpiles_buf[unit].push_back(state_instance);
-		});
-		dcon::province_id unit_location;
-		if constexpr(std::is_same<unit_type, dcon::army_id>::value) {
-			unit_location = state.world.army_get_location_from_army_location(unit);
-		}
-		else {
-			unit_location = state.world.navy_get_location_from_navy_location(unit);
-		}
-		std::sort(best_stockpiles_buf[unit].begin(), best_stockpiles_buf[unit].end(), [&](auto state_instance_a, auto state_instance_b) {
-			auto si_a_capital = state.world.state_instance_get_capital(state_instance_a);
-			auto si_b_capital = state.world.state_instance_get_capital(state_instance_b);
-			if(state_instance_a.index() != state_instance_b.index()) {
-				return province::direct_distance(state, si_a_capital, unit_location) > province::direct_distance(state, si_b_capital, unit_location);
-			} else {
-				return state_instance_a.index() > state_instance_b.index();
-			}
-			});
-	
-
-	};
-
-
-	static std::vector<unit> sorted_units;
-	sorted_units.clear();
-	for(auto army : state.world.in_army) {
-		sorted_units.emplace_back(unit{ army });
-	}
-	for(auto navy : state.world.in_navy) {
-		sorted_units.emplace_back(unit{ navy });
-	}
-	// Sort units by supply priority, if same prio then armies take precedence, otherwise sort by index
-	std::sort(sorted_units.begin(), sorted_units.end(), [&](unit unit_a, unit unit_b) {
-		bool a_is_army = unit_a.is_army;
-		bool b_is_army = unit_b.is_army;
-		auto a_supply_prio = (a_is_army ? state.world.army_get_supply_priority(unit_a.content.army) : state.world.navy_get_supply_priority(unit_a.content.navy));
-		auto b_supply_prio = (b_is_army ? state.world.army_get_supply_priority(unit_b.content.army) : state.world.navy_get_supply_priority(unit_b.content.navy));
-		if(a_supply_prio != b_supply_prio) {
-			return a_supply_prio > b_supply_prio;
-		}
-		if(a_is_army != b_is_army) {
-			return a_is_army > b_is_army;
-		}
-		uint16_t a_index = (a_is_army ? unit_a.content.army.index() : unit_a.content.navy.index());
-		uint16_t b_index = (b_is_army ? unit_b.content.army.index() : unit_b.content.navy.index());
-		return a_index > b_index;
-	});
-	// The buffer will be updated continuously on each army/navy
-	static std::vector<dcon::state_instance_id> closest_stockpiles;
-	// Handle supply consumption
-	for(auto unit : sorted_units) {
-		// Handle armies
-		if(unit.is_army) {
-			auto army = unit.content.army;
-			auto nation = state.world.army_get_controller_from_army_control(army);
-			auto location = state.world.army_get_location_from_army_location(army);
-			// Handle non-rebel units
-			if(nation) {
-				auto supply_consumption = state.world.nation_get_land_supply_consumption(nation) / 100.0f;
-				closest_stockpiles.clear();
-				economy::get_closest_available_market_states(state, closest_stockpiles, nation, location);
-				auto national_sup_mods = get_national_supply_cost_modifiers(state, nation);
-				for(auto r : state.world.army_get_army_membership(army)) {
-					auto regiment = r.get_regiment();
-					auto unit_type = state.world.regiment_get_type(regiment);
-					// Make a copy so we can modify it as we go
-					auto supply_cost = state.military_definitions.unit_base_definitions[unit_type].supply_cost;
-					auto reg_supply_mods = get_regiment_supply_cost_modifiers(state, nation, regiment);
-					auto total_sup_mods = combine_land_supply_cost_modifiers(national_sup_mods, reg_supply_mods);
-					// Update the commodites required to fit with cost modifiers and consumption rate
-					supply_cost.for_each_commodity([&](dcon::commodity_id, float& amount){
-						amount *= total_sup_mods * supply_consumption;
-					});
-					float satisfaction = economy::consume_from_government_stockpiles(state, supply_cost, closest_stockpiles, location, nation) * supply_consumption;
-					assert(std::isfinite(satisfaction));
-					state.world.regiment_set_supply_satisfaction(regiment, satisfaction);
-					assert(state.world.regiment_get_supply_satisfaction(regiment) <= 1.0f);
-					
-				}
-			}
-			// handle rebel units. For now they get 0 supply to prevent them from being able to eternally fight
-			else {
-				for(auto r : state.world.army_get_army_membership(army)) {
-					auto regiment = r.get_regiment();
-					state.world.regiment_set_supply_satisfaction(regiment, 0.0f);
-				}
-			}
-		}
-		// Handle  navies
-		else {
-			auto navy = unit.content.navy;
-			auto nation = state.world.navy_get_controller_from_navy_control(navy);
-			auto supply_consumption = state.world.nation_get_naval_supply_consumption(nation) / 100.0f;
-			auto location = state.world.navy_get_location_from_navy_location(navy);
-			closest_stockpiles.clear();
-			economy::get_closest_available_market_states(state, closest_stockpiles, nation, location);
-			auto national_sup_mods = get_national_supply_cost_modifiers(state, nation);
-
-			for(auto r : state.world.navy_get_navy_membership(navy)) {
-				auto ship = r.get_ship();
-				auto unit_type = state.world.ship_get_type(ship);
-				// Make copy so we can modify it
-				auto supply_cost = state.military_definitions.unit_base_definitions[unit_type].supply_cost;
-				auto reg_supply_mods = get_ship_supply_cost_modifiers(state, nation, ship);
-				auto total_sup_mods = combine_land_supply_cost_modifiers(national_sup_mods, reg_supply_mods);
-				// Update the commodites required to fit with cost modifiers and consumption rate, and count commodities
-				supply_cost.for_each_commodity([&](dcon::commodity_id, float& amount) {
-					amount *= total_sup_mods * supply_consumption;
-				});
-				float satisfaction = economy::consume_from_government_stockpiles(state, supply_cost, closest_stockpiles, location, nation) * supply_consumption;
-				assert(std::isfinite(satisfaction));
-				state.world.ship_set_supply_satisfaction(ship, satisfaction);
-				assert(state.world.ship_get_supply_satisfaction(ship) <= 1.0f);
-				
-			}
-		}
-	}
-
-	// Sort units by reinforcement priority, if same prio then armies take precedence, otherwise sort by index
-	std::sort(sorted_units.begin(), sorted_units.end(), [&](unit unit_a, unit unit_b) {
-		bool a_is_army = unit_a.is_army;
-		bool b_is_army = unit_b.is_army;
-		auto a_supply_prio = (a_is_army ? state.world.army_get_reinforcement_priority(unit_a.content.army) : state.world.navy_get_reinforcement_priority(unit_a.content.navy));
-		auto b_supply_prio = (b_is_army ? state.world.army_get_reinforcement_priority(unit_b.content.army) : state.world.navy_get_reinforcement_priority(unit_b.content.navy));
-		if(a_supply_prio != b_supply_prio) {
-			return a_supply_prio > b_supply_prio;
-		}
-		if(a_is_army != b_is_army) {
-			return a_is_army > b_is_army;
-		}
-		uint16_t a_index = (a_is_army ? unit_a.content.army.index() : unit_a.content.navy.index());
-		uint16_t b_index = (b_is_army ? unit_b.content.army.index() : unit_b.content.navy.index());
-		return a_index > b_index;
-	});
-	// Handle reinforcement
-	for(auto unit : sorted_units) {
-		static tagged_vector<std::vector<dcon::state_instance_id>, dcon::commodity_id> best_stockpiles;
-		best_stockpiles.resize(state.world.commodity_size());
-		// Handle armies
-		if(unit.is_army) {
-			auto army = unit.content.army;
-
-			auto location = state.world.army_get_location_from_army_location(army);
-			auto nation = state.world.army_get_controller_from_army_control(army);
-			auto national_reinf_mods = get_land_national_reinforcement_modifiers(state, nation);
-			auto army_reinf_mods = get_army_reinforcement_modifiers(state, army);
-			// Handle non-rebel units
-			if(nation) {
-				auto reinforcement_consumption = state.world.nation_get_land_reinforcement_consumption(nation) / 100.0f;
-				closest_stockpiles.clear();
-				economy::get_closest_available_market_states(state, closest_stockpiles, nation, location);
-				for(auto r : state.world.army_get_army_membership(army)) {
-					auto regiment = r.get_regiment();
-					auto regiment_reinf_mods = get_regiment_reinforcement_modifiers(state, regiment);
-					auto total_reinf_mods = combine_land_reinforcement_modifiers(national_reinf_mods, army_reinf_mods, regiment_reinf_mods);
-					auto unit_type = state.world.regiment_get_type(regiment);
-					// Make copy so we can modify
-					auto build_cost = state.military_definitions.unit_base_definitions[unit_type].build_cost;
-					auto potential_reinforcement = estimate_regiment_reinforcement<interval_estimation::daily, supply_estimation::full_supply_always, false>(state, regiment, total_reinf_mods);
-					// Update the commodites required to fit with cost the potential reinforcement and consumption rate
-					build_cost.for_each_commodity([&](dcon::commodity_id, float& amount) {
-						amount *= potential_reinforcement * reinforcement_consumption;
-					});
-					float satisfaction = economy::consume_from_government_stockpiles(state, build_cost, closest_stockpiles, location, nation) * reinforcement_consumption;
-					assert(std::isfinite(satisfaction));
-					auto current = state.world.regiment_get_reinforcement_satisfaction_buffer(regiment);
-					state.world.regiment_set_reinforcement_satisfaction_buffer(regiment, current + (satisfaction * potential_reinforcement));
-					state.world.regiment_set_last_reinforcement_satisfaction(regiment, satisfaction);
-					assert(state.world.regiment_get_reinforcement_satisfaction_buffer(regiment) <= 1.0f);
-					
-				}
-			}
-			// handle rebel units. Currently they get reinforcement satisfaction equal to 0 so they cant fight forever
-			else {
-				for(auto r : state.world.army_get_army_membership(army)) {
-					auto regiment = r.get_regiment();
-					state.world.regiment_set_reinforcement_satisfaction_buffer(regiment, 0.0f);
-				}
-
-			}
-		}
-		else {
-			auto navy = unit.content.navy;
-			auto nation = state.world.navy_get_controller_from_navy_control(navy);
-			auto reinforcement_consumption = state.world.nation_get_naval_reinforcement_consumption(nation) / 100.0f;
-			auto location = state.world.navy_get_location_from_navy_location(navy);
-			closest_stockpiles.clear();
-			economy::get_closest_available_market_states(state, closest_stockpiles, nation, location);
-			auto national_reinf_mods = get_naval_national_reinforcement_modifiers(state, nation);
-			auto army_reinf_mods = get_navy_reinforcement_modifiers(state, navy);
-			auto total_reinf_mods = combine_naval_reinforcement_modifiers(national_reinf_mods, army_reinf_mods);
-
-			for(auto r : state.world.navy_get_navy_membership(navy)) {
-				auto ship = r.get_ship();
-				auto unit_type = state.world.ship_get_type(ship);
-				auto build_cost = state.military_definitions.unit_base_definitions[unit_type].build_cost;
-				auto potential_reinforcement = estimate_ship_reinforcement<interval_estimation::daily, supply_estimation::full_supply_always, false>(state, ship, total_reinf_mods);
-				// Update the commodites required to fit with cost the potential reinforcement and consumption rate
-				build_cost.for_each_commodity([&](dcon::commodity_id, float& amount) {
-					amount *= potential_reinforcement * reinforcement_consumption;
-				});
-				float satisfaction = economy::consume_from_government_stockpiles(state, build_cost, closest_stockpiles, location, nation) * reinforcement_consumption;
-				assert(std::isfinite(satisfaction));
-				auto current = state.world.ship_get_reinforcement_satisfaction_buffer(ship);
-				state.world.ship_set_reinforcement_satisfaction_buffer(ship, current + (satisfaction * potential_reinforcement));
-				state.world.ship_set_last_reinforcement_satisfaction(ship, satisfaction);
-				assert(state.world.ship_get_reinforcement_satisfaction_buffer(ship) <= 1.0f);
-				
-			}
-		}
-		
-	}
-}
-
 void update_army_supply_route_throughput_attrition(sys::state& state, dcon::army_supply_route_id route, dcon::nation_id controller) {
 	auto path = state.world.army_supply_route_get_path(route);
-	if(path.size() == 0) {
+	auto origin_market = state.world.army_supply_route_get_origin(route);
+	auto origin_prov = state.world.state_instance_get_capital(state.world.market_get_zone_from_local_market(origin_market));
+	assert(origin_prov);
+	auto destination = state.world.army_get_location_from_army_location(state.world.army_supply_route_get_army(route));
+	assert(destination);
+	// If destination and origin are diffrent, and path size is 0, that means no path is available.
+	if(destination != origin_prov && path.size() == 0) {
 		state.world.army_supply_route_set_throughput(route, 0.0f);
 		state.world.army_supply_route_set_route_attrition(route, 0.0f);
 		return;
@@ -10409,18 +10265,27 @@ void update_army_supply_route_throughput_attrition(sys::state& state, dcon::army
 			auto adj = state.world.get_province_adjacency_by_province_pair(prov, next_prov);
 			assert(adj);
 			total_attrition_mod *= adjacency_supply_attrition(state, adj, controller);
+			assert(std::isfinite(total_attrition_mod));
 		}
 		float used_supply_throughput = state.world.province_get_used_supply_throughput(prov);
 		float local_supply_throughput = std::min(max_supply_thoughput(state, prov, controller) / (used_supply_throughput == 0.0f ? 1.0f : used_supply_throughput), 1.0f);
 		smallest_supply_throughput = std::min(smallest_supply_throughput, local_supply_throughput);
 	}
+	assert(std::isfinite(smallest_supply_throughput));
+	assert(std::isfinite(total_attrition_mod));
 	state.world.army_supply_route_set_route_attrition(route, total_attrition_mod);
 	state.world.army_supply_route_set_throughput(route, smallest_supply_throughput);
 }
 
 void update_navy_supply_route_throughput_attrition(sys::state& state, dcon::navy_supply_route_id route, dcon::nation_id controller) {
 	auto path = state.world.navy_supply_route_get_path(route);
-	if(path.size() == 0) {
+	auto origin_market = state.world.navy_supply_route_get_origin(route);
+	auto origin_prov = state.world.state_instance_get_capital(state.world.market_get_zone_from_local_market(origin_market));
+	assert(origin_prov);
+	auto destination = state.world.navy_get_location_from_navy_location(state.world.navy_supply_route_get_navy(route));
+	assert(destination);
+	// If destination and origin are diffrent, and path size is 0, that means no path is available.
+	if(destination != origin_prov && path.size() == 0) {
 		state.world.navy_supply_route_set_throughput(route, 0.0f);
 		state.world.navy_supply_route_set_route_attrition(route, 0.0f);
 		return;
@@ -10501,6 +10366,7 @@ void update_navy_supply_route_path(sys::state& state, dcon::navy_supply_route_id
 
 // Creates a army supply route and pathfinds automatically, while setting relavent fields on provinces it passes through
 dcon::army_supply_route_id create_army_supply_route(sys::state& state, dcon::army_id army, dcon::market_id origin) {
+	assert(state.world.army_get_controller_from_army_control(army));
 	auto route = state.world.force_create_army_supply_route(army, origin);
 	update_army_supply_route_path(state, route);
 	update_army_supply_route_throughput_attrition(state, route, state.world.army_get_controller_from_army_control(army));
@@ -10508,6 +10374,7 @@ dcon::army_supply_route_id create_army_supply_route(sys::state& state, dcon::arm
 }
 // Creates a navy supply route and pathfinds automatically, while setting relavent fields on provinces it passes through
 dcon::navy_supply_route_id create_navy_supply_route(sys::state& state, dcon::navy_id navy, dcon::market_id origin) {
+	assert(state.world.navy_get_controller_from_navy_control(navy));
 	auto route = state.world.force_create_navy_supply_route(navy, origin);
 	update_navy_supply_route_path(state, route);
 	update_navy_supply_route_throughput_attrition(state, route, state.world.navy_get_controller_from_navy_control(navy));
@@ -10562,6 +10429,7 @@ void update_supply_routes_daily(sys::state& state) {
 
 	[&]() {
 		state.world.execute_serial_over_navy_supply_route([&](auto route_ids) {
+			state.world.navy_supply_route_set_volume(route_ids, ve::fp_vector{ 0.0f });
 			state.world.for_each_commodity([&](dcon::commodity_id com_id) {
 				state.world.navy_supply_route_set_volume(route_ids, ve::fp_vector{ 0.0f });
 				state.world.navy_supply_route_set_buffered_reinforcement_goods(route_ids, com_id, ve::fp_vector{ 0.0f });
@@ -10696,7 +10564,16 @@ void update_supply_routes_daily(sys::state& state) {
 			total_volume += to_consume;
 		});
 		return total_volume;
-		};
+	};
+
+	auto any_unit_needs_left = [&](ve::vectorizable_buffer<float, dcon::commodity_id>& unit_needs) {
+		bool more_goods_still_required = false;
+		state.world.execute_serial_over_commodity([&](auto ids) {
+			ve::mask_vector need_more_goods = (unit_needs.get(ids) > 0.0f);
+			more_goods_still_required |= (ve::compress_mask(need_more_goods).v != 0);
+		});
+		return more_goods_still_required;
+	};
 
 
 	// The buffer will store the closest stockpiles, and updated continuously on each army/navy
@@ -10753,10 +10630,6 @@ void update_supply_routes_daily(sys::state& state) {
 					// Compute expected volume first. If expected volume is 0 then set volume to zero and skip
 					float volume = get_expected_supply_route_volume(market, unit_commodity_needs);
 					if(volume == 0.0f) {
-						dcon::army_supply_route_id route = state.world.get_army_supply_route_by_origin_army_pair(army, market);
-						if(route) {
-							state.world.army_supply_route_set_volume(route, 0.0f);
-						}
 						continue;
 					}
 					dcon::army_supply_route_id route = state.world.get_army_supply_route_by_origin_army_pair(army, market);
@@ -10770,12 +10643,8 @@ void update_supply_routes_daily(sys::state& state) {
 					// Add total volume to the recorded volume of the route
 					state.world.army_supply_route_set_volume(route, state.world.army_supply_route_get_volume(route) + volume);
 					// Do a check if we have satisfied all supply needs and can thus break
-					fixed_bool_t finished = false;
-					state.world.execute_serial_over_commodity([&](auto ids) {
-						ve::mask_vector need_no_more_goods = (unit_commodity_needs.get(ids) <= 0.0f);
-						finished |= ve::compress_mask(need_no_more_goods).v;
-					});
-					if(finished) {
+					bool need_more_goods = any_unit_needs_left(unit_commodity_needs);
+					if(!need_more_goods) {
 						break;
 					}
 				}
@@ -10815,10 +10684,6 @@ void update_supply_routes_daily(sys::state& state) {
 				// Compute expected volume first. If expected volume is 0 then set volume to zero and skip
 				float volume = get_expected_supply_route_volume(market, unit_commodity_needs);
 				if(volume == 0.0f) {
-					dcon::navy_supply_route_id route = state.world.get_navy_supply_route_by_origin_navy_pair(navy, market);
-					if(route) {
-						state.world.navy_supply_route_set_volume(route, 0.0f);
-					}
 					continue;
 				}
 				dcon::navy_supply_route_id route = state.world.get_navy_supply_route_by_origin_navy_pair(navy, market);
@@ -10832,12 +10697,8 @@ void update_supply_routes_daily(sys::state& state) {
 				// Add total volume to the recorded volume of the route
 				state.world.navy_supply_route_set_volume(route, state.world.navy_supply_route_get_volume(route) + volume);
 				// Do a check if we have satisfied all supply needs and can thus break
-				fixed_bool_t finished = false;
-				state.world.execute_serial_over_commodity([&](auto ids) {
-					ve::mask_vector need_no_more_goods = (unit_commodity_needs.get(ids) <= 0.0f);
-					finished |= ve::compress_mask(need_no_more_goods).v;
-				});
-				if(finished) {
+				bool need_more_goods = any_unit_needs_left(unit_commodity_needs);
+				if(!need_more_goods) {
 					break;
 				}
 			}
@@ -10881,10 +10742,6 @@ void update_supply_routes_daily(sys::state& state) {
 					// Compute expected volume first. If expected volume is 0 then set volume to zero and skip
 					float volume = get_expected_supply_route_volume(market, unit_commodity_needs);
 					if(volume == 0.0f) {
-						dcon::army_supply_route_id route = state.world.get_army_supply_route_by_origin_army_pair(army, market);
-						if(route) {
-							state.world.army_supply_route_set_volume(route, 0.0f);
-						}
 						continue;
 					}
 					dcon::army_supply_route_id route = state.world.get_army_supply_route_by_origin_army_pair(army, market);
@@ -10898,12 +10755,8 @@ void update_supply_routes_daily(sys::state& state) {
 					// Add total volume to the recorded volume of the route
 					state.world.army_supply_route_set_volume(route, state.world.army_supply_route_get_volume(route) + volume);
 					// Do a check if we have satisfied all supply needs and can thus break
-					fixed_bool_t finished = false;
-					state.world.execute_serial_over_commodity([&](auto ids) {
-						ve::mask_vector need_no_more_goods = (unit_commodity_needs.get(ids) <= 0.0f);
-						finished |= ve::compress_mask(need_no_more_goods).v;
-					});
-					if(finished) {
+					bool need_more_goods = any_unit_needs_left(unit_commodity_needs);
+					if(!need_more_goods) {
 						break;
 					}
 				}
@@ -10941,10 +10794,6 @@ void update_supply_routes_daily(sys::state& state) {
 				// Compute expected volume first. If expected volume is 0 then set volume to zero and skip
 				float volume = get_expected_supply_route_volume(market, unit_commodity_needs);
 				if(volume == 0.0f) {
-					dcon::navy_supply_route_id route = state.world.get_navy_supply_route_by_origin_navy_pair(navy, market);
-					if(route) {
-						state.world.navy_supply_route_set_volume(route, 0.0f);
-					}
 					continue;
 				}
 				dcon::navy_supply_route_id route = state.world.get_navy_supply_route_by_origin_navy_pair(navy, market);
@@ -10958,12 +10807,8 @@ void update_supply_routes_daily(sys::state& state) {
 				// Add total volume to the recorded volume of the route
 				state.world.navy_supply_route_set_volume(route, state.world.navy_supply_route_get_volume(route) + volume);
 				// Do a check if we have satisfied all supply needs and can thus break
-				fixed_bool_t finished = false;
-				state.world.execute_serial_over_commodity([&](auto ids) {
-					ve::mask_vector need_no_more_goods = (unit_commodity_needs.get(ids) <= 0.0f);
-					finished |= ve::compress_mask(need_no_more_goods).v;
-				});
-				if(finished) {
+				bool need_more_goods = any_unit_needs_left(unit_commodity_needs);
+				if(!need_more_goods) {
 					break;
 				}
 			}
@@ -10985,7 +10830,7 @@ void update_supply_routes_daily(sys::state& state) {
 			auto path = state.world.army_supply_route_get_path(route);
 			auto market = state.world.army_supply_route_get_origin(route);
 			auto state_inst = state.world.market_get_zone_from_local_market(market);
-			if(path_out_of_date || path.size() == 0) {
+			if(path_out_of_date || throughput == 0.0f) {
 				//Try make new path
 				update_army_supply_route_path(state, route);
 
@@ -11000,7 +10845,7 @@ void update_supply_routes_daily(sys::state& state) {
 			auto path = state.world.navy_supply_route_get_path(route);
 			auto market = state.world.navy_supply_route_get_origin(route);
 			auto state_inst = state.world.market_get_zone_from_local_market(market);
-			if(path_out_of_date || path.size() == 0) {
+			if(path_out_of_date || throughput == 0.0f) {
 				//Try make new path
 				update_navy_supply_route_path(state, route);
 
@@ -11085,37 +10930,50 @@ void update_supply_routes_daily(sys::state& state) {
 				auto supply_cost_mod = get_land_supply_cost_modifiers(state, regiment);
 				auto unit_type = regiment.get_type();
 				const auto& supplies_cost = state.military_definitions.unit_base_definitions[unit_type].supply_cost;
-				float total_goods_needed = 0.0f;
+				float total_goods_desired = 0.0f;
 				float total_goods_consumed = 0.0f;
-				supplies_cost.for_each_commodity([&](dcon::commodity_id com_id, float amount) {
-					amount *= supply_cost_mod * supply_consumption;
+				supplies_cost.for_each_commodity([&](dcon::commodity_id com_id, float desired_amount) {
+					desired_amount *= supply_cost_mod * supply_consumption;
 					float max_available = supply_buffer.get(com_id);
-					float to_consume = std::min(max_available, amount);
-					assert(max_available - amount >= 0.0f);
-					supply_buffer.set(com_id, max_available - amount);
-					total_goods_needed += amount;
+					float to_consume = std::min(max_available, desired_amount);
+					assert(max_available - to_consume >= 0.0f);
+					supply_buffer.set(com_id, max_available - to_consume);
+					total_goods_desired += desired_amount;
 					total_goods_consumed += to_consume;
 				});
-				float satisfaction = total_goods_consumed / (total_goods_needed == 0.0f ? total_goods_consumed : total_goods_needed) * supply_consumption; // Guard against units with no supply costs
+				float satisfaction;
+				if(total_goods_desired == 0.0f) {
+					satisfaction = 0.0f;
+				}
+				else {
+					satisfaction = total_goods_consumed / total_goods_desired * supply_consumption; 
+				}
 				regiment.set_supply_satisfaction(satisfaction);
 
 
 				auto potential_reinforcement = estimate_regiment_reinforcement<interval_estimation::daily, supply_estimation::full_supply_always, false>(state, regiment);
 				const auto& build_cost = state.military_definitions.unit_base_definitions[unit_type].build_cost;
-				total_goods_needed = 0.0f;
+				total_goods_desired = 0.0f;
 				total_goods_consumed = 0.0f;
-				build_cost.for_each_commodity([&](dcon::commodity_id com_id, float amount) {
-					amount *= potential_reinforcement * reinforcement_consumption;
+				build_cost.for_each_commodity([&](dcon::commodity_id com_id, float desired_amount) {
+					desired_amount *= potential_reinforcement * reinforcement_consumption;
 					float max_available = supply_buffer.get(com_id);
-					float to_consume = std::min(max_available, amount);
-					assert(max_available - amount >= 0.0f);
-					supply_buffer.set(com_id, max_available - amount);
-					total_goods_needed += amount;
+					float to_consume = std::min(max_available, desired_amount);
+					assert(max_available - to_consume >= 0.0f);
+					supply_buffer.set(com_id, max_available - to_consume);
+					total_goods_desired += desired_amount;
 					total_goods_consumed += to_consume;
 				});
-				satisfaction = total_goods_consumed / (total_goods_needed == 0.0f ? total_goods_consumed : total_goods_needed) * reinforcement_consumption; // Guard against units with no supply costs
+				if(total_goods_desired == 0.0f) {
+					satisfaction = 1.0f;
+				}
+				else {
+					satisfaction = total_goods_consumed / total_goods_desired * reinforcement_consumption; 
+				}
 				regiment.set_last_reinforcement_satisfaction(satisfaction);
 				regiment.set_reinforcement_satisfaction_buffer(regiment.get_reinforcement_satisfaction_buffer() + (satisfaction * potential_reinforcement));
+				assert(std::isfinite(regiment.get_reinforcement_satisfaction_buffer()));
+				int igfg = 5;
 			}
 		}
 		// Rebels get zero supply & reinforcements for now
@@ -11169,37 +11027,49 @@ void update_supply_routes_daily(sys::state& state) {
 			auto supply_cost_mod = get_naval_supply_cost_modifiers(state, ship);
 			auto unit_type = ship.get_type();
 			const auto& supplies_cost = state.military_definitions.unit_base_definitions[unit_type].supply_cost;
-			float total_goods_needed = 0.0f;
+			float total_goods_desired = 0.0f;
 			float total_goods_consumed = 0.0f;
-			supplies_cost.for_each_commodity([&](dcon::commodity_id com_id, float amount) {
-				amount *= supply_cost_mod * supply_consumption;
+			supplies_cost.for_each_commodity([&](dcon::commodity_id com_id, float desired_amount) {
+				desired_amount *= supply_cost_mod * supply_consumption;
 				float max_available = supply_buffer.get(com_id);
-				float to_consume = std::min(max_available, amount);
-				assert(max_available - amount >= 0.0f);
-				supply_buffer.set(com_id, max_available - amount);
-				total_goods_needed += amount;
+				float to_consume = std::min(max_available, desired_amount);
+				assert(max_available - to_consume >= 0.0f);
+				supply_buffer.set(com_id, max_available - to_consume);
+				total_goods_desired += desired_amount;
 				total_goods_consumed += to_consume;
 			});
-			float satisfaction = total_goods_consumed / (total_goods_needed == 0.0f ? total_goods_consumed : total_goods_needed) * supply_consumption; // Guard against units with no supply costs
+			float satisfaction;
+			if(total_goods_desired == 0.0f) {
+				satisfaction = 1.0f;
+			}
+			else {
+				satisfaction = total_goods_consumed / total_goods_desired * supply_consumption;
+			}
 			ship.set_supply_satisfaction(satisfaction);
 
 
 			auto potential_reinforcement = estimate_ship_reinforcement<interval_estimation::daily, supply_estimation::full_supply_always, false>(state, ship);
 			const auto& build_cost = state.military_definitions.unit_base_definitions[unit_type].build_cost;
-			total_goods_needed = 0.0f;
+			total_goods_desired = 0.0f;
 			total_goods_consumed = 0.0f;
-			build_cost.for_each_commodity([&](dcon::commodity_id com_id, float amount) {
-				amount *= potential_reinforcement * reinforcement_consumption;
+			build_cost.for_each_commodity([&](dcon::commodity_id com_id, float desired_amount) {
+				desired_amount *= potential_reinforcement * reinforcement_consumption;
 				float max_available = supply_buffer.get(com_id);
-				float to_consume = std::min(max_available, amount);
-				assert(max_available - amount >= 0.0f);
-				supply_buffer.set(com_id, max_available - amount);
-				total_goods_needed += amount;
+				float to_consume = std::min(max_available, desired_amount);
+				assert(max_available - to_consume >= 0.0f);
+				supply_buffer.set(com_id, max_available - to_consume);
+				total_goods_desired += desired_amount;
 				total_goods_consumed += to_consume;
 			});
-			satisfaction = total_goods_consumed / (total_goods_needed == 0.0f ? total_goods_consumed : total_goods_needed) * reinforcement_consumption; // Guard against units with no supply costs
+			if(total_goods_desired == 0.0f) {
+				satisfaction = 1.0f;
+			}
+			else {
+				satisfaction = total_goods_consumed / total_goods_desired * reinforcement_consumption; 
+			}
 			ship.set_last_reinforcement_satisfaction(satisfaction);
 			ship.set_reinforcement_satisfaction_buffer(ship.get_reinforcement_satisfaction_buffer() + (satisfaction * potential_reinforcement));
+			assert(std::isfinite(ship.get_reinforcement_satisfaction_buffer()));
 		}
 	});
 
@@ -11752,6 +11622,49 @@ void move_navy_to_merge(sys::state& state, dcon::nation_id by, dcon::navy_id a, 
 	}
 }
 
+
+float navy_get_strength(const sys::state& state, dcon::navy_id navy) {
+	float total = 0.0f;
+	for(auto r : state.world.navy_get_navy_membership(navy)) {
+		auto ship = r.get_ship();
+		total += ship.get_strength();
+	}
+	return total;
+}
+
+float enemy_navy_strength_present(const sys::state& state, dcon::province_id location, dcon::nation_id nation_as) {
+	float total = 0.0f;
+	for(auto a : state.world.province_get_navy_location(location)) {
+		auto navy = a.get_navy();
+		auto controller = navy.get_controller_from_navy_control();
+		if(are_enemies(state, nation_as, controller)) {
+			total += navy_get_strength(state, navy);
+		}
+	}
+	return total;
+}
+
+float army_get_strength(const sys::state& state, dcon::army_id army) {
+	float total = 0.0f;
+	for(auto r : state.world.army_get_army_membership(army)) {
+		auto reg = r.get_regiment();
+		total += reg.get_strength();
+	}
+	return total;
+}
+
+float enemy_army_strength_present(const sys::state& state, dcon::province_id location, dcon::nation_id nation_as) {
+	float total = 0.0f;
+	for(auto a : state.world.province_get_army_location(location)) {
+		auto army = a.get_army();
+		auto controller = army.get_controller_from_army_control();
+		if(are_enemies(state, nation_as, controller)) {
+			total += army_get_strength(state, army);
+		}
+	}
+	return total;
+}
+
 bool pop_eligible_for_mobilization(sys::state& state, dcon::pop_id p) {
 	auto const pop = dcon::fatten(state.world, p);
 	return pop.get_poptype() != state.culture_definitions.soldiers
@@ -11781,27 +11694,47 @@ void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id) {
 }
 constexpr float infinite_supply_thoughput = 999999999999999.0f;
 constexpr float base_supply_thoughput = 100.0f;
-constexpr float base_supply_attrition = 0.0001f;
+constexpr float supply_throughput_infrastructure = 4.0f;
+constexpr float base_land_supply_attrition = 0.0001f;
+constexpr float base_sea_supply_attrition = 0.00001f;
+
+constexpr float control_level_supply_attrition = 0.002f; // the supply loss % per km of travel if province control is 0%. Scales back to 0 at 100% control.
+constexpr float militancy_supply_attrition = 0.0003f; // the supply loss % per km of travel per average militancy in the province.
+constexpr float hostile_army_supply_attrition = 0.008f; // the supply loss % per km of travel per POP_REGIMENT_SIZE enemy strength present in the land province
+constexpr float hostile_navy_supply_attrition = 0.008f; // the supply loss % per km of travel per 100% enemy ship strength present in the sea province
 
 // Draft values
 float max_supply_thoughput(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
-	auto is_sea = (state.province_definitions.first_sea_province.index() >= province.index());
+	auto is_sea = province::is_sea(state, province);
 	if(is_sea) {
 		return infinite_supply_thoughput;
 	}
 	auto we_control_prov = (state.world.province_get_nation_from_province_control(province) == nation_as);
-	return base_supply_thoughput * province::get_infrastructure(state, province) * (1.0f + state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::movement_cost)) * (we_control_prov ? 1.0f - state.world.province_get_siege_progress(province) : 0.0f);
+	float infrastructure = province::get_infrastructure(state, province);
+	float movement_cost = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::movement_cost);
+	float siege_progress = state.world.province_get_siege_progress(province);
+	return std::max(base_supply_thoughput + supply_throughput_infrastructure * infrastructure * (1.0f + movement_cost) * (we_control_prov ? 1.0f - siege_progress : siege_progress), 0.0f);
 }
 float province_supply_attrition(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
+	bool province_is_sea = province::is_sea(state, province);
+	if(province_is_sea) {
+		auto enemy_strength_present = enemy_navy_strength_present(state, province, nation_as);
+		return std::clamp(1.0f - (base_sea_supply_attrition + hostile_navy_supply_attrition * enemy_strength_present), 0.0f, 1.0f);
+	}
+	auto enemy_strength_present = enemy_army_strength_present(state, province, nation_as);
+
 	auto province_is_occupied = (state.world.province_get_nation_from_province_control(province) != state.world.province_get_nation_from_province_ownership(province));
-	return 1.0f - (base_supply_attrition * (1.0f + state.world.province_get_control_scale(province)) * state.world.province_get_demographics(province, demographics::militancy) * (province_is_occupied ? 10.0f : 1.0f));
+	float militancy = state.world.province_get_demographics(province, demographics::militancy);
+	float control_level = state.world.province_get_control_ratio(province);
+	return std::clamp(1.0f - (base_land_supply_attrition + control_level_supply_attrition * (1.0f - control_level) + militancy_supply_attrition * militancy + hostile_army_supply_attrition * enemy_strength_present), 0.0f, 1.0f);
 }
-float adjacency_supply_attrition(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as) {
-	auto distance = state.world.province_adjacency_get_distance(province_adj);
+float adjacency_supply_attrition(sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as) {
 	auto prov_1 = state.world.province_adjacency_get_connected_provinces(province_adj, 0);
 	auto prov_2 = state.world.province_adjacency_get_connected_provinces(province_adj, 1);
+	auto distance = state.world.province_adjacency_get_distance_km(province_adj) * get_avg_movement_cost_modifier(state,nation_as, prov_1, prov_2 );
 	auto avg_supply_attr = (province_supply_attrition(state, prov_1, nation_as) + province_supply_attrition(state, prov_2, nation_as)) / 2.0f;
-	return distance * avg_supply_attr;
+	assert(std::isfinite(distance * avg_supply_attr));
+	return std::powf(avg_supply_attr, distance);
 }
 
 
@@ -12009,12 +11942,12 @@ void split_navy(sys::state& state, dcon::nation_id source, dcon::navy_id navy, s
 	if(ships_to_split.size() > 0) {
 		auto new_u = fatten(state.world, state.world.create_navy());
 		new_u.set_controller_from_navy_control(state.world.navy_get_controller_from_navy_control(navy));
-		new_u.set_location_from_navy_location(state.world.navy_get_location_from_navy_location(navy));
 		new_u.set_months_outside_naval_range(state.world.navy_get_months_outside_naval_range(navy));
 
 		for(auto t : ships_to_split) {
 			state.world.ship_set_navy_from_navy_membership(t, new_u);
 		}
+		navy_arrives_in_province(state, new_u, state.world.navy_get_location_from_navy_location(navy));
 		if constexpr(Actor == command::actor::player) {
 			if(source == state.local_player_nation) {
 				state.ui_state.invoke_on_ui_thread([](sys::state& state, ui::ui_function_argument arg) {
@@ -12082,13 +12015,13 @@ void split_army(sys::state& state, dcon::nation_id source, dcon::army_id army, s
 	if(regiments_to_split.size() > 0) {
 		auto new_u = fatten(state.world, state.world.create_army());
 		new_u.set_controller_from_army_control(state.world.army_get_controller_from_army_control(army));
-		new_u.set_location_from_army_location(state.world.army_get_location_from_army_location(army));
 		new_u.set_black_flag(state.world.army_get_black_flag(army));
 		new_u.set_dig_in(state.world.army_get_dig_in(army));
 
 		for(auto t : regiments_to_split) {
 			state.world.regiment_set_army_from_army_membership(t, new_u);
 		}
+		army_arrives_in_province<apply_attrition_on_arrival::no>(state, new_u, state.world.army_get_location_from_army_location(army), crossing_type::none);
 		if constexpr(Actor == command::actor::player) {
 			if(source == state.local_player_nation) {
 				state.ui_state.invoke_on_ui_thread([](sys::state& state, ui::ui_function_argument arg) {

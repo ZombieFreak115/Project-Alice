@@ -4551,6 +4551,7 @@ object{
 	property {
 		name{ govt_stockpile_satisfaction_buffer }
 		type{ array{commodity_id}{float} }
+		tag{ save }
 	}
 	property {
 		name{ wealth }
