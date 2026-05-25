@@ -3854,7 +3854,7 @@ bool should_supply_route_be_deleted(sys::state& state, dcon::army_supply_route_i
 	auto state_control = state.world.state_instance_get_nation_from_state_control(state_inst);
 	auto army = state.world.army_supply_route_get_army(route);
 	auto army_control = state.world.army_get_controller_from_army_control(army);
-	return state.world.army_supply_route_get_volume(route) == 0.0f || state_control != army_control;
+	return !army_control || state.world.army_supply_route_get_volume(route) == 0.0f || state_control != army_control;
 }
 bool should_supply_route_be_deleted(sys::state& state, dcon::navy_supply_route_id route) {
 	auto market = state.world.navy_supply_route_get_origin(route);
@@ -3893,8 +3893,7 @@ void cleanup_supply_routes(sys::state& state) {
 
 void run_gc(sys::state& state) {
 
-
-	// cleanup supply routes. This one may be heavy as it may delete alot of heavy objects
+	// cleanup invalid supply routes
 	cleanup_supply_routes(state);
 
 	//
@@ -9533,24 +9532,24 @@ void increase_dig_in(sys::state& state) {
 	}
 }
 
-economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id owner, dcon::army_id army) {
-	uint32_t total_commodities = state.world.commodity_size();
 
-	economy::commodity_set commodities;
-	for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-		commodities.commodity_amounts[i] = 0.0f;
-	}
+
+
+
+tagged_vector<float, dcon::commodity_id> get_required_reinforcement_supply(sys::state& state, dcon::nation_id owner, dcon::army_id army) {
+	uint32_t total_commodities = state.world.commodity_size();
+	tagged_vector<float, dcon::commodity_id> commodities(total_commodities);
 
 	for(auto r : state.world.army_get_army_membership(army)) {
 		auto reg = fatten(state.world, r);
 		auto type = state.world.regiment_get_type(r.get_regiment());
 
-		auto mods = get_land_supply_cost_modifiers(state, reg.get_regiment());
-		const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
+		auto mods = estimate_regiment_reinforcement<interval_estimation::daily, supply_estimation::full_supply_always, false>(state, reg.get_regiment());
+		const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
 		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-			if(supply_cost.commodity_type[i]) {
-				commodities.commodity_amounts[i] += supply_cost.commodity_amounts[i] * mods;
-				commodities.commodity_type[i] = supply_cost.commodity_type[i];
+			auto com_type = build_cost.commodity_type[i];
+			if(com_type) {
+				commodities[com_type] += build_cost.commodity_amounts[i] * mods;
 			} else {
 				break;
 			}
@@ -9561,15 +9560,63 @@ economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id ow
 	return commodities;
 }
 
-economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id owner, dcon::navy_id navy) {
-	// supply amount = type_consumption * (2 - admin_eff)*[(type_consumption_mod^0.01)*land_spending]
-	float supply_amount = .0f;
-	int32_t amount_of_units = 0;
+tagged_vector<float, dcon::commodity_id> get_required_reinforcement_supply(sys::state& state, dcon::nation_id owner, dcon::navy_id navy) {
+	uint32_t total_commodities = state.world.commodity_size();
+	tagged_vector<float, dcon::commodity_id> commodities(total_commodities);
 
-	economy::commodity_set commodities;
-	for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-		commodities.commodity_amounts[i] = 0.0f;
+	for(auto r : state.world.navy_get_navy_membership(navy)) {
+		auto ship = fatten(state.world, r);
+		auto type = state.world.ship_get_type(ship.get_ship());
+
+		auto mods = estimate_ship_reinforcement<interval_estimation::daily, supply_estimation::full_supply_always, false>(state, ship.get_ship());
+		const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
+		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
+			auto com_type = build_cost.commodity_type[i];
+			if(com_type) {
+				commodities[com_type] += build_cost.commodity_amounts[i] * mods;
+			} else {
+				break;
+			}
+		}
+
 	}
+
+	return commodities;
+}
+
+
+
+
+
+
+tagged_vector<float, dcon::commodity_id> get_required_supply(sys::state& state, dcon::nation_id owner, dcon::army_id army) {
+	uint32_t total_commodities = state.world.commodity_size();
+	tagged_vector<float, dcon::commodity_id> commodities(total_commodities);
+
+	for(auto r : state.world.army_get_army_membership(army)) {
+		auto reg = fatten(state.world, r);
+		auto type = state.world.regiment_get_type(r.get_regiment());
+
+		auto mods = get_land_supply_cost_modifiers(state, reg.get_regiment());
+		const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
+		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
+			auto com_type = supply_cost.commodity_type[i];
+			if(com_type) {
+				commodities[com_type] += supply_cost.commodity_amounts[i] * mods;
+			} else {
+				break;
+			}
+		}
+
+	}
+
+	return commodities;
+}
+
+tagged_vector<float, dcon::commodity_id> get_required_supply(sys::state& state, dcon::nation_id owner, dcon::navy_id navy) {
+	uint32_t total_commodities = state.world.commodity_size();
+	tagged_vector<float, dcon::commodity_id> commodities(total_commodities);
+
 
 	for(auto sh : state.world.navy_get_navy_membership(navy)) {
 		auto shp = fatten(state.world, sh.get_ship());
@@ -9579,9 +9626,9 @@ economy::commodity_set get_required_supply(sys::state& state, dcon::nation_id ow
 			auto mods = get_naval_supply_cost_modifiers(state, shp);
 			const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
 			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-				if(supply_cost.commodity_type[i]) {
-					commodities.commodity_amounts[i] += supply_cost.commodity_amounts[i] * mods;
-					commodities.commodity_type[i] = supply_cost.commodity_type[i];
+				auto com_type = supply_cost.commodity_type[i];
+				if(com_type) {
+					commodities[com_type] += supply_cost.commodity_amounts[i] * mods;
 				} else {
 					break;
 				}
@@ -10253,7 +10300,7 @@ void update_army_supply_route_throughput_attrition(sys::state& state, dcon::army
 	// If destination and origin are diffrent, and path size is 0, that means no path is available.
 	if(destination != origin_prov && path.size() == 0) {
 		state.world.army_supply_route_set_throughput(route, 0.0f);
-		state.world.army_supply_route_set_route_attrition(route, 0.0f);
+		state.world.army_supply_route_set_route_attrition(route, 1.0f);
 		return;
 	}
 	float total_attrition_mod = 1.0f;
@@ -10287,7 +10334,7 @@ void update_navy_supply_route_throughput_attrition(sys::state& state, dcon::navy
 	// If destination and origin are diffrent, and path size is 0, that means no path is available.
 	if(destination != origin_prov && path.size() == 0) {
 		state.world.navy_supply_route_set_throughput(route, 0.0f);
-		state.world.navy_supply_route_set_route_attrition(route, 0.0f);
+		state.world.navy_supply_route_set_route_attrition(route, 1.0f);
 		return;
 	}
 	float total_attrition_mod = 1.0f;
@@ -10314,6 +10361,9 @@ void update_army_supply_route_path(sys::state& state, dcon::army_supply_route_id
 	auto state_inst = state.world.market_get_zone_from_local_market(market);
 	auto army = state.world.army_supply_route_get_army(route);
 	auto controller = state.world.army_get_controller_from_army_control(army);
+	if(!controller) {
+		return;
+	}
 	auto location = state.world.army_get_location_from_army_location(army);
 	auto volume = state.world.army_supply_route_get_volume(route);
 	static std::vector<dcon::province_id> path;
@@ -10406,8 +10456,6 @@ void update_supply_routes_monthly(sys::state& state) {
 
 
 void update_supply_routes_daily(sys::state& state) {
-
-
 
 	// STEP 1: initialize buffers, and sort all units (navy and armies alike) by their reinforcement and supply priorities
 
@@ -10567,12 +10615,18 @@ void update_supply_routes_daily(sys::state& state) {
 	};
 
 	auto any_unit_needs_left = [&](ve::vectorizable_buffer<float, dcon::commodity_id>& unit_needs) {
-		bool more_goods_still_required = false;
+		/*bool more_goods_still_required = false;
 		state.world.execute_serial_over_commodity([&](auto ids) {
 			ve::mask_vector need_more_goods = (unit_needs.get(ids) > 0.0f);
 			more_goods_still_required |= (ve::compress_mask(need_more_goods).v != 0);
 		});
-		return more_goods_still_required;
+		return more_goods_still_required;*/
+		for(auto com_id : state.world.in_commodity) {
+			if(unit_needs.get(com_id) > 0.0f) {
+				return true;
+			}
+		}
+		return false;
 	};
 
 
@@ -11698,9 +11752,9 @@ constexpr float supply_throughput_infrastructure = 4.0f;
 constexpr float base_land_supply_attrition = 0.0001f;
 constexpr float base_sea_supply_attrition = 0.00001f;
 
-constexpr float control_level_supply_attrition = 0.002f; // the supply loss % per km of travel if province control is 0%. Scales back to 0 at 100% control.
+constexpr float control_level_supply_attrition = 0.001f; // the supply loss % per km of travel if province control is 0%. Scales back to 0 at 100% control.
 constexpr float militancy_supply_attrition = 0.0003f; // the supply loss % per km of travel per average militancy in the province.
-constexpr float hostile_army_supply_attrition = 0.008f; // the supply loss % per km of travel per POP_REGIMENT_SIZE enemy strength present in the land province
+constexpr float hostile_army_supply_attrition = 0.008f; // the supply loss % per km of travel per POP_SIZE_PER_REGIMENT enemy strength present in the land province
 constexpr float hostile_navy_supply_attrition = 0.008f; // the supply loss % per km of travel per 100% enemy ship strength present in the sea province
 
 // Draft values
@@ -11719,14 +11773,16 @@ float province_supply_attrition(const sys::state& state, dcon::province_id provi
 	bool province_is_sea = province::is_sea(state, province);
 	if(province_is_sea) {
 		auto enemy_strength_present = enemy_navy_strength_present(state, province, nation_as);
-		return std::clamp(1.0f - (base_sea_supply_attrition + hostile_navy_supply_attrition * enemy_strength_present), 0.0f, 1.0f);
+		return std::clamp(1.0f - (base_sea_supply_attrition + hostile_navy_supply_attrition * (enemy_strength_present / 100.0f)), 0.1f, 1.0f);
 	}
 	auto enemy_strength_present = enemy_army_strength_present(state, province, nation_as);
 
 	auto province_is_occupied = (state.world.province_get_nation_from_province_control(province) != state.world.province_get_nation_from_province_ownership(province));
-	float militancy = state.world.province_get_demographics(province, demographics::militancy);
+	float total_militancy = state.world.province_get_demographics(province, demographics::militancy);
+	float total_pop = state.world.province_get_demographics(province, demographics::total);
+	float avg_militancy = (total_pop == 0.0f ? 0.0f : total_militancy / total_pop);
 	float control_level = state.world.province_get_control_ratio(province);
-	return std::clamp(1.0f - (base_land_supply_attrition + control_level_supply_attrition * (1.0f - control_level) + militancy_supply_attrition * militancy + hostile_army_supply_attrition * enemy_strength_present), 0.0f, 1.0f);
+	return std::clamp(1.0f - (base_land_supply_attrition + control_level_supply_attrition * (1.0f - control_level) + militancy_supply_attrition * avg_militancy + hostile_army_supply_attrition * enemy_strength_present), 0.1f, 1.0f);
 }
 float adjacency_supply_attrition(sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as) {
 	auto prov_1 = state.world.province_adjacency_get_connected_provinces(province_adj, 0);

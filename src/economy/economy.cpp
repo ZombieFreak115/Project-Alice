@@ -1334,13 +1334,9 @@ void populate_army_consumption(sys::state& state) {
 			dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
 			auto market = state.world.state_instance_get_market_from_local_market(state_instance);
 			economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
-				// Apply elasticity
-				auto sat = state.world.market_get_expected_probability_to_buy(market, commodity);
-				auto sat_importance = std::min(1.f, 1.f / (price(state, market, commodity) + 0.001f));
-				auto sat_coefficient = (sat_importance + (1.f - sat_importance) * sat);
 
 				float percentage_weight = market_demand_weights[commodity][market];
-				state.world.market_set_army_demand(market, commodity, commodity_demand_buffer[nation][commodity] * sat_coefficient * percentage_weight);
+				state.world.market_set_army_demand(market, commodity, commodity_demand_buffer[nation][commodity] * percentage_weight);
 			});
 
 		});
@@ -1424,13 +1420,9 @@ void populate_navy_consumption(sys::state& state) {
 			dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
 			auto market = state.world.state_instance_get_market_from_local_market(state_instance);
 			economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
-				// Apply elasticity
-				auto sat = state.world.market_get_expected_probability_to_buy(market, commodity);
-				auto sat_importance = std::min(1.f, 1.f / (price(state, market, commodity) + 0.001f));
-				auto sat_coefficient = (sat_importance + (1.f - sat_importance) * sat);
 
 				float percentage_weight = market_demand_weights[commodity][market];
-				state.world.market_set_navy_demand(market, commodity, commodity_demand_buffer[nation][commodity] * sat_coefficient * percentage_weight);
+				state.world.market_set_navy_demand(market, commodity, commodity_demand_buffer[nation][commodity] * percentage_weight);
 			});
 
 		});

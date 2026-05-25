@@ -523,7 +523,6 @@ void set_state_controller(sys::state& state, dcon::state_instance_id state_inst,
 		auto old_controller_total_stockpile = state.world.nation_get_total_stockpiles(old_controller, commodity);
 		auto new_controller_total_stockpile = state.world.nation_get_total_stockpiles(new_controller, commodity);
 		if(old_controller) {
-			assert(old_controller_total_stockpile >= curr_local_stockpile);
 			state.world.nation_set_total_stockpiles(old_controller, commodity, std::max(old_controller_total_stockpile - curr_local_stockpile, 0.0f));
 		}
 		if(new_controller) {

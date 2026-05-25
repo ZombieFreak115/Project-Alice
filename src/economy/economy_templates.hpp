@@ -56,10 +56,6 @@ void for_each_upgraded_factory(sys::state& state, dcon::province_id s, F&& func)
 }
 
 
-
-
-
-
 // Iterates over each commodity but skips money
 template<typename F>
 void for_each_commodity_no_money(sys::state& state, F&& func) {
