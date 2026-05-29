@@ -23,6 +23,7 @@ bool has_building(sys::state const& state, dcon::state_instance_id si, dcon::fac
 bool is_bankrupt_debtor_to(sys::state& state, dcon::nation_id debt_holder, dcon::nation_id debtor);
 
 void set_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount);
+void set_government_stockpile(sys::state& state, ve::contiguous_tags<dcon::nation_id> controller, ve::contiguous_tags<dcon::market_id> market, dcon::commodity_id commodity, float amount);
 
 bool nation_is_constructing_factories(sys::state& state, dcon::nation_id n);
 bool nation_has_closed_factories(sys::state& state, dcon::nation_id n);

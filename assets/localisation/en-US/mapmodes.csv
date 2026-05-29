@@ -43,6 +43,9 @@ mapmode_41;Crime
 mapmode_42;Rally points
 mapmode_43;Workforce
 mapmode_44;Mobilization
+mapmode_45;Supply Loss
+mapmode_46;Max Supply Throughput
+mapmode_47;Supply Routes Throughput Efficiency
 legend_min_mapmode_8;Low admin
 legend_min_mapmode_19;Uncivilized
 legend_min_mapmode_7;Uncolonized
@@ -67,6 +70,9 @@ legend_min_mapmode_38;Low amount
 legend_min_mapmode_39;Poor CTC ratio
 legend_min_mapmode_40;Low life rating
 legend_min_mapmode_44;Low regiment count
+legend_min_mapmode_45;High supply loss
+legend_min_mapmode_46;Low max supply throughput
+legend_min_mapmode_47;Low efficiency
 legend_max_mapmode_8;High admin
 legend_max_mapmode_19;Civilized
 legend_max_mapmode_7;Colonizable
@@ -91,6 +97,9 @@ legend_max_mapmode_38;High amount
 legend_max_mapmode_39;Rich CTC ratio
 legend_max_mapmode_40;High life rating
 legend_max_mapmode_44;High regiment count
+legend_max_mapmode_45;Low supply loss
+legend_max_mapmode_46;High max supply throughput
+legend_max_mapmode_47;High efficiency
 mapmode_tooltip_34;Player: $x$ 
 mapmode_tooltip_34_you_sp;This is you! 
 mapmode_tooltip_34_you;Player: $x$ (This is you!) 
@@ -108,6 +117,9 @@ mapmode_tooltip_42_2;Naval rally point
 mapmode_tooltip_43;Workforce distribution:
 mapmode_tooltip_44;Mobilized regiments from this province: $x$ (out of $y$ possible)
 mapmode_tooltip_44_2;No possible regiments
+mapmode_tooltip_45;Supply loss % per KM for us: ?Y$val$?W
+mapmode_tooltip_46;Max supply throughput per day: ?Y$val$?W
+mapmode_tooltip_47;Used supply throughput per day: ?Y$val$?W\nMax supply throughput: ?Y$value$?W\n?Y$val$?W / ?Y$value$?W = ?Y$result$?W supply efficiency for our supply routes in this province
 mapmode_tooltip_name;$state$ ($name$ - )
 mapmode_tooltip_core_entry;$$faction$ - $name$
 mapmode_tooltip_state_entry; - $state$ \n $continentname$

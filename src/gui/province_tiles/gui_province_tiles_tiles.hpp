@@ -678,10 +678,8 @@ public:
 		auto reduced_multiplier = 0.2f;
 		auto coast_multiplier = is_coastal ? reduced_multiplier : normal_multiplier; // Coastal reduces decay by 20%
 		auto river_multiplier = has_major_river ? reduced_multiplier : normal_multiplier; // Rivers reduce decay by 20%
-		auto movement = std::max(
-			0.f,
-			state.world.province_get_modifier_values(pids, sys::provincial_mod_offsets::movement_cost) + 1.f
-		); // High movement cost increases decay
+		auto movement = province::movement_cost(state, pids) + 1.f;
+		 // High movement cost increases decay
 		auto attrition = std::max(
 			0.f,
 			state.world.province_get_modifier_values(pids, sys::provincial_mod_offsets::max_attrition) + 1.f

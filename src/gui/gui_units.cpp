@@ -2266,14 +2266,14 @@ public:
 		uint32_t unit_count = 1;
 		// grab avg supply for all regiments in the army
 		if(army) {
-			unit_count = state.world.army_get_army_membership(army).end() - state.world.army_get_army_membership(army).begin();
+			unit_count = uint32_t(state.world.army_get_army_membership(army).end() - state.world.army_get_army_membership(army).begin());
 			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
 			for(auto r : state.world.army_get_army_membership(army)) {
 				auto regiment = r.get_regiment();
 				total_supply += regiment.get_supply_satisfaction();
 			}
 		} else if(navy) {
-			unit_count = state.world.navy_get_navy_membership(navy).end() - state.world.navy_get_navy_membership(navy).begin();
+			unit_count = uint32_t(state.world.navy_get_navy_membership(navy).end() - state.world.navy_get_navy_membership(navy).begin());
 			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
 			for(auto r : state.world.navy_get_navy_membership(navy)) {
 				auto ship = r.get_ship();
@@ -2314,14 +2314,14 @@ public:
 		uint32_t unit_count = 1;
 		// grab avg supply for all regiments in the army
 		if(army) {
-			unit_count = state.world.army_get_army_membership(army).end() - state.world.army_get_army_membership(army).begin();
+			unit_count = uint32_t(state.world.army_get_army_membership(army).end() - state.world.army_get_army_membership(army).begin());
 			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
 			for(auto r : state.world.army_get_army_membership(army)) {
 				auto regiment = r.get_regiment();
 				total_reinf += regiment.get_last_reinforcement_satisfaction();
 			}
 		} else if(navy) {
-			unit_count = state.world.navy_get_navy_membership(navy).end() - state.world.navy_get_navy_membership(navy).begin();
+			unit_count = uint32_t(state.world.navy_get_navy_membership(navy).end() - state.world.navy_get_navy_membership(navy).begin());
 			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
 			for(auto r : state.world.navy_get_navy_membership(navy)) {
 				auto ship = r.get_ship();
@@ -2847,26 +2847,6 @@ private:
 template<typename T>
 class supply_priority_button : public button_element_base {
 private:
-	military::unit_priority increment(military::unit_priority priority) {
-		switch(priority) {
-		case military::unit_priority::high_priority:
-			return military::unit_priority::low_priority;
-		case military::unit_priority::low_priority:
-			return military::unit_priority::normal_priority;
-		case military::unit_priority::normal_priority:
-			return military::unit_priority::high_priority;
-		}
-	}
-	military::unit_priority decrement(military::unit_priority priority) {
-		switch(priority) {
-		case military::unit_priority::high_priority:
-			return military::unit_priority::normal_priority;
-		case military::unit_priority::low_priority:
-			return military::unit_priority::high_priority;
-		case military::unit_priority::normal_priority:
-			return military::unit_priority::low_priority;
-		}
-	}
 	void on_update(sys::state& state) noexcept override {
 		military::unit_priority priority;
 		if constexpr(std::is_same_v<T, dcon::army_id>) {
@@ -2895,11 +2875,11 @@ private:
 		if constexpr(std::is_same_v<T, dcon::army_id>) {
 			auto army = retrieve<dcon::army_id>(state, parent);
 			current_priority = state.world.army_get_supply_priority(army);
-			command::set_army_supply_priority(state, state.local_player_nation, army, increment(current_priority));
+			command::set_army_supply_priority(state, state.local_player_nation, army, military::increment_priority(current_priority));
 		} else {
 			auto navy = retrieve<dcon::navy_id>(state, parent);
 			current_priority = state.world.navy_get_supply_priority(navy);
-			command::set_navy_supply_priority(state, state.local_player_nation, navy, increment(current_priority));
+			command::set_navy_supply_priority(state, state.local_player_nation, navy, military::increment_priority(current_priority));
 		}
 	}
 	void button_right_action(sys::state& state) noexcept override {
@@ -2907,11 +2887,11 @@ private:
 		if constexpr(std::is_same_v<T, dcon::army_id>) {
 			auto army = retrieve<dcon::army_id>(state, parent);
 			current_priority = state.world.army_get_supply_priority(army);
-			command::set_army_supply_priority(state, state.local_player_nation, army, decrement(current_priority));
+			command::set_army_supply_priority(state, state.local_player_nation, army, military::decrement_priority(current_priority));
 		} else {
 			auto navy = retrieve<dcon::navy_id>(state, parent);
 			current_priority = state.world.navy_get_supply_priority(navy);
-			command::set_navy_supply_priority(state, state.local_player_nation, navy, decrement(current_priority));
+			command::set_navy_supply_priority(state, state.local_player_nation, navy, military::decrement_priority(current_priority));
 		}
 	}
 	tooltip_behavior has_tooltip(sys::state& state) noexcept override {

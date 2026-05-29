@@ -2916,7 +2916,7 @@ void make_military_supply_path(sys::state& state, dcon::state_instance_id start_
 	auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance) {
 		// Take into account the expected supply thoughput comsumption (max_supply_thoughput + expected_volume) and multiply with supply attrition to get a heuristic of the cost
 		float used_supply_thoughput = state.world.province_get_used_supply_throughput(to);
-		float thoughput_factor = (used_supply_thoughput != 0.0f ? std::min((military::max_supply_thoughput(state, to, nation_as) + expected_volume) / used_supply_thoughput, 1.0f) : 0.0f);
+		float thoughput_factor = (used_supply_thoughput != 0.0f ? std::min((military::max_supply_throughput(state, to, nation_as) + expected_volume) / used_supply_thoughput, 1.0f) : 0.0f);
 		return military::adjacency_supply_attrition(state, adj, nation_as) * thoughput_factor;
 
 	};

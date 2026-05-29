@@ -174,6 +174,35 @@ void restore_unsaved_values(sys::state& state) {
 	restore_cached_values(state);
 }
 
+float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
+	float fastest_speed = 0.01f;
+	for(uint32_t i = 0; i < state.military_definitions.unit_base_definitions.size(); ++i) {
+		dcon::unit_type_id type{ dcon::unit_type_id::value_base_t(i) };
+		auto unit_type = state.military_definitions.unit_base_definitions[type].type;
+		auto activated = state.world.nation_get_active_unit(nation_as, type);
+		if(activated && unit_type == military::unit_type::transport) {
+			fastest_speed = std::max(fastest_speed, state.world.nation_get_unit_stats(nation_as, type).maximum_speed);
+		}
+	}
+
+	return fastest_speed;
+}
+
+
+float land_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
+	float fastest_speed = 0.01f;
+	for(uint32_t i = 0; i < state.military_definitions.unit_base_definitions.size(); ++i) {
+		dcon::unit_type_id type{ dcon::unit_type_id::value_base_t(i) };
+		auto unit_type = state.military_definitions.unit_base_definitions[type].type;
+		auto activated = state.world.nation_get_active_unit(nation_as, type);
+		if(activated && (unit_type == military::unit_type::cavalry || unit_type == military::unit_type::infantry || unit_type == military::unit_type::support || unit_type == military::unit_type::special)) {
+			fastest_speed = std::max(fastest_speed, state.world.nation_get_unit_stats(nation_as, type).maximum_speed);
+		}
+	}
+
+	return fastest_speed;
+}
+
 void recalculate_markets_distance(sys::state& state) {
 	state.world.execute_parallel_over_market([&](auto markets) {
 		auto sids = state.world.market_get_zone_from_local_market(markets);
@@ -241,8 +270,8 @@ void recalculate_markets_distance(sys::state& state) {
 					auto adj = state.world.get_province_adjacency_by_province_pair(p_prev, p_current);
 					float distance = province::distance(state, adj);
 					float sum_mods =
-						state.world.province_get_modifier_values(p_current, sys::provincial_mod_offsets::movement_cost)
-						+ state.world.province_get_modifier_values(p_prev, sys::provincial_mod_offsets::movement_cost);
+						province::movement_cost(state, p_current)
+						+ province::movement_cost(state, p_prev);
 					effective_distance += std::max(0.01f, distance * std::max(0.01f, (sum_mods * 2.f + 1.0f)));
 					if(sum_mods > worst_movement_cost)
 						worst_movement_cost = std::max(0.01f, sum_mods);
@@ -292,8 +321,8 @@ void recalculate_markets_distance(sys::state& state) {
 
 					float distance = province::distance(state, adj);
 					float sum_mods =
-						state.world.province_get_modifier_values(p_current, sys::provincial_mod_offsets::movement_cost)
-						+ state.world.province_get_modifier_values(p_prev, sys::provincial_mod_offsets::movement_cost);
+						province::movement_cost(state, p_current)
+						+ province::movement_cost(state, p_prev);
 					float local_effective_distance = distance * std::max(0.01f, sum_mods * 3.f);
 					auto railroad_origin = state.world.province_get_building_level(p_prev, uint8_t(economy::province_building_type::railroad));
 					auto railroad_target = state.world.province_get_building_level(p_current, uint8_t(economy::province_building_type::railroad));
@@ -512,8 +541,8 @@ void generate_sea_trade_routes(sys::state& state) {
 					auto adj = state.world.get_province_adjacency_by_province_pair(p_prev, p_current);
 					float local_distance = province::distance(state, adj);
 					float sum_mods =
-						state.world.province_get_modifier_values(p_current, sys::provincial_mod_offsets::movement_cost)
-						+ state.world.province_get_modifier_values(p_prev, sys::provincial_mod_offsets::movement_cost);
+						province::movement_cost(state, p_current)
+						+ province::movement_cost(state, p_prev);
 					effective_distance += std::max(0.01f, local_distance * std::max(0.01f, (sum_mods * 2.f + 1.0f)));
 					if(sum_mods > worst_movement_cost)
 						worst_movement_cost = std::max(0.01f, sum_mods);
@@ -886,10 +915,10 @@ float control_shift_weight_mult(sys::state& state, dcon::province_adjacency_id a
 	}
 
 	auto movement_A = 1.f + std::max(0.f, (
-		state.world.province_get_modifier_values(A, sys::provincial_mod_offsets::movement_cost) + 1.f
+		province::movement_cost(state, A) + 1.f
 		));
 	auto movement_B = 1.f + std::max(0.f, (
-		state.world.province_get_modifier_values(B, sys::provincial_mod_offsets::movement_cost) + 1.f
+		province::movement_cost(state, B) + 1.f
 		));
 	auto distance = state.world.province_adjacency_get_distance(adj) * (movement_A * movement_B);
 
@@ -1111,7 +1140,7 @@ void update_administrative_efficiency(sys::state& state) {
 		auto river_multiplier = ve::select(has_major_river, reduced_multiplier, normal_multiplier); // Rivers reduce decay by 20%
 		auto movement = ve::max(
 			0.f,
-			state.world.province_get_modifier_values(pids, sys::provincial_mod_offsets::movement_cost) + 1.f
+			province::movement_cost(state, pids) + 1.f
 		); // High movement cost increases decay
 		auto attrition = ve::max(
 			0.f,

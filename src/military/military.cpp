@@ -4964,16 +4964,16 @@ float effective_navy_speed(sys::state& state, dcon::navy_id n) {
 }
 float get_avg_movement_cost_modifier(sys::state& state, dcon::nation_id as_nation, dcon::province_id prov_a, dcon::province_id prov_b) {
 	// take the average of the modifiers in the two provinces. If prov is a sea prov use 1.0f as the movement_cost.
-	float prov_a_mod = province::is_land(state, prov_a) ? province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_a, sys::provincial_mod_offsets::movement_cost) : 1.0f;
-	float prov_b_mod = province::is_land(state, prov_b) ? province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_b, sys::provincial_mod_offsets::movement_cost) : 1.0f;
+	float prov_a_mod = province::is_land(state, prov_a) ? std::max(province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_a, sys::provincial_mod_offsets::movement_cost), 0.01f) : 1.0f;
+	float prov_b_mod = province::is_land(state, prov_b) ? std::max(province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_b, sys::provincial_mod_offsets::movement_cost), 0.01f) : 1.0f;
 	float avg_mods = (prov_a_mod + prov_b_mod) / 2.0f;
 	return avg_mods;
 }
 
 float get_avg_movement_cost_modifier_unowned(sys::state& state, dcon::province_id prov_a, dcon::province_id prov_b) {
 	// take the average of the modifiers in the two provinces. If prov is a sea prov use 1.0f as the movement_cost.
-	float prov_a_mod = province::is_land(state, prov_a) ? state.world.province_get_modifier_values(prov_a, sys::provincial_mod_offsets::movement_cost) : 1.0f;
-	float prov_b_mod = province::is_land(state, prov_b) ? state.world.province_get_modifier_values(prov_b, sys::provincial_mod_offsets::movement_cost) : 1.0f;
+	float prov_a_mod = province::is_land(state, prov_a) ? province::movement_cost(state, prov_a) : 1.0f;
+	float prov_b_mod = province::is_land(state, prov_b) ? province::movement_cost(state, prov_b) : 1.0f;
 	float avg_mods = (prov_a_mod + prov_b_mod) / 2.0f;
 	return avg_mods;
 }
@@ -10315,7 +10315,7 @@ void update_army_supply_route_throughput_attrition(sys::state& state, dcon::army
 			assert(std::isfinite(total_attrition_mod));
 		}
 		float used_supply_throughput = state.world.province_get_used_supply_throughput(prov);
-		float local_supply_throughput = std::min(max_supply_thoughput(state, prov, controller) / (used_supply_throughput == 0.0f ? 1.0f : used_supply_throughput), 1.0f);
+		float local_supply_throughput = std::min(max_supply_throughput(state, prov, controller) / (used_supply_throughput == 0.0f ? 1.0f : used_supply_throughput), 1.0f);
 		smallest_supply_throughput = std::min(smallest_supply_throughput, local_supply_throughput);
 	}
 	assert(std::isfinite(smallest_supply_throughput));
@@ -10348,7 +10348,7 @@ void update_navy_supply_route_throughput_attrition(sys::state& state, dcon::navy
 			total_attrition_mod *= adjacency_supply_attrition(state, adj, controller);
 		}
 		float used_supply_throughput = state.world.province_get_used_supply_throughput(prov);
-		float local_supply_throughput = std::min(max_supply_thoughput(state, prov, controller) / (used_supply_throughput == 0.0f ? 1.0f : used_supply_throughput), 1.0f);
+		float local_supply_throughput = std::min(max_supply_throughput(state, prov, controller) / (used_supply_throughput == 0.0f ? 1.0f : used_supply_throughput), 1.0f);
 		smallest_supply_throughput = std::min(smallest_supply_throughput, local_supply_throughput);
 	}
 	state.world.navy_supply_route_set_route_attrition(route, total_attrition_mod);
@@ -10524,8 +10524,8 @@ void update_supply_routes_daily(sys::state& state) {
 			if(a_is_army != b_is_army) {
 				return a_is_army > b_is_army;
 			}
-			uint16_t a_index = (a_is_army ? unit_a.content.army.index() : unit_a.content.navy.index());
-			uint16_t b_index = (b_is_army ? unit_b.content.army.index() : unit_b.content.navy.index());
+			uint32_t a_index = (a_is_army ? unit_a.content.army.index() : unit_a.content.navy.index());
+			uint32_t b_index = (b_is_army ? unit_b.content.army.index() : unit_b.content.navy.index());
 			return a_index > b_index;
 		});
 	},
@@ -10549,8 +10549,8 @@ void update_supply_routes_daily(sys::state& state) {
 			if(a_is_army != b_is_army) {
 				return a_is_army > b_is_army;
 			}
-			uint16_t a_index = (a_is_army ? unit_a.content.army.index() : unit_a.content.navy.index());
-			uint16_t b_index = (b_is_army ? unit_b.content.army.index() : unit_b.content.navy.index());
+			uint32_t a_index = (a_is_army ? unit_a.content.army.index() : unit_a.content.navy.index());
+			uint32_t b_index = (b_is_army ? unit_b.content.army.index() : unit_b.content.navy.index());
 			return a_index > b_index;
 		});
 	}
@@ -10635,11 +10635,13 @@ void update_supply_routes_daily(sys::state& state) {
 
 	// Buffer the required commodities a unit (army/navy) will need. Used seperately for supply and reinforcement commodity needs
 	static ve::vectorizable_buffer<float, dcon::commodity_id> unit_commodity_needs(uint32_t(1));
-	static uint32_t old_count = 1;
-	auto new_count = state.world.commodity_size();
-	if(new_count > old_count) {
-		unit_commodity_needs = state.world.commodity_make_vectorizable_float_buffer();
-		old_count = new_count;
+	{ 
+		static uint32_t old_count = 1;
+		auto new_count = state.world.commodity_size();
+		if(new_count > old_count) {
+			unit_commodity_needs = state.world.commodity_make_vectorizable_float_buffer();
+			old_count = new_count;
+		}
 	}
 
 
@@ -10932,14 +10934,21 @@ void update_supply_routes_daily(sys::state& state) {
 	// STEP 6: subtract from stockpiles the actual buffered amount which each route has taken
 
 	// Subtract from govt stockpiles
-	state.world.execute_parallel_over_market([&](auto markets) {
-		state.world.for_each_commodity([&](dcon::commodity_id commodity_id) {
-			auto to_apply = state.world.market_get_govt_stockpile_satisfaction_buffer(markets, commodity_id);
-			// Consume the goods. We know that this amount is exactly the amount left after consumption, and it should not be less than zero
-			ve::apply([&](float new_stockpile) {
-				assert(new_stockpile >= 0.0f);
-			}, to_apply);
-			state.world.market_set_government_stockpile(markets, commodity_id, to_apply);
+
+	concurrency::parallel_for(uint32_t(0), state.world.nation_size(), [&](uint32_t i) {
+		dcon::nation_id nation{dcon::nation_id::value_base_t(i) };
+		if(!nations::exists(state, nation)) {
+			return;
+		}
+		state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
+			auto state_inst = state.world.state_control_get_state(sc);
+			auto market = state.world.state_instance_get_market_from_local_market(state_inst);
+			state.world.for_each_commodity([&](dcon::commodity_id commodity_id) {
+				auto to_apply = state.world.market_get_govt_stockpile_satisfaction_buffer(market, commodity_id);
+				// Consume the goods. We know that this amount is exactly the amount left after consumption, and it should not be less than zero
+				assert(to_apply >= 0.0f);
+				economy::set_government_stockpile(state, nation, market, commodity_id, to_apply);
+			});
 		});
 	});
 
@@ -10957,12 +10966,14 @@ void update_supply_routes_daily(sys::state& state) {
 			auto army_routes = state.world.army_get_army_supply_route(army);
 			static thread_local ve::vectorizable_buffer<float, dcon::commodity_id> supply_buffer = state.world.commodity_make_vectorizable_float_buffer();
 			static thread_local ve::vectorizable_buffer<float, dcon::commodity_id> reinforcement_buffer = state.world.commodity_make_vectorizable_float_buffer();
-			static thread_local uint32_t old_count = state.world.commodity_size();
-			auto new_count = state.world.commodity_size();
-			if(new_count > old_count) {
-				supply_buffer = state.world.commodity_make_vectorizable_float_buffer();
-				reinforcement_buffer = state.world.commodity_make_vectorizable_float_buffer();
-				old_count = new_count;
+			{ 
+				static thread_local uint32_t old_count = state.world.commodity_size();
+				auto new_count = state.world.commodity_size();
+				if(new_count > old_count) {
+					supply_buffer = state.world.commodity_make_vectorizable_float_buffer();
+					reinforcement_buffer = state.world.commodity_make_vectorizable_float_buffer();
+					old_count = new_count;
+				}
 			}
 
 			state.world.execute_serial_over_commodity([&](auto com_ids) {
@@ -11011,10 +11022,10 @@ void update_supply_routes_daily(sys::state& state) {
 				total_goods_consumed = 0.0f;
 				build_cost.for_each_commodity([&](dcon::commodity_id com_id, float desired_amount) {
 					desired_amount *= potential_reinforcement * reinforcement_consumption;
-					float max_available = supply_buffer.get(com_id);
+					float max_available = reinforcement_buffer.get(com_id);
 					float to_consume = std::min(max_available, desired_amount);
 					assert(max_available - to_consume >= 0.0f);
-					supply_buffer.set(com_id, max_available - to_consume);
+					reinforcement_buffer.set(com_id, max_available - to_consume);
 					total_goods_desired += desired_amount;
 					total_goods_consumed += to_consume;
 				});
@@ -11108,10 +11119,10 @@ void update_supply_routes_daily(sys::state& state) {
 			total_goods_consumed = 0.0f;
 			build_cost.for_each_commodity([&](dcon::commodity_id com_id, float desired_amount) {
 				desired_amount *= potential_reinforcement * reinforcement_consumption;
-				float max_available = supply_buffer.get(com_id);
+				float max_available = reinforcement_buffer.get(com_id);
 				float to_consume = std::min(max_available, desired_amount);
 				assert(max_available - to_consume >= 0.0f);
-				supply_buffer.set(com_id, max_available - to_consume);
+				reinforcement_buffer.set(com_id, max_available - to_consume);
 				total_goods_desired += desired_amount;
 				total_goods_consumed += to_consume;
 			});
@@ -11747,8 +11758,9 @@ void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id) {
 	military::delete_regiment_safe_wrapper(state, reg_id);
 }
 constexpr float infinite_supply_thoughput = 999999999999999.0f;
-constexpr float base_supply_thoughput = 100.0f;
-constexpr float supply_throughput_infrastructure = 4.0f;
+constexpr float base_naval_supply_throughput_per_km_speed = infinite_supply_thoughput;
+constexpr float base_supply_throughput_per_km_speed = 10.0f; // Supply throughput per 1 km/h speed. Eg if set to 100 and a nation has a speed of 4 km/h, then the base is 400
+constexpr float supply_throughput_infrastructure = 6.0f; // Extra supply throughput per 1% of infrastructure
 constexpr float base_land_supply_attrition = 0.0001f;
 constexpr float base_sea_supply_attrition = 0.00001f;
 
@@ -11758,16 +11770,19 @@ constexpr float hostile_army_supply_attrition = 0.008f; // the supply loss % per
 constexpr float hostile_navy_supply_attrition = 0.008f; // the supply loss % per km of travel per 100% enemy ship strength present in the sea province
 
 // Draft values
-float max_supply_thoughput(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
+float max_supply_throughput(sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 	auto is_sea = province::is_sea(state, province);
+	float speed;
+	float movement_cost = province::movement_cost(state, province);
 	if(is_sea) {
-		return infinite_supply_thoughput;
+		speed = nations::naval_supply_speed(state, nation_as);
+		return base_naval_supply_throughput_per_km_speed * (speed / movement_cost);
 	}
-	auto we_control_prov = (state.world.province_get_nation_from_province_control(province) == nation_as);
-	float infrastructure = province::get_infrastructure(state, province);
-	float movement_cost = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::movement_cost);
+	bool has_access = province::has_supply_access_to_province(state, nation_as, province);
+	float infrastructure = province::get_infrastructure(state, province) * 100.0f;
 	float siege_progress = state.world.province_get_siege_progress(province);
-	return std::max(base_supply_thoughput + supply_throughput_infrastructure * infrastructure * (1.0f + movement_cost) * (we_control_prov ? 1.0f - siege_progress : siege_progress), 0.0f);
+	speed = nations::land_supply_speed(state, nation_as);
+	return std::max((base_supply_throughput_per_km_speed * (speed / movement_cost) + supply_throughput_infrastructure * infrastructure) * (has_access ? 1.0f - siege_progress : 1.0f), 0.0f);
 }
 float province_supply_attrition(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 	bool province_is_sea = province::is_sea(state, province);
@@ -11847,6 +11862,8 @@ military::unit_priority increment_priority(military::unit_priority priority) {
 		return military::unit_priority::normal_priority;
 	case military::unit_priority::normal_priority:
 		return military::unit_priority::high_priority;
+	default:
+		return military::unit_priority::normal_priority;
 	}
 }
 military::unit_priority decrement_priority(military::unit_priority priority) {
@@ -11857,7 +11874,10 @@ military::unit_priority decrement_priority(military::unit_priority priority) {
 		return military::unit_priority::high_priority;
 	case military::unit_priority::normal_priority:
 		return military::unit_priority::low_priority;
+	default:
+		return military::unit_priority::normal_priority;
 	}
+
 }
 
 

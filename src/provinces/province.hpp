@@ -31,6 +31,25 @@ inline bool is_land(const sys::state& state, dcon::province_id prov) {
 	return state.province_definitions.first_sea_province.index() > prov.index();
 }
 
+// Get movement cost. Makes sure it cannot be zero, ever
+inline float movement_cost(const sys::state& state, dcon::province_id prov) {
+	return std::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
+	
+}
+// Get movement cost. Makes sure it cannot be zero, ever
+inline ve::fp_vector movement_cost(sys::state& state, ve::partial_contiguous_tags<dcon::province_id> prov) {
+	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
+}
+//// Get movement cost. Makes sure it cannot be zero, ever
+//inline ve::fp_vector movement_cost(sys::state& state, ve::unaligned_contiguous_tags< dcon::province_id> prov) {
+//	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
+//}
+
+// Get movement cost. Makes sure it cannot be zero, ever
+inline ve::fp_vector movement_cost(sys::state& state, ve::contiguous_tags<dcon::province_id> prov) {
+	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
+}
+
 struct naval_range_data {
 	float distance;
 	bool is_reachable;
@@ -129,6 +148,9 @@ bool has_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::
 bool has_naval_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
 // determines whether a land unit is allowed to move to / be in a province that isn't an active enemy
 bool has_safe_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
+
+// Determines whether the nation can have supply routes go through this province
+bool has_supply_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
 
 enum class blackflagged_state : uint8_t {
 	not_blackflagged,

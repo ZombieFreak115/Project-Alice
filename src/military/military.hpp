@@ -611,7 +611,7 @@ float average_naval_consumption_satisfaction(const sys::state& state, dcon::nati
 template<unit_consumption_type consumption_type>
 float average_land_consumption_satisfaction(const sys::state& state, dcon::nation_id nation);
 
-float max_supply_thoughput(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
+float max_supply_throughput(sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 float province_supply_attrition(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 float adjacency_supply_attrition(sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
 

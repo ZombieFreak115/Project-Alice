@@ -174,6 +174,9 @@ void recalculate_markets_distance(sys::state& state);
 
 dcon::text_key name_from_tag(sys::state& state, dcon::national_identity_id tag);
 
+float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as);
+float land_supply_speed(const sys::state& state, dcon::nation_id nation_as);
+
 void update_administrative_efficiency(sys::state& state);
 void update_national_administrative_efficiency(sys::state& state);
 float admin_cost_of_province(sys::state& state, dcon::province_id pid);

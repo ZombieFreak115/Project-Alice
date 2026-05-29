@@ -1434,13 +1434,20 @@ void populate_navy_consumption(sys::state& state) {
 }
 
 void set_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount) {
-	if(commodity.value == 4 && amount > 0.0f) {
-		int i = 5;
-	}
+	assert(controller);
 	float current_local = state.world.market_get_government_stockpile(market, commodity);
 	float diff =  amount - current_local;
 	state.world.market_set_government_stockpile(market, commodity, amount);
 	state.world.nation_set_total_stockpiles(controller, commodity, std::max(state.world.nation_get_total_stockpiles(controller, commodity) + diff, 0.0f)); // Clamp to prevent negatives as fp rounding may cause it to go negative
+	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
+	assert(state.world.nation_get_total_stockpiles(controller, commodity) >= 0.0f);
+}
+
+void set_government_stockpile(sys::state& state, ve::contiguous_tags<dcon::nation_id> controller, ve::contiguous_tags<dcon::market_id> market, dcon::commodity_id commodity, float amount) {
+	auto current_local = state.world.market_get_government_stockpile(market, commodity);
+	auto diff = amount - current_local;
+	state.world.market_set_government_stockpile(market, commodity, amount);
+	state.world.nation_set_total_stockpiles(controller, commodity, ve::max(state.world.nation_get_total_stockpiles(controller, commodity) + diff, 0.0f)); // Clamp to prevent negatives as fp rounding may cause it to go negative
 	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
 	assert(state.world.nation_get_total_stockpiles(controller, commodity) >= 0.0f);
 }

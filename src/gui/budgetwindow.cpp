@@ -3499,8 +3499,8 @@ void budgetwindow_section_header_expand_button_t::on_update(sys::state& state) n
 
 	auto n = state.local_player_nation;
 	auto spending_details = economy::national_budget::estimate_budget_detailed(state, n, economy::estimate_next_budget(state, n));
-	uint32_t total_armies = state.world.nation_get_army_control(state.local_player_nation).end() - state.world.nation_get_army_control(state.local_player_nation).begin();
-	uint32_t total_navies = state.world.nation_get_navy_control(state.local_player_nation).end() - state.world.nation_get_navy_control(state.local_player_nation).begin();
+	uint32_t total_armies = uint32_t(state.world.nation_get_army_control(state.local_player_nation).end() - state.world.nation_get_army_control(state.local_player_nation).begin());
+	uint32_t total_navies = uint32_t(state.world.nation_get_navy_control(state.local_player_nation).end() - state.world.nation_get_navy_control(state.local_player_nation).begin());
 
 	switch(section_header.section_type) {
 	case budget_categories::diplomatic_income: disabled = (spending_details.diplomacy.actual_spending <= 0); break;

@@ -193,7 +193,6 @@ float estimate_ship_reinforcement(sys::state& state, dcon::ship_id ship, float r
 		}
 	}
 	auto combined = reinf_fufillment * reinforcement_mods;
-	float newstr;
 	float curstr = state.world.ship_get_strength(ship);
 	float pending_reinf = state.world.ship_get_reinforcement_satisfaction_buffer(ship);
 	if constexpr(!potential_reinforcement) {
