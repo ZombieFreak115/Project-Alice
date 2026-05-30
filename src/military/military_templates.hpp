@@ -26,6 +26,211 @@ auto battle_is_ongoing_in_province(sys::state const& state, T ids) {
 	return false;
 }
 
+
+enum class battle_allowed : uint8_t {
+	no = 0,
+	yes = 1
+};
+enum class retreat_allowed : uint8_t {
+	no = 0,
+	yes = 1
+};
+enum class participants_included : uint8_t {
+	none = 0,
+	allies = 1,
+	in_common_war = 2,
+	enemies = 4,
+	ourselves = 8
+};
+constexpr participants_included operator|(participants_included a, participants_included b) {
+	return static_cast<participants_included>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+}
+
+template<typename enum_type>
+constexpr bool has_flag(enum_type to_check, enum_type flag) {
+	using integer_type = std::underlying_type<enum_type>::type;
+	return (static_cast<integer_type>(to_check) & static_cast<integer_type>(flag)) != integer_type(0);
+}
+
+template<battle_allowed battle_included, retreat_allowed retreat_included, participants_included participant_setting>
+bool province_has_fleet(sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
+	auto navies = state.world.province_get_navy_location(location);
+	if(navies.begin() == navies.end()) {
+		return false; // no navies present
+	}
+	for(auto navy : navies) {
+		if constexpr(battle_included == battle_allowed::no) {
+			if(navy.get_navy().get_battle_from_navy_battle_participation()) {
+				continue;
+			}
+		}
+		if constexpr(retreat_included == retreat_allowed::no) {
+			if(navy.get_navy().get_is_retreating()) {
+				continue;
+			}
+		}
+		auto controller = navy.get_navy().get_controller_from_navy_control();
+		if constexpr(has_flag(participant_setting, participants_included::ourselves)) {
+			if(our_nation == controller) {
+				return true;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::allies)) {
+			if(nations::are_allied(state, our_nation, controller)) {
+				return true;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::in_common_war)) {
+			if(military::are_allied_in_war(state, our_nation, controller)) {
+				return true;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::enemies)) {
+			if(military::are_at_war(state, our_nation, controller)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+template<battle_allowed battle_included, retreat_allowed retreat_included, participants_included participant_setting>
+bool province_has_army(sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
+	auto armies = state.world.province_get_army_location(location);
+	if(armies.begin() == armies.end()) {
+		return false; // no armies present
+	}
+	for(auto army : armies) {
+		if constexpr(battle_included == battle_allowed::no) {
+			if(army.get_army().get_battle_from_army_battle_participation()) {
+				continue;
+			}
+		}
+		if constexpr(retreat_included == retreat_allowed::no) {
+			if(army.get_army().get_is_retreating()) {
+				continue;
+			}
+		}
+		auto controller = army.get_army().get_controller_from_army_control();
+		if constexpr(has_flag(participant_setting, participants_included::ourselves)) {
+			if(our_nation == controller) {
+				return true;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::allies)) {
+			if(nations::are_allied(state, our_nation, controller)) {
+				return true;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::in_common_war)) {
+			if(military::are_allied_in_war(state, our_nation, controller)) {
+				return true;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::enemies)) {
+			if(military::are_enemies(state, our_nation, controller)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+
+
+template<battle_allowed battle_included, retreat_allowed retreat_included, participants_included participant_setting>
+float army_strength_present(const sys::state& state, dcon::province_id location, dcon::nation_id nation_as) {
+	float total = 0.0f;
+	for(auto a : state.world.province_get_army_location(location)) {
+		auto army = a.get_army();
+		auto controller = army.get_controller_from_army_control();
+		if constexpr(battle_included == battle_allowed::no) {
+			if(state.world.army_get_battle_from_army_battle_participation(army)) {
+				continue;
+			}
+		}
+		if constexpr(retreat_included == retreat_allowed::no) {
+			if(state.world.army_get_is_retreating(army)) {
+				continue;
+			}
+		}
+
+		if constexpr(has_flag(participant_setting, participants_included::ourselves)) {
+			if(nation_as == controller) {
+				total += army_get_strength(state, army);
+				continue;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::allies)) {
+			if(nations::are_allied(state, nation_as, controller)) {
+				total += army_get_strength(state, army);
+				continue;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::in_common_war)) {
+			if(military::are_allied_in_war(state, nation_as, controller)) {
+				total += army_get_strength(state, army);
+				continue;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::enemies)) {
+			if(military::are_enemies(state, nation_as, controller)) {
+				total += army_get_strength(state, army);
+				continue;
+			}
+		}
+	}
+	return total;
+}
+
+template<battle_allowed battle_included, retreat_allowed retreat_included, participants_included participant_setting>
+float navy_strength_present(const sys::state& state, dcon::province_id location, dcon::nation_id nation_as) {
+	float total = 0.0f;
+	for(auto a : state.world.province_get_navy_location(location)) {
+		auto navy = a.get_navy();
+		auto controller = navy.get_controller_from_navy_control();
+		if constexpr(battle_included == battle_allowed::no) {
+			if(state.world.navy_get_battle_from_navy_battle_participation(navy)) {
+				continue;
+			}
+		}
+		if constexpr(retreat_included == retreat_allowed::no) {
+			if(state.world.navy_get_is_retreating(navy)) {
+				continue;
+			}
+		}
+
+		if constexpr(has_flag(participant_setting, participants_included::ourselves)) {
+			if(nation_as == controller) {
+				total += navy_get_strength(state, navy);
+				continue;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::allies)) {
+			if(nations::are_allied(state, nation_as, controller)) {
+				total += navy_get_strength(state, navy);
+				continue;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::in_common_war)) {
+			if(military::are_allied_in_war(state, nation_as, controller)) {
+				total += navy_get_strength(state, navy);
+				continue;
+			}
+		}
+		if constexpr(has_flag(participant_setting, participants_included::enemies)) {
+			if(military::are_at_war(state, nation_as, controller)) {
+				total += navy_get_strength(state, navy);
+				continue;
+			}
+		}
+	}
+	return total;
+}
+
+
+
+
 // Calculates whether province can support more regiments
 // Considers existing regiments and construction as well
 // Takes a filter function template to filter out which pops are eligible

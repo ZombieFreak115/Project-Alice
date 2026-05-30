@@ -531,9 +531,6 @@ void stop_navy_movement(sys::state& state, dcon::navy_id navy);
 // stops the unit movement completly and clears all other auxillary movement effects (arrival date, path etc)
 void stop_army_movement(sys::state& state, dcon::army_id army);
 
-bool province_has_enemy_fleet(sys::state& state, dcon::province_id location, dcon::nation_id our_nation);
-bool province_has_enemy_army(sys::state& state, dcon::province_id location, dcon::nation_id our_nation);
-bool province_has_war_ally_army(sys::state& state, dcon::province_id location, dcon::nation_id our_nation);
 float calculate_battle_reinforcement(sys::state& state, dcon::land_battle_id b, bool attacker);
 float calculate_average_battle_supply_spending(sys::state& state, dcon::land_battle_id b, bool attacker);
 float calculate_average_battle_location_modifier(sys::state& state, dcon::land_battle_id b, bool attacker);
@@ -597,6 +594,9 @@ template<ai_path_length path_length_to_use = ai_path_length{ 0 } >
 bool move_army_ai(sys::state& state, dcon::army_id army, dcon::province_id destination, dcon::nation_id nation_as, bool reset = true);
 
 bool pop_eligible_for_mobilization(sys::state& state, dcon::pop_id p);
+
+float navy_get_strength(const sys::state& state, dcon::navy_id navy);
+float army_get_strength(const sys::state& state, dcon::army_id army);
 
 template<regiment_dmg_source damage_source>
 void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id);

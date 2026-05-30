@@ -9821,59 +9821,6 @@ float unit_get_strength(sys::state& state, dcon::ship_id ship_id) {
 	return state.world.ship_get_strength(ship_id);
 }
 
-bool province_has_enemy_army(sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
-	auto armies = state.world.province_get_army_location(location);
-	if(armies.begin() == armies.end()) {
-		return false; // no armies present
-	}
-	for(auto army : armies) {
-		if(are_enemies(state, our_nation, army.get_army().get_controller_from_army_control())) {
-			return true;
-		}
-	}
-	return false;
-}
-
-bool province_has_war_ally_army(sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
-	for(auto army : state.world.province_get_army_location(location)) {
-		if(!army.get_army()) {
-			// no armies present
-			return false;
-		}
-		auto army_controller = army.get_army().get_controller_from_army_control();
-		if(army_controller == our_nation || are_allied_in_war(state, our_nation, army.get_army().get_controller_from_army_control())) {
-			return true;
-		}
-	}
-	return false;
-}
-bool province_has_enemy_fleet(sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
-	auto navies = state.world.province_get_navy_location(location);
-	if(navies.begin() == navies.end()) {
-		return false; // no navies present
-	}
-	for(auto navy : state.world.province_get_navy_location(location)) {
-		if(are_at_war(state, our_nation, navy.get_navy().get_controller_from_navy_control())) {
-			// someone who we are at war with has a fleet in the province
-			return true;
-		}
-	}
-	return false;
-}
-
-// returns true if there is a battle at the location, where one of the participants is an enemy to our_nation
-//bool enemy_battle(sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
-//	auto battle = get_province_battle(state, location);
-//	if(battle) {
-//		for(auto par : state.world.land_battle_get_army_battle_participation(battle)) {
-//			auto army_controller = par.get_army().get_controller_from_army_control();
-//			if(are_at_war(state, our_nation, army_controller)) {
-//				return true;
-//			}
-//		}
-//	}
-//	return false;
-//}
 
 
 /* === Army reinforcement === */
@@ -9894,7 +9841,7 @@ bool get_allied_prov_adjacency_reinforcement_bonus(sys::state& state, dcon::prov
 		}
 		auto prov_controller = state.world.province_get_nation_from_province_control(prov);
 		// enemy battles or units will not allow for reinforcements
-		if(province_has_enemy_army(state, prov, our_nation)) {
+		if(province_has_army<battle_allowed::yes, retreat_allowed::no, participants_included::enemies>(state, prov, our_nation)) {
 			return false;
 		}
 		// checks if the province controlled by us, or is controlled by someone who is at enemies with the owner of location
@@ -9987,7 +9934,7 @@ float calculate_location_reinforce_modifier_battle(sys::state& state, dcon::prov
 			continue;
 		}
 		// if there are enemy battles or enemy units sourrinding the province, it will get no reinforcements
-		if(province_has_enemy_army(state, prov, in_nation)) {
+		if(province_has_army<battle_allowed::yes, retreat_allowed::no, participants_included::enemies>(state, prov, in_nation)) {
 			highest_adj_prov_modifier = std::max(highest_adj_prov_modifier, 0.0f);
 		} else {
 			highest_adj_prov_modifier = std::max(highest_adj_prov_modifier, calculate_location_reinforce_modifier_no_battle(state, prov, in_nation));
@@ -10346,6 +10293,7 @@ void update_navy_supply_route_throughput_attrition(sys::state& state, dcon::navy
 			auto adj = state.world.get_province_adjacency_by_province_pair(prov, next_prov);
 			assert(adj);
 			total_attrition_mod *= adjacency_supply_attrition(state, adj, controller);
+			assert(std::isfinite(total_attrition_mod));
 		}
 		float used_supply_throughput = state.world.province_get_used_supply_throughput(prov);
 		float local_supply_throughput = std::min(max_supply_throughput(state, prov, controller) / (used_supply_throughput == 0.0f ? 1.0f : used_supply_throughput), 1.0f);
@@ -11697,17 +11645,6 @@ float navy_get_strength(const sys::state& state, dcon::navy_id navy) {
 	return total;
 }
 
-float enemy_navy_strength_present(const sys::state& state, dcon::province_id location, dcon::nation_id nation_as) {
-	float total = 0.0f;
-	for(auto a : state.world.province_get_navy_location(location)) {
-		auto navy = a.get_navy();
-		auto controller = navy.get_controller_from_navy_control();
-		if(are_enemies(state, nation_as, controller)) {
-			total += navy_get_strength(state, navy);
-		}
-	}
-	return total;
-}
 
 float army_get_strength(const sys::state& state, dcon::army_id army) {
 	float total = 0.0f;
@@ -11718,17 +11655,6 @@ float army_get_strength(const sys::state& state, dcon::army_id army) {
 	return total;
 }
 
-float enemy_army_strength_present(const sys::state& state, dcon::province_id location, dcon::nation_id nation_as) {
-	float total = 0.0f;
-	for(auto a : state.world.province_get_army_location(location)) {
-		auto army = a.get_army();
-		auto controller = army.get_controller_from_army_control();
-		if(are_enemies(state, nation_as, controller)) {
-			total += army_get_strength(state, army);
-		}
-	}
-	return total;
-}
 
 bool pop_eligible_for_mobilization(sys::state& state, dcon::pop_id p) {
 	auto const pop = dcon::fatten(state.world, p);
@@ -11761,11 +11687,11 @@ constexpr float infinite_supply_thoughput = 999999999999999.0f;
 constexpr float base_naval_supply_throughput_per_km_speed = infinite_supply_thoughput;
 constexpr float base_supply_throughput_per_km_speed = 10.0f; // Supply throughput per 1 km/h speed. Eg if set to 100 and a nation has a speed of 4 km/h, then the base is 400
 constexpr float supply_throughput_infrastructure = 6.0f; // Extra supply throughput per 1% of infrastructure
-constexpr float base_land_supply_attrition = 0.0001f;
-constexpr float base_sea_supply_attrition = 0.00001f;
+constexpr float base_land_supply_attrition = 0.0000001f;
+constexpr float base_sea_supply_attrition = 0.0f;
 
-constexpr float control_level_supply_attrition = 0.001f; // the supply loss % per km of travel if province control is 0%. Scales back to 0 at 100% control.
-constexpr float militancy_supply_attrition = 0.0003f; // the supply loss % per km of travel per average militancy in the province.
+constexpr float control_level_supply_attrition = 0.0001f; // the supply loss % per km of travel if province control is 0%. Scales back to 0 at 100% control.
+constexpr float militancy_supply_attrition = 0.00005f; // the supply loss % per km of travel per average militancy in the province.
 constexpr float hostile_army_supply_attrition = 0.008f; // the supply loss % per km of travel per POP_SIZE_PER_REGIMENT enemy strength present in the land province
 constexpr float hostile_navy_supply_attrition = 0.008f; // the supply loss % per km of travel per 100% enemy ship strength present in the sea province
 
@@ -11787,10 +11713,10 @@ float max_supply_throughput(sys::state& state, dcon::province_id province, dcon:
 float province_supply_attrition(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 	bool province_is_sea = province::is_sea(state, province);
 	if(province_is_sea) {
-		auto enemy_strength_present = enemy_navy_strength_present(state, province, nation_as);
+		auto enemy_strength_present = navy_strength_present<battle_allowed::no, retreat_allowed::no, participants_included::enemies>(state, province, nation_as);
 		return std::clamp(1.0f - (base_sea_supply_attrition + hostile_navy_supply_attrition * (enemy_strength_present / 100.0f)), 0.1f, 1.0f);
 	}
-	auto enemy_strength_present = enemy_army_strength_present(state, province, nation_as);
+	auto enemy_strength_present = army_strength_present<battle_allowed::no, retreat_allowed::no, participants_included::enemies>(state, province, nation_as);
 
 	auto province_is_occupied = (state.world.province_get_nation_from_province_control(province) != state.world.province_get_nation_from_province_ownership(province));
 	float total_militancy = state.world.province_get_demographics(province, demographics::militancy);
