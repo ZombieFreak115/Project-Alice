@@ -878,6 +878,14 @@ bool can_start_naval_unit_construction(sys::state& state, dcon::nation_id source
 
 void execute_start_naval_unit_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::unit_type_id type, dcon::province_id template_province) {
 	auto c = fatten(state.world, state.world.try_create_province_naval_construction(location, source));
+	auto& fufilled_goods = c.get_purchased_goods();
+	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
+	// Initialize the commodity types in the fufilled goods buffer to have identical types as build cost
+	for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
+		fufilled_goods.commodity_type[i] = build_cost.commodity_type[i];
+		fufilled_goods.commodity_amounts[i] = 0.0f;
+
+	}
 	c.set_type(type);
 	c.set_start_date(state.current_date);
 	c.set_template_province(template_province);
@@ -928,8 +936,15 @@ bool can_start_land_unit_construction(sys::state& state, dcon::nation_id source,
 }
 void execute_start_land_unit_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::culture_id soldier_culture, dcon::unit_type_id type, dcon::province_id template_province) {
 	auto soldier = military::find_available_soldier(state, location, soldier_culture);
-
 	auto c = fatten(state.world, state.world.try_create_province_land_construction(soldier, source));
+	auto& fufilled_goods = c.get_purchased_goods();
+	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
+	// Initialize the commodity types in the fufilled goods buffer to have identical types as build cost
+	for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
+		fufilled_goods.commodity_type[i] = build_cost.commodity_type[i];
+		fufilled_goods.commodity_amounts[i] = 0.0f;
+
+	}
 	c.set_start_date(state.current_date);
 	c.set_type(type);
 	c.set_template_province(template_province);

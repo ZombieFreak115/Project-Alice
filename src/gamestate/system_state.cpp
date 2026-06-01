@@ -3060,6 +3060,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	world.market_resize_army_demand(world.commodity_size());
 	world.market_resize_navy_demand(world.commodity_size());
 	world.market_resize_construction_demand(world.commodity_size());
+	world.market_resize_unit_construction_demand(world.commodity_size());
 	world.market_resize_government_stockpile_demand(world.commodity_size());
 	world.market_resize_private_construction_demand(world.commodity_size());
 	world.market_resize_actual_probability_to_buy(world.commodity_size());
@@ -4448,6 +4449,9 @@ void state::single_game_tick() {
 		// ALTERNATE PAR DEMO START POINT B
 		//
 		military::update_supply_routes_daily(*this);
+
+		// Resolving military unit constructions should be handled right after updating supply routes, as they will add to the "purchased_goods" stockpile for unit constructions
+		military::resolve_unit_constructions(*this);
 
 		military::update_cbs(*this); // may add/remove cbs to a nation
 		nations::update_industrial_scores(*this);

@@ -4,6 +4,8 @@
 #include "text.hpp"
 #include "money.hpp"
 #include "province.hpp"
+#include "economy.hpp"
+#include "economy_templates.hpp"
 
 namespace economy {
 
@@ -207,22 +209,22 @@ float factory_build_cost_multiplier(sys::state& state, dcon::nation_id n, dcon::
 		* (std::max(0.1f, state.world.nation_get_modifier_values(n, sys::national_mod_offsets::factory_owner_cost)));
 }
 
-float land_unit_construction_time(
+uint32_t land_unit_construction_time(
 	sys::state& state,
 	dcon::unit_type_id utid,
 	dcon::nation_id builder
 ) {
-	return global_land_construction_time_modifier(state)
-		* state.world.nation_get_unit_stats(builder, utid).build_time;
+	return uint32_t(global_land_construction_time_modifier(state)
+		* state.world.nation_get_unit_stats(builder, utid).build_time);
 }
 
-float naval_unit_construction_time(
+uint32_t naval_unit_construction_time(
 	sys::state& state,
 	dcon::unit_type_id utid,
 	dcon::nation_id builder
 ) {
-	return global_naval_construction_time_modifier(state)
-		* state.world.nation_get_unit_stats(builder, utid).build_time;
+	return uint32_t(global_naval_construction_time_modifier(state)
+		* state.world.nation_get_unit_stats(builder, utid).build_time);
 }
 
 float province_building_construction_time(
@@ -249,12 +251,21 @@ void register_construction_demand(sys::state& state, dcon::market_id s, dcon::co
 	assert(state.world.market_get_construction_demand(s, commodity_type) >= 0.f);
 }
 
+// Unit construction demand needs to be added seperately as it is handled through national stockpiles
+// it's registered as demand separately, do not add actual demand here
+void register_unit_construction_demand(sys::state& state, dcon::market_id s, dcon::commodity_id commodity_type, float amount) {
+	auto& cur_demand = state.world.market_get_unit_construction_demand(s, commodity_type);
+	state.world.market_set_unit_construction_demand(s, commodity_type, cur_demand + amount);
+	assert(state.world.market_get_unit_construction_demand(s, commodity_type) >= 0.f);
+}
+
 void reset_construction_demand(sys::state& state) {
 	uint32_t total_commodities = state.world.commodity_size();
 	for(uint32_t i = 1; i < total_commodities; ++i) {
 		dcon::commodity_id cid{ dcon::commodity_id::value_base_t(i) };
 		state.world.execute_serial_over_market([&](auto ids) {
 			state.world.market_set_construction_demand(ids, cid, 0.0f);
+			state.world.market_set_unit_construction_demand(ids, cid, 0.0f);
 		});
 	}
 }
@@ -288,64 +299,6 @@ unit_construction_data explain_land_unit_construction(
 	return result;
 }
 
-void advance_land_unit_construction(
-	sys::state& state,
-	dcon::province_land_construction_id lc
-) {
-	auto details = explain_land_unit_construction(state, lc);
-	auto& base_cost = state.military_definitions.unit_base_definitions[details.unit_type].build_cost;
-	assert(state.world.province_land_construction_is_valid(lc) && "Invalid write incoming!");
-	auto& current_purchased = state.world.province_land_construction_get_purchased_goods(lc);
-
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		auto cid = base_cost.commodity_type[i];
-		if(!cid)
-			break;
-		auto current = current_purchased.commodity_amounts[i];
-		auto required = base_cost.commodity_amounts[i] * details.cost_multiplier;
-		if(current >= required)	continue;
-		auto& source = state.world.market_get_construction_demand(details.market, cid);
-		auto delta = std::clamp(required / details.construction_time, 0.f, source);
-		current_purchased.commodity_amounts[i] += delta;
-		state.world.market_set_construction_demand(details.market, cid, source - delta);
-	}
-}
-
-void populate_land_unit_construction_demand(
-	sys::state& state,
-	dcon::province_land_construction_id lc,
-	float& budget,
-	float budget_limit
-) {
-	auto details = explain_land_unit_construction(state, lc);
-	if(!details.can_be_advanced) {
-		return;
-	}
-	auto& base_cost =
-		state.military_definitions.unit_base_definitions[
-			state.world.province_land_construction_get_type(lc)
-		].build_cost;
-	auto& current_purchased	= state.world.province_land_construction_get_purchased_goods(lc);
-	auto builder = state.world.province_land_construction_get_nation(lc);
-
-	auto unit_type = state.world.province_land_construction_get_type(lc);
-	float construction_time = land_unit_construction_time(state, unit_type, builder);
-
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		auto cid = base_cost.commodity_type[i];
-		if(!cid) break;
-		auto current = current_purchased.commodity_amounts[i];
-		auto required = base_cost.commodity_amounts[i] * details.cost_multiplier;
-		if(current >= required)	continue;
-		auto local_price = price(state, details.market, cid);
-		auto can_purchase_budget = std::min(budget_limit, budget) / (local_price + 0.001f);
-		auto can_purchase_construction = required / construction_time;
-		auto can_purchase = std::min(can_purchase_budget, can_purchase_construction);
-		auto satisfaction = state.world.market_get_actual_probability_to_buy(details.market, cid);
-		budget = std::max(0.f, budget - can_purchase * local_price * satisfaction);
-		register_construction_demand(state, details.market, cid, can_purchase);
-	}
-}
 
 unit_construction_data explain_naval_unit_construction(
 	sys::state& state,
@@ -367,56 +320,6 @@ unit_construction_data explain_naval_unit_construction(
 	return result;
 }
 
-void advance_naval_unit_construction(
-	sys::state& state,
-	dcon::province_naval_construction_id construction
-) {
-	auto details = explain_naval_unit_construction(state, construction);
-	auto& base_cost = state.military_definitions.unit_base_definitions[details.unit_type].build_cost;
-	assert(state.world.province_naval_construction_is_valid(construction) && "Invalid write incoming!");
-	auto& current_purchased = state.world.province_naval_construction_get_purchased_goods(construction);
-
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		auto cid = base_cost.commodity_type[i];
-		if(!cid) break;
-		auto current = current_purchased.commodity_amounts[i];
-		auto required = base_cost.commodity_amounts[i] * details.cost_multiplier;
-		if(current >= required)	continue;
-		auto& source = state.world.market_get_construction_demand(details.market, cid);
-		auto delta = std::clamp(required / details.construction_time, 0.f, source);
-		current_purchased.commodity_amounts[i] += delta;
-		state.world.market_set_construction_demand(details.market, cid, source - delta);
-	}
-}
-
-void populate_naval_unit_construction_demand(
-	sys::state& state,
-	dcon::province_naval_construction_id construction,
-	float& budget,
-	float budget_limit
-) {
-	auto details = explain_naval_unit_construction(state, construction);
-	if(!details.can_be_advanced) return;
-	auto& base_cost = state.military_definitions.unit_base_definitions[details.unit_type].build_cost;
-	auto& current_purchased = state.world.province_naval_construction_get_purchased_goods(construction);
-
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		auto cid = base_cost.commodity_type[i];
-		if(!cid)
-			break;
-		auto current = current_purchased.commodity_amounts[i];
-		auto required = base_cost.commodity_amounts[i] * details.cost_multiplier;
-		if(current >= required)
-			continue;
-		auto local_price = price(state, details.market, cid);
-		auto can_purchase_budget = std::min(budget_limit, budget) / (local_price + 0.001f);
-		auto can_purchase_construction = required / details.construction_time;
-		auto can_purchase = std::min(can_purchase_budget, can_purchase_construction);
-		auto satisfaction = state.world.market_get_actual_probability_to_buy(details.market, cid);
-		budget = std::max(0.f, budget - can_purchase * local_price * satisfaction);
-		register_construction_demand(state, details.market, cid, can_purchase);
-	}
-}
 
 struct province_building_construction_data {
 	bool can_be_advanced;
@@ -739,6 +642,7 @@ void populate_construction_consumption(sys::state& state) {
 	static auto total_budget = ve::vectorizable_buffer<float, dcon::nation_id>(uint32_t(1));
 	static auto current_budget = ve::vectorizable_buffer<float, dcon::nation_id>(uint32_t(1));
 	static auto going_constructions = ve::vectorizable_buffer<int32_t, dcon::nation_id>(uint32_t(1));
+	static auto going_unit_constructions = ve::vectorizable_buffer<int32_t, dcon::nation_id>(uint32_t(1));
 	{
 		static uint32_t old_count = 1;
 		auto new_count = state.world.nation_size();
@@ -746,8 +650,16 @@ void populate_construction_consumption(sys::state& state) {
 			total_budget = state.world.nation_make_vectorizable_float_buffer();
 			current_budget = state.world.nation_make_vectorizable_float_buffer();
 			going_constructions = state.world.nation_make_vectorizable_int_buffer();
+			going_unit_constructions = state.world.nation_make_vectorizable_int_buffer();
 			old_count = new_count;
 		}
+	}
+	// Buffers all the commodites needed for unit constructions per nation, to be applied later
+	static tagged_vector<tagged_vector<float, dcon::commodity_id>, dcon::nation_id> unit_commodity_demand_buffer;
+	unit_commodity_demand_buffer.resize(state.world.nation_size());
+	for(auto& commodity_vec : unit_commodity_demand_buffer) {
+		commodity_vec.resize(state.world.commodity_size());
+		std::fill(commodity_vec.begin(), commodity_vec.end(), 0.0f);
 	}
 	
 
@@ -759,6 +671,7 @@ void populate_construction_consumption(sys::state& state) {
 		current_budget.set(ids, ve::max(0.f, base_budget * construction_priority));
 		total_budget.set(ids, ve::max(0.f, base_budget * construction_priority));
 		going_constructions.set(ids, 0);
+		going_unit_constructions.set(ids, 0);
 	});
 
 	// count ongoing constructions
@@ -769,6 +682,7 @@ void populate_construction_consumption(sys::state& state) {
 		auto owner = state.world.province_get_nation_from_province_ownership(province);
 		if(owner && state.world.province_get_nation_from_province_control(province) == owner) {
 			going_constructions.get(owner) += 1;
+			going_unit_constructions.get(owner) += 1;
 		}
 	}
 	province::for_each_land_province(state, [&](dcon::province_id p) {
@@ -779,6 +693,7 @@ void populate_construction_consumption(sys::state& state) {
 		if(rng.begin() == rng.end())
 			return;
 		going_constructions.get(owner) += 1;
+		going_unit_constructions.get(owner) += 1;
 	});
 	for(auto c : state.world.in_province_building_construction) {
 		auto owner = c.get_nation().id;
@@ -793,14 +708,25 @@ void populate_construction_consumption(sys::state& state) {
 		}
 	};
 
-
+	// Accumulate total potential demand for both land and naval unit constructions. Land regiments can be build in parallel in the same province, but naval units can only be constructed serially per province
 	for(auto lc : state.world.in_province_land_construction) {
-		auto province = state.world.pop_get_province_from_pop_location(state.world.province_land_construction_get_pop(lc));
-		auto owner = state.world.province_get_nation_from_province_ownership(province);
-		float& base_budget = current_budget.get(owner);
-		float budget = total_budget.get(owner);
-		float owners_projects = float(std::max(1, going_constructions.get(owner)));
-		populate_land_unit_construction_demand(state, lc, base_budget, budget/owners_projects);
+		auto details = explain_land_unit_construction(state, lc);
+		if(!details.can_be_advanced) {
+			return;
+		}
+		const auto& base_cost =
+			state.military_definitions.unit_base_definitions[
+				state.world.province_land_construction_get_type(lc)
+			].build_cost;
+		auto builder = state.world.province_land_construction_get_nation(lc);
+
+		auto unit_type = state.world.province_land_construction_get_type(lc);
+		uint32_t construction_time = land_unit_construction_time(state, unit_type, builder);
+		base_cost.for_each_commodity([&](dcon::commodity_id cid, float amount) {
+			auto required = (amount * details.cost_multiplier) / construction_time;
+			unit_commodity_demand_buffer[builder][cid] += required;
+
+		});
 	}
 	province::for_each_land_province(state, [&](dcon::province_id p) {
 		auto owner = state.world.province_get_nation_from_province_ownership(p);
@@ -810,10 +736,82 @@ void populate_construction_consumption(sys::state& state) {
 		if(rng.begin() == rng.end())
 			return;
 		auto c = *(rng.begin());
-		float& base_budget = current_budget.get(owner);
-		float budget_limit = total_budget.get(owner) / float(std::max(1, going_constructions.get(owner)));
-		populate_naval_unit_construction_demand(state, c, base_budget, budget_limit);
+
+		auto details = explain_naval_unit_construction(state, c);
+		if(!details.can_be_advanced) {
+			return;
+		}
+		const auto& base_cost =
+			state.military_definitions.unit_base_definitions[
+				state.world.province_naval_construction_get_type(c)
+			].build_cost;
+		auto builder = state.world.province_naval_construction_get_nation(c);
+
+		auto unit_type = state.world.province_naval_construction_get_type(c);
+		uint32_t construction_time = naval_unit_construction_time(state, unit_type, builder);
+		base_cost.for_each_commodity([&](dcon::commodity_id cid, float amount) {
+			auto required = (amount * details.cost_multiplier) / construction_time;
+			unit_commodity_demand_buffer[builder][cid] += required;
+
+		});
 	});
+
+	// Weights for which markets shall receive the demand. The buffer will be filled with data once per nation iteration
+	static tagged_vector<tagged_vector<float, dcon::market_id>, dcon::commodity_id> market_demand_weights;
+	market_demand_weights.resize(state.world.commodity_size());
+
+	for(auto nation : state.world.in_nation) {
+		if(!nations::exists(state, nation)) {
+			continue;
+		}
+		if(going_unit_constructions.get(nation) == 0) {
+			continue;
+		}
+		float budget_limit = total_budget.get(nation) * (float(going_unit_constructions.get(nation)) / float(going_constructions.get(nation)));
+		float& budget = current_budget.get(nation);
+		economy::set_stockpile_market_demand_weights(state, nation, market_demand_weights);
+		float total_expected_price = 0.0f;
+		economy::for_each_commodity_no_money(state, [&](dcon::commodity_id com_id) {
+			state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
+				auto state_inst = state.world.state_control_get_state(sc);
+				auto market = state.world.state_instance_get_market_from_local_market(state_inst);
+				auto price = economy::price(state, market, com_id);
+				auto total_demand = unit_commodity_demand_buffer[nation][com_id];
+				auto percentage_weight = market_demand_weights[com_id][market];
+				total_expected_price += (price * total_demand * percentage_weight);
+			});
+		});
+		// Set the demand mult to match what our budget limit can afford at most
+		float demand_multiplier = (total_expected_price == 0 ? 1.0f : std::min(budget_limit / total_expected_price, 1.0f));
+		economy::for_each_commodity_no_money(state, [&](dcon::commodity_id com_id) {
+			state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
+				auto state_inst = state.world.state_control_get_state(sc);
+				auto market = state.world.state_instance_get_market_from_local_market(state_inst);
+				auto price = economy::price(state, market, com_id);
+				auto total_demand = unit_commodity_demand_buffer[nation][com_id];
+				auto percentage_weight = market_demand_weights[com_id][market];
+				assert(price > 0.0f);
+				auto can_purchase_budget = std::min(budget_limit, budget) / price;
+				auto can_purchase_max = total_demand * percentage_weight * demand_multiplier;
+				auto can_purchase = std::min(can_purchase_budget, can_purchase_max);
+				register_unit_construction_demand(state, market, com_id, can_purchase);
+				auto satisfaction = state.world.market_get_actual_probability_to_buy(market, com_id);
+				budget = std::max(0.f, budget - can_purchase_max * price * satisfaction);
+
+			});
+		});
+	}
+
+
+
+
+
+
+
+
+
+
+
 	for(auto c : state.world.in_province_building_construction) {
 		auto owner = c.get_nation().id;
 		float& base_budget = current_budget.get(owner);
@@ -881,6 +879,19 @@ int32_t count_ongoing_constructions(sys::state& state, dcon::nation_id n) {
 
 	return count;
 }
+
+
+//float populate_explanation_unit_construction(
+//	sys::state& state,
+//	dcon::nation_id n,
+//	float& dedicated_budget,
+//	float& estimated_spendings,
+//	float budget_limit_per_project
+//) {
+//
+//}
+
+
 
 void populate_explanation_province_construction(
 	sys::state& state,
@@ -961,84 +972,24 @@ void populate_explanation_state_construction(
 	}
 }
 
-void populate_explanation_land_construction(
+float estimate_unit_construction_spending(
 	sys::state& state,
-	std::vector<province_land_construction_spending_entry>& data,
-	dcon::nation_id n,
-	float& dedicated_budget,
-	float& estimated_spendings,
-	float budget_limit_per_project
+	dcon::nation_id n
 ) {
-	for(auto lc : state.world.in_province_land_construction) {
-		auto details = explain_land_unit_construction(state, lc);
-		if(details.owner != n) continue;
-		if(!details.can_be_advanced) continue;
-		auto& base_cost = state.military_definitions.unit_base_definitions[details.unit_type].build_cost;
-		auto& current_purchased	= state.world.province_land_construction_get_purchased_goods(lc);
-		float total_cost = 0.f;
-		for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-			auto cid = base_cost.commodity_type[i];
-			if(!cid) break;
-			auto current = current_purchased.commodity_amounts[i];
-			auto required = base_cost.commodity_amounts[i] * details.cost_multiplier;
-			if(current >= required) continue;
-			auto local_price = price(state, details.market, cid);
-			auto actual_budget = std::min(budget_limit_per_project, dedicated_budget);
-			auto can_purchase_budget = actual_budget / (local_price + 0.001f);
-			auto can_purchase_construction = required / details.construction_time;
-			auto can_purchase = std::min(can_purchase_budget, can_purchase_construction);
-			auto satisfaction = state.world.market_get_actual_probability_to_buy(details.market, cid);
-			auto cost = std::min(dedicated_budget, can_purchase * satisfaction * local_price);
-			dedicated_budget -= cost;
-			estimated_spendings += cost;
-			total_cost += cost;
+	float total = 0.0f;
+	uint32_t total_commodities = state.world.commodity_size();
+	state.world.nation_for_each_state_control(n, [&](auto soid) {
+		auto local_state = state.world.state_control_get_state(soid);
+		auto market = state.world.state_instance_get_market_from_local_market(local_state);
+		for(uint32_t i = 1; i < total_commodities; ++i) {
+			dcon::commodity_id cid{ dcon::commodity_id::value_base_t(i) };
+			total +=
+				state.world.market_get_unit_construction_demand(market, cid)
+				* price(state, market, cid)
+				* state.world.market_get_actual_probability_to_buy(market, cid);
 		}
-		province_land_construction_spending_entry to_add{
-			.construction = lc, .spending = total_cost
-		};
-		data.push_back(to_add);
-	}
-}
-void populate_explanation_naval_construction(
-	sys::state& state,
-	std::vector<province_naval_construction_spending_entry>& data,
-	dcon::nation_id n,
-	float& dedicated_budget,
-	float& estimated_spendings,
-	float budget_limit_per_project
-) {
-	state.world.nation_for_each_province_ownership(n, [&](auto ownership) {
-		auto p = state.world.province_ownership_get_province(ownership);
-		auto rng = state.world.province_get_province_naval_construction(p);
-		if(rng.begin() == rng.end()) return;
-		auto c = *(rng.begin());
-		auto details = explain_naval_unit_construction(state, c);
-		if(!details.can_be_advanced) return;
-		auto& base_cost = state.military_definitions.unit_base_definitions[details.unit_type].build_cost;
-		auto& current_purchased = state.world.province_naval_construction_get_purchased_goods(c);
-		float total_cost = 0.f;
-		for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-			auto cid = base_cost.commodity_type[i];
-			if(!cid) break;
-			auto current = current_purchased.commodity_amounts[i];
-			auto required = base_cost.commodity_amounts[i] * details.cost_multiplier;
-			if(current >= required) continue;
-			auto local_price = price(state, details.market, cid);
-			auto actual_budget = std::min(budget_limit_per_project, dedicated_budget);
-			auto can_purchase_budget = actual_budget / (local_price + 0.001f);
-			auto can_purchase_construction = required / details.construction_time;
-			auto can_purchase = std::min(can_purchase_budget, can_purchase_construction);
-			auto satisfaction = state.world.market_get_actual_probability_to_buy(details.market, cid);
-			auto cost = std::min(dedicated_budget, can_purchase * satisfaction * local_price);
-			dedicated_budget -= cost;
-			estimated_spendings += cost;
-			total_cost += cost;
-		}
-		province_naval_construction_spending_entry to_add{
-			.construction = c, .spending = total_cost
-		};
-		data.push_back(to_add);
 	});
+	return total;
 }
 
 construction_spending_explanation explain_construction_spending(
@@ -1052,21 +1003,17 @@ construction_spending_explanation explain_construction_spending(
 		.estimated_spendings = 0.f,
 		.province_buildings = { },
 		.factories = { },
-		.land_units = { },
-		.naval_units = { },
+		.unit_constructions = 0.0f
 	};
 
 	if(result.ongoing_projects == 0) return result;
 	result.budget_limit_per_project = dedicated_budget / float(result.ongoing_projects);
-
-	populate_explanation_land_construction(
-		state, result.land_units,
-		n, dedicated_budget, result.estimated_spendings, result.budget_limit_per_project
-	);
-	populate_explanation_naval_construction(
-		state, result.naval_units,
-		n, dedicated_budget, result.estimated_spendings, result.budget_limit_per_project
-	);
+	
+	// Unit constructions are aggregated unto the government stockpile demand. Since that was already computed, we we simply take the amount purchased today as fact
+	float unit_construction_costs = estimate_unit_construction_spending(state, n);
+	result.unit_constructions = std::min(unit_construction_costs, dedicated_budget);
+	result.estimated_spendings += std::min(unit_construction_costs, dedicated_budget);
+	dedicated_budget -= std::max(result.unit_constructions, 0.0f);
 	populate_explanation_province_construction(
 		state, result.province_buildings,
 		n, dedicated_budget, result.estimated_spendings, result.budget_limit_per_project
@@ -1231,7 +1178,7 @@ void refund_construction_demand(sys::state& state, dcon::nation_id n, float tota
 
 		for(uint32_t i = 1; i < total_commodities; ++i) {
 			dcon::commodity_id c{ dcon::commodity_id::value_base_t(i) };
-			auto& nat_demand = state.world.market_get_construction_demand(market, c);
+			auto nat_demand = state.world.market_get_construction_demand(market, c);
 			auto com_price = price(state, market, c);
 			auto d_sat = state.world.market_get_actual_probability_to_buy(market, c);
 			refund_amount +=
@@ -1255,25 +1202,26 @@ void refund_construction_demand(sys::state& state, dcon::nation_id n, float tota
 
 void advance_construction(sys::state& state, dcon::nation_id n, float total_spent_on_construction) {
 	refund_construction_demand(state, n, total_spent_on_construction);
-	for(auto p : state.world.nation_get_province_ownership(n)) {
-		if(p.get_province().get_nation_from_province_control() != n)
-			continue;
-		for(auto pops : p.get_province().get_pop_location()) {
-			auto rng = pops.get_pop().get_province_land_construction();
-			if(rng.begin() != rng.end()) {
-				auto c = *(rng.begin());
-				advance_land_unit_construction(state, c);
-				break; // only advance one construction per province
-			}
-		}
-		{
-			auto rng = p.get_province().get_province_naval_construction();
-			if(rng.begin() != rng.end()) {
-				auto c = *(rng.begin());
-				advance_naval_unit_construction(state, c);
-			}
-		}
-	}
+	// advancement of unit constructions are moved to supply route logic
+	//for(auto p : state.world.nation_get_province_ownership(n)) {
+	//	if(p.get_province().get_nation_from_province_control() != n)
+	//		continue;
+	//	for(auto pops : p.get_province().get_pop_location()) {
+	//		auto rng = pops.get_pop().get_province_land_construction();
+	//		if(rng.begin() != rng.end()) {
+	//			auto c = *(rng.begin());
+	//			advance_land_unit_construction(state, c);
+	//			break; // only advance one construction per province
+	//		}
+	//	}
+	//	{
+	//		auto rng = p.get_province().get_province_naval_construction();
+	//		if(rng.begin() != rng.end()) {
+	//			auto c = *(rng.begin());
+	//			advance_naval_unit_construction(state, c);
+	//		}
+	//	}
+	//}
 	for(auto c : state.world.nation_get_province_building_construction(n)) {
 		if(c.get_province().get_nation_from_province_ownership() == c.get_province().get_nation_from_province_control()) {
 			advance_province_building_construction(state, c);

@@ -4976,7 +4976,7 @@ relationship{
 	}
 	composite_key{
 		name{origin_construction_pair}
-		index{navy}
+		index{construction}
 		index{origin}
 	}
 	property{
@@ -5034,7 +5034,7 @@ relationship{
 	}
 	composite_key{
 		name{origin_construction_pair}
-		index{navy}
+		index{construction}
 		index{origin}
 	}
 	property{

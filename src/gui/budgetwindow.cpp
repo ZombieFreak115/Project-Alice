@@ -1182,25 +1182,8 @@ void  budgetwindow_main_espenses_table_t::update(sys::state& state, layout_windo
 				data.spending
 			);
 		}
-		for(auto& data : explanation.land_units) {
-			auto unit_type = state.world.province_land_construction_get_type(data.construction);
-			auto location = state.world.pop_get_province_from_pop_location(state.world.province_land_construction_get_pop(data.construction));
-			auto unit_name = state.military_definitions.unit_base_definitions[unit_type].name;
-			add_budget_row(
-				text::produce_simple_string(state, unit_name)
-				+ "(" + text::produce_simple_string(state, state.world.province_get_name(location)) + ")",
-				data.spending
-			);
-		}
-		for(auto& data : explanation.naval_units) {
-			auto unit_type = state.world.province_naval_construction_get_type(data.construction);
-			auto location = state.world.province_naval_construction_get_province(data.construction);
-			auto unit_name = state.military_definitions.unit_base_definitions[unit_type].name;
-			add_budget_row(
-				text::produce_simple_string(state, unit_name)
-				+ "(" + text::produce_simple_string(state, state.world.province_get_name(location)) + ")",
-				data.spending
-			);
+		if(explanation.unit_constructions > 0.0f) {
+			add_budget_row("Military constructions", explanation.unit_constructions);
 		}
 	} else {
 		add_neutral_spacer();

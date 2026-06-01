@@ -39,7 +39,7 @@ float farmer_min_wage(sys::state& state, dcon::market_id m, float min_wage_facto
 float laborer_min_wage(sys::state& state, dcon::market_id m, float min_wage_factor);
 
 void daily_update(sys::state& state, bool presimulation, float presimulation_stage);
-void resolve_constructions(sys::state& state);
+void resolve_building_constructions(sys::state& state);
 
 std::vector<dcon::factory_type_id> commodity_get_factory_types_as_output(sys::state const& state, dcon::commodity_id output_good);
 
@@ -133,6 +133,9 @@ void get_closest_available_market_states(sys::state& state, std::vector<dcon::st
 // The "to_consume" commodity set will be decremented over time and after the call will only hold the commoditiy quantities which it was unable to fufll.
 // Make SURE that commodity set passed in is ok to be modified
 float consume_from_government_stockpiles(sys::state& state, economy::commodity_set& to_consume, std::span<const dcon::state_instance_id> stockpile_states, dcon::province_id location_from, dcon::nation_id nation_as);
+
+// sets the passed vector to the weights for each controlled market and commodity for stockpile demand. Will be used to decide which government stockpiles shall receive demand from military and stockpile demand
+void set_stockpile_market_demand_weights(sys::state& state, dcon::nation_id nation, tagged_vector<tagged_vector<float, dcon::market_id>, dcon::commodity_id>& market_demand_weights);
 
 float estimate_investment_pool_daily_loss(sys::state& state, dcon::nation_id n);
 

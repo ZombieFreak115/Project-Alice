@@ -336,6 +336,16 @@ struct commodity_set {
 		}
 	}
 
+	void clear_types() {
+		std::memset(&commodity_type, 0, sizeof(commodity_type));
+	}
+	void clear_amounts() {
+		std::memset(&commodity_amounts, 0, sizeof(commodity_amounts));
+	}
+	void clear_all() {
+		std::memset(this, 0, sizeof(this));
+	}
+
 };
 static_assert(sizeof(commodity_set) ==
 	sizeof(commodity_set::commodity_amounts)
