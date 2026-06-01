@@ -4584,6 +4584,11 @@ object{
 		tag{ save }
 	}
 	property {
+		name{ unit_construction_demand }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
 		name{ private_construction_demand }
 		type{ array{commodity_id}{float} }
 		tag{ save }
@@ -4948,6 +4953,127 @@ relationship{
 
 
 
+
+
+
+relationship{
+	name{ land_construction_supply_route }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{province_land_construction}
+		name{construction}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{market}
+		name{origin}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{origin_construction_pair}
+		index{navy}
+		index{origin}
+	}
+	property{
+		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ path }
+		type{vector_pool{5000}{province_id}}
+		tag{ save }
+	}
+	property{
+		name{ route_attrition }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ throughput }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ volume }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ buffered_goods }
+		type{ economy::commodity_set }
+		tag{ save }
+	}
+
+}
+
+
+
+relationship{
+	name{ naval_construction_supply_route }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{province_naval_construction}
+		name{construction}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{market}
+		name{origin}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{origin_construction_pair}
+		index{navy}
+		index{origin}
+	}
+	property{
+		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ path }
+		type{vector_pool{5000}{province_id}}
+		tag{ save }
+	}
+	property{
+		name{ route_attrition }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ throughput }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ volume }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ buffered_goods }
+		type{ economy::commodity_set }
+		tag{ save }
+	}
+
+}
+
+
+
+
+
 relationship{
 	name{ navy_supply_route_node }
 	storage_type{ compactable }
@@ -4989,6 +5115,59 @@ relationship{
 	}
 	link{
 		object{army_supply_route}
+		name{supply_route}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{route_province_pair}
+		index{province}
+		index{supply_route}
+	}
+
+}
+
+
+relationship{
+	name{ land_construction_supply_route_node }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{province}
+		name{province}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{land_construction_supply_route }
+		name{supply_route}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{route_province_pair}
+		index{province}
+		index{supply_route}
+	}
+
+}
+
+relationship{
+	name{ naval_construction_supply_route_node }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{province}
+		name{province}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{naval_construction_supply_route }
 		name{supply_route}
 		type{many}
 		index_storage{array}
