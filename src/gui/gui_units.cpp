@@ -2204,11 +2204,12 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 	else {
 		owner = state.world.navy_get_controller_from_navy_control(unit);
 	}
+	// We get the last requires supplies instead of the future required supplies because all the route data is current
 	if constexpr(supply_type == military::unit_consumption_type::supply) {
-		commodities_required = military::get_required_supply(state, owner, unit);
+		commodities_required = military::get_last_required_supply(state, owner, unit);
 	}
 	else {
-		commodities_required = military::get_required_reinforcement_supply(state, owner, unit);
+		commodities_required = military::get_last_required_reinforcement_supply(state, owner, unit);
 	}
 	if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
 		for(auto route : state.world.army_get_army_supply_route(unit)) {
@@ -2318,14 +2319,14 @@ public:
 			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
 			for(auto r : state.world.army_get_army_membership(army)) {
 				auto regiment = r.get_regiment();
-				total_reinf += regiment.get_last_reinforcement_satisfaction();
+				total_reinf += regiment.get_reinforcement_satisfaction();
 			}
 		} else if(navy) {
 			unit_count = uint32_t(state.world.navy_get_navy_membership(navy).end() - state.world.navy_get_navy_membership(navy).begin());
 			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
 			for(auto r : state.world.navy_get_navy_membership(navy)) {
 				auto ship = r.get_ship();
-				total_reinf += ship.get_last_reinforcement_satisfaction();
+				total_reinf += ship.get_reinforcement_satisfaction();
 			}
 		}
 		progress = total_reinf / unit_count;

@@ -1969,11 +1969,19 @@ object {
 		type{ float }
 	}
 	property{
-		name { reinforcement_satisfaction_buffer }
+		name { last_supply_cost_modifier }
 		type{ float }
 	}
 	property{
-		name { last_reinforcement_satisfaction }
+		name { total_pending_reinforcement  }
+		type{ float }
+	}
+	property{
+		name { last_potential_reinforcement}
+		type{ float }
+	}
+	property{
+		name { reinforcement_satisfaction }
 		type{ float }
 	}
 	property{	
@@ -2163,11 +2171,19 @@ object {
 		type{ float }
 	}
 	property{
-		name { reinforcement_satisfaction_buffer }
+		name { last_supply_cost_modifier }
 		type{ float }
 	}
 	property{
-		name { last_reinforcement_satisfaction }
+		name { total_pending_reinforcement }
+		type{ float }
+	}
+	property{
+		name { last_potential_reinforcement}
+		type{ float }
+	}
+	property{
+		name { reinforcement_satisfaction }
 		type{ float }
 	}
 	property{	

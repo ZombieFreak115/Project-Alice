@@ -316,7 +316,7 @@ float estimate_regiment_reinforcement(sys::state& state, dcon::regiment_id regim
 	float reinf_fufillment;
 	if constexpr(interval_type == interval_estimation::daily) {
 		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = std::clamp(state.world.regiment_get_last_reinforcement_satisfaction(regiment) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+			reinf_fufillment = std::clamp(state.world.regiment_get_reinforcement_satisfaction(regiment) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
 		}
 		// full supply always
 		else {
@@ -326,7 +326,7 @@ float estimate_regiment_reinforcement(sys::state& state, dcon::regiment_id regim
 	// monthly
 	else {
 		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = state.world.regiment_get_last_reinforcement_satisfaction(regiment);
+			reinf_fufillment = state.world.regiment_get_reinforcement_satisfaction(regiment);
 		}
 		// full supply always
 		else {
@@ -338,7 +338,7 @@ float estimate_regiment_reinforcement(sys::state& state, dcon::regiment_id regim
 	float newstr;
 	float curstr = state.world.regiment_get_strength(regiment);
 	auto pop_size = state.world.pop_get_size(pop);
-	float pending_reinf = state.world.regiment_get_reinforcement_satisfaction_buffer(regiment);
+	float pending_reinf = state.world.regiment_get_total_pending_reinforcement(regiment);
 	if constexpr(!potential_reinforcement) {
 		combined = std::min(combined, 1.0f - (curstr + pending_reinf)); // Can only reinforce up to the amount of missing strength
 		auto limit_fraction = std::max(state.defines.alice_full_reinforce, std::min(1.0f, pop_size / state.defines.pop_size_per_regiment));
@@ -380,7 +380,7 @@ float estimate_ship_reinforcement(sys::state& state, dcon::ship_id ship, float r
 	float reinf_fufillment;
 	if constexpr(interval_type == interval_estimation::daily) {
 		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = std::clamp(state.world.ship_get_last_reinforcement_satisfaction(ship) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+			reinf_fufillment = std::clamp(state.world.ship_get_reinforcement_satisfaction(ship) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
 		}
 		// full supply always
 		else {
@@ -390,7 +390,7 @@ float estimate_ship_reinforcement(sys::state& state, dcon::ship_id ship, float r
 	// monthly
 	else {
 		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = state.world.ship_get_last_reinforcement_satisfaction(ship);
+			reinf_fufillment = state.world.ship_get_reinforcement_satisfaction(ship);
 		}
 		// full supply always
 		else {
@@ -399,7 +399,7 @@ float estimate_ship_reinforcement(sys::state& state, dcon::ship_id ship, float r
 	}
 	auto combined = reinf_fufillment * reinforcement_mods;
 	float curstr = state.world.ship_get_strength(ship);
-	float pending_reinf = state.world.ship_get_reinforcement_satisfaction_buffer(ship);
+	float pending_reinf = state.world.ship_get_total_pending_reinforcement(ship);
 	if constexpr(!potential_reinforcement) {
 		combined = std::min(combined, 1.0f - (curstr + pending_reinf)); // Can only reinforce up to the amount of missing strength
 		return std::max(combined, 0.0f);

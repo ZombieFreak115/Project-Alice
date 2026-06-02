@@ -720,13 +720,25 @@ void populate_construction_consumption(sys::state& state) {
 			].build_cost;
 		auto builder = state.world.province_land_construction_get_nation(lc);
 
+		const auto& currently_fufilled = state.world.province_land_construction_get_purchased_goods(lc);
+
 		auto unit_type = state.world.province_land_construction_get_type(lc);
 		uint32_t construction_time = land_unit_construction_time(state, unit_type, builder);
-		base_cost.for_each_commodity([&](dcon::commodity_id cid, float amount) {
-			auto required = (amount * details.cost_multiplier) / construction_time;
-			unit_commodity_demand_buffer[builder][cid] += required;
 
-		});
+		for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
+			dcon::commodity_id cid = base_cost.commodity_type[i];
+			if(cid) {
+				float base_amount = base_cost.commodity_amounts[i];
+				float total_required = base_amount * details.cost_multiplier;
+				float fufilled_amount = currently_fufilled.commodity_amounts[i];
+				float goods_left = std::max(total_required - fufilled_amount, 0.0f);
+				float required = std::min(total_required / construction_time, goods_left);
+				unit_commodity_demand_buffer[builder][cid] += required;
+			}
+			else {
+				break;
+			}
+		}
 	}
 	province::for_each_land_province(state, [&](dcon::province_id p) {
 		auto owner = state.world.province_get_nation_from_province_ownership(p);
@@ -747,13 +759,22 @@ void populate_construction_consumption(sys::state& state) {
 			].build_cost;
 		auto builder = state.world.province_naval_construction_get_nation(c);
 
+		const auto& currently_fufilled = state.world.province_naval_construction_get_purchased_goods(c);
 		auto unit_type = state.world.province_naval_construction_get_type(c);
 		uint32_t construction_time = naval_unit_construction_time(state, unit_type, builder);
-		base_cost.for_each_commodity([&](dcon::commodity_id cid, float amount) {
-			auto required = (amount * details.cost_multiplier) / construction_time;
-			unit_commodity_demand_buffer[builder][cid] += required;
-
-		});
+		for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
+			dcon::commodity_id cid = base_cost.commodity_type[i];
+			if(cid) {
+				float base_amount = base_cost.commodity_amounts[i];
+				float total_required = base_amount * details.cost_multiplier;
+				float fufilled_amount = currently_fufilled.commodity_amounts[i];
+				float goods_left = std::max(total_required - fufilled_amount, 0.0f);
+				float required = std::min(total_required / construction_time, goods_left);
+				unit_commodity_demand_buffer[builder][cid] += required;
+			} else {
+				break;
+			}
+		}
 	});
 
 	// Weights for which markets shall receive the demand. The buffer will be filled with data once per nation iteration
@@ -781,8 +802,9 @@ void populate_construction_consumption(sys::state& state) {
 				total_expected_price += (price * total_demand * percentage_weight);
 			});
 		});
-		// Set the demand mult to match what our budget limit can afford at most
-		float demand_multiplier = (total_expected_price == 0 ? 1.0f : std::min(budget_limit / total_expected_price, 1.0f));
+		// Set the demand mult to match what our budget limit can afford at most, to spread the demand. Demand multiplier may demand extra and go all the way up to 1.5.
+		// This is to take into account potential route attrition, so we buy up to 50% extra if the budget allows for it
+		float demand_multiplier = (total_expected_price == 0 ? 1.0f : std::min(budget_limit / total_expected_price, 1.5f));
 		economy::for_each_commodity_no_money(state, [&](dcon::commodity_id com_id) {
 			state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
 				auto state_inst = state.world.state_control_get_state(sc);
@@ -801,14 +823,6 @@ void populate_construction_consumption(sys::state& state) {
 			});
 		});
 	}
-
-
-
-
-
-
-
-
 
 
 
