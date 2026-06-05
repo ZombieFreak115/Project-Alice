@@ -3037,11 +3037,6 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	world.market_resize_government_stockpile(world.commodity_size());
 	world.market_resize_govt_stockpile_satisfaction_buffer(world.commodity_size());
 
-	world.army_supply_route_resize_buffered_reinforcement_goods(world.commodity_size());
-	world.army_supply_route_resize_buffered_supply_goods(world.commodity_size());
-	world.navy_supply_route_resize_buffered_reinforcement_goods(world.commodity_size());
-	world.navy_supply_route_resize_buffered_supply_goods(world.commodity_size());
-
 	world.market_resize_life_needs_costs(world.pop_type_size());
 	world.market_resize_everyday_needs_costs(world.pop_type_size());
 	world.market_resize_luxury_needs_costs(world.pop_type_size());

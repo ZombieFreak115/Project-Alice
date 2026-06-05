@@ -379,6 +379,21 @@ object {
 		tag{ scenario }
 	}
 	property{
+		name{ unit_supply_build_goods_index }
+		type{ int16_t }
+		tag{ scenario }
+	}
+	property{
+		name{ unit_supply_goods_index }
+		type{ int16_t }
+		tag{ scenario }
+	}
+	property{
+		name{ unit_build_goods_index }
+		type{ int16_t }
+		tag{ scenario }
+	}
+	property{
 		name{ rgo_amount }
 		type{ float }
 		tag{ scenario }
@@ -411,7 +426,6 @@ object {
 	property{
 		name{ producer_payout_fraction }
 		type{ float }
-		
 		
 	}
 	property{
@@ -4893,12 +4907,12 @@ relationship{
 	}
 	property{
 		name{ buffered_supply_goods }
-		type{ array{commodity_id}{float} }
+		type{ economy::huge_commodity_set }
 		tag{ save }
 	}
 	property{
 		name{ buffered_reinforcement_goods }
-		type{ array{commodity_id}{float} }
+		type{ economy::huge_commodity_set }
 		tag{ save }
 	}
 
@@ -4955,12 +4969,12 @@ relationship{
 	}
 	property{
 		name{ buffered_supply_goods }
-		type{ array{commodity_id}{float} }
+		type{ economy::huge_commodity_set }
 		tag{ save }
 	}
 	property{
 		name{ buffered_reinforcement_goods }
-		type{ array{commodity_id}{float} }
+		type{ economy::huge_commodity_set }
 		tag{ save }
 	}
 

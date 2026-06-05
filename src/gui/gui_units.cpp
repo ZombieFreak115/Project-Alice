@@ -2219,8 +2219,8 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 					commodities_satisfied_before_loss[com_id] += route.get_buffered_supply_goods(com_id);
 				}
 				else {
-					commodities_satisfied[com_id] += (route.get_buffered_reinforcement_goods(com_id) * route.get_route_attrition());
-					commodities_satisfied_before_loss[com_id] += route.get_buffered_reinforcement_goods(com_id);
+					commodities_satisfied[com_id] += (route.get_buffered_reinforcement_goods() * route.get_route_attrition());
+					commodities_satisfied_before_loss[com_id] += route.get_buffered_reinforcement_goods();
 				}
 			});
 		}

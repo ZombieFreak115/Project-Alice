@@ -523,7 +523,7 @@ tagged_vector<float, dcon::commodity_id> get_last_required_supply(sys::state& st
 tagged_vector<float, dcon::commodity_id> get_last_required_reinforcement_supply(sys::state& state, dcon::nation_id owner, dcon::navy_id navy);
 tagged_vector<float, dcon::commodity_id> get_last_required_reinforcement_supply(sys::state& state, dcon::nation_id owner, dcon::army_id army);
 void recover_org(sys::state& state);
-float calculate_location_reinforce_modifier_battle(sys::state& state, dcon::province_id location, dcon::nation_id in_nation);
+float calculate_location_reinforce_modifier_battle(const sys::state& state, dcon::province_id location, dcon::nation_id in_nation);
 float unit_get_strength(sys::state& state, dcon::regiment_id regiment_id);
 float unit_get_strength(sys::state& state, dcon::ship_id ship_id);
 // stops the unit movement completly and clears all other auxillary movement effects (arrival date, path etc)
@@ -546,14 +546,14 @@ void send_rebel_hunter_to_next_province(sys::state& state, dcon::army_id ar, dco
 void resolve_unit_constructions(sys::state& state);
 
 // Gets the net total supply cost modifier for the naval unit,with all modifiers included
-float get_naval_supply_cost_modifiers(sys::state& state, dcon::ship_id ship);
+float get_supply_cost_modifiers(sys::state& state, dcon::ship_id ship);
 
 // Gets the net total supply cost modifier for the land unit, with all modifiers included
-float get_land_supply_cost_modifiers(sys::state& state, dcon::regiment_id regiment);
+float get_supply_cost_modifiers(sys::state& state, dcon::regiment_id regiment);
 
 
-float get_land_reinforcement_modifiers(sys::state& state, dcon::regiment_id regiment);
-float get_naval_reinforcement_modifiers(sys::state& state, dcon::ship_id ship);
+float get_land_reinforcement_modifiers(const sys::state& state, dcon::regiment_id regiment);
+float get_naval_reinforcement_modifiers(const sys::state& state, dcon::ship_id ship);
 
 bool is_battle_retreatable(sys::state& state, dcon::naval_battle_id battle, retreat_type retreat_type);
 bool is_battle_retreatable(sys::state& state, dcon::land_battle_id battle);

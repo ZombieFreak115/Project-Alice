@@ -100,8 +100,8 @@ float crime_fighting_efficiency(sys::state& state, dcon::province_id id);
 float revolt_risk(sys::state& state, dcon::province_id id);
 
 void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation_id new_owner);
-bool is_crossing_blocked(sys::state& state, dcon::nation_id thisnation, dcon::province_id from, dcon::province_id to);
-bool is_crossing_blocked(sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adjacency);
+bool is_crossing_blocked(const sys::state& state, dcon::nation_id thisnation, dcon::province_id from, dcon::province_id to);
+bool is_crossing_blocked(const sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adjacency);
 bool is_adjacency_impassable(sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adj);
 void conquer_province(sys::state& state, dcon::province_id id, dcon::nation_id new_owner);
 
@@ -143,7 +143,7 @@ float sorting_distance(sys::state& state, dcon::province_id a, dcon::province_id
 float state_sorting_distance(sys::state& state, dcon::state_instance_id state_id, dcon::province_id prov_id);
 
 // determines whether a land unit is allowed to move to / be in a province
-bool has_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
+bool has_access_to_province(const sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
 // whether a ship can dock at a land province
 bool has_naval_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
 // determines whether a land unit is allowed to move to / be in a province that isn't an active enemy

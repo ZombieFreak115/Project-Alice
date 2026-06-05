@@ -1523,12 +1523,12 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 }
 // returns true if a strait between the two provinces are blocked by an enemy navy from the perspective of thisnation
 // Reads sea adjacency data from the v2 adjacencies file to determine if it is blocked
-bool is_crossing_blocked(sys::state& state, dcon::nation_id thisnation, dcon::province_id from, dcon::province_id to) {
+bool is_crossing_blocked(const sys::state& state, dcon::nation_id thisnation, dcon::province_id from, dcon::province_id to) {
 	auto adjacency = state.world.get_province_adjacency_by_province_pair(to, from);
 	return is_crossing_blocked(state, thisnation, adjacency);
 }
 
-bool is_crossing_blocked(sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adjacency) {
+bool is_crossing_blocked(const sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adjacency) {
 	auto path_bits = state.world.province_adjacency_get_type(adjacency);
 	auto strait_prov = state.world.province_adjacency_get_canal_or_blockade_province(adjacency);
 	if(strait_prov) { // strait crossing or canal control province
@@ -2379,7 +2379,7 @@ bool has_naval_access_to_province(sys::state& state, dcon::nation_id nation_as, 
 }
 
 // determines whether a land unit is allowed to move to / be in a province
-bool has_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov) {
+bool has_access_to_province(const sys::state& state, dcon::nation_id nation_as, dcon::province_id prov) {
 	auto controller = state.world.province_get_nation_from_province_control(prov);
 
 	if(!controller)

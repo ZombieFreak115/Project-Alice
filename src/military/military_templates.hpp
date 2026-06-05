@@ -53,7 +53,7 @@ constexpr bool has_flag(enum_type to_check, enum_type flag) {
 }
 
 template<battle_allowed battle_included, retreat_allowed retreat_included, participants_included participant_setting>
-bool province_has_fleet(sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
+bool province_has_fleet(const sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
 	auto navies = state.world.province_get_navy_location(location);
 	if(navies.begin() == navies.end()) {
 		return false; // no navies present
@@ -95,7 +95,7 @@ bool province_has_fleet(sys::state& state, dcon::province_id location, dcon::nat
 }
 
 template<battle_allowed battle_included, retreat_allowed retreat_included, participants_included participant_setting>
-bool province_has_army(sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
+bool province_has_army(const sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
 	auto armies = state.world.province_get_army_location(location);
 	if(armies.begin() == armies.end()) {
 		return false; // no armies present
@@ -312,7 +312,7 @@ dcon::pop_id find_available_soldier_parsing(sys::state& state, dcon::province_id
 // supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
 // potential_reinforcement: Do we cap the reinforcement at max strength, or not?
 template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float estimate_regiment_reinforcement(sys::state& state, dcon::regiment_id regiment, float reinforcement_mods) {
+float estimate_reinforcement(const sys::state& state, dcon::regiment_id regiment, float reinforcement_mods) {
 	float reinf_fufillment;
 	if constexpr(interval_type == interval_estimation::daily) {
 		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
@@ -352,19 +352,19 @@ float estimate_regiment_reinforcement(sys::state& state, dcon::regiment_id regim
 // Estimates reinforcement for a regiment, and computes the modifiers on its own
 // US14 Calculates reinforcement for a particular regiment
 template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float estimate_regiment_reinforcement(sys::state& state, dcon::regiment_id regiment) {
+float estimate_reinforcement(const sys::state& state, dcon::regiment_id regiment) {
 	auto mods = get_land_reinforcement_modifiers(state, regiment);
-	return estimate_regiment_reinforcement<interval_type, supply_type, potential_reinforcement>(state, regiment, mods);
+	return estimate_reinforcement<interval_type, supply_type, potential_reinforcement>(state, regiment, mods);
 
 }
 
 // Estimates combined reinforcement for an entire army
 template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float estimate_army_reinforcement(sys::state& state, dcon::army_id army) {
+float estimate_reinforcement(const sys::state& state, dcon::army_id army) {
 	float total_reinforcement = 0.0f;
 	for(auto r : state.world.army_get_army_membership(army)) {
 		auto regiment = r.get_regiment();
-		total_reinforcement += estimate_regiment_reinforcement<interval_type, supply_type, potential_reinforcement>(state, regiment);
+		total_reinforcement += estimate_reinforcement<interval_type, supply_type, potential_reinforcement>(state, regiment);
 	}
 	return total_reinforcement;
 
@@ -376,7 +376,7 @@ float estimate_army_reinforcement(sys::state& state, dcon::army_id army) {
 // supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
 // potential_reinforcement: Do we cap the reinforcement at max strength + pending reinforcements, or not?
 template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float estimate_ship_reinforcement(sys::state& state, dcon::ship_id ship, float reinforcement_mods) {
+float estimate_reinforcement(const sys::state& state, dcon::ship_id ship, float reinforcement_mods) {
 	float reinf_fufillment;
 	if constexpr(interval_type == interval_estimation::daily) {
 		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
@@ -414,19 +414,19 @@ float estimate_ship_reinforcement(sys::state& state, dcon::ship_id ship, float r
 // supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
 // potential_reinforcement: Do we cap the reinforcement at max strength, or not?
 template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float estimate_ship_reinforcement(sys::state& state, dcon::ship_id ship) {
+float estimate_reinforcement(const sys::state& state, dcon::ship_id ship) {
 	auto mods = get_naval_reinforcement_modifiers(state, ship);
-	return estimate_ship_reinforcement<interval_type, supply_type, potential_reinforcement>(state, ship, mods);
+	return estimate_reinforcement<interval_type, supply_type, potential_reinforcement>(state, ship, mods);
 
 }
 
 // Estimates combined reinforcement for a whole navy
 template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
-float estimate_navy_reinforcement(sys::state& state, dcon::navy_id navy) {
+float estimate_reinforcement(const sys::state& state, dcon::navy_id navy) {
 	float total_reinforcement = 0.0f;
 	for(auto r : state.world.navy_get_navy_membership(navy)) {
 		auto ship = r.get_ship();
-		total_reinforcement += estimate_ship_reinforcement<interval_type, supply_type, potential_reinforcement>(state, ship);
+		total_reinforcement += estimate_reinforcement<interval_type, supply_type, potential_reinforcement>(state, ship);
 	}
 	return total_reinforcement;
 

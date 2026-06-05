@@ -509,6 +509,12 @@ inventions_file
 commodity_set
 	#any           value      float            member_fn
 
+military_build_commodity_set
+	#any           value      float            member_fn
+
+military_supply_commodity_set
+	#any           value      float            member_fn
+
 unit_definition
 	icon           value      int              member
 	type           value      text             member_fn   (type_text)
@@ -519,8 +525,8 @@ unit_definition
 	maximum_speed  value      float            member
 	build_time     value      int              member
 	supply_consumption  value float            member
-	build_cost     group      commodity_set    member
-	supply_cost    group      commodity_set    member
+	build_cost     group      military_build_commodity_set    member
+	supply_cost    group      military_supply_commodity_set    member
 	reconnaissance value      float            member  (reconnaissance_or_fire_range)
 	attack         value      float            member  (attack_or_gun_power)
 	defence        value      float            member  (defence_or_hull)

@@ -185,10 +185,10 @@ float calculate_factory_refit_money_cost(sys::state& state, dcon::nation_id n, d
 float global_province_construction_time_modifier(sys::state& state) {
 	return state.defines.alice_province_building_build_time_mult;
 }
-float global_land_construction_time_modifier(sys::state& state) {
+float global_land_construction_time_modifier(const sys::state& state) {
 	return state.defines.alice_land_unit_build_time_mult;
 }
-float global_naval_construction_time_modifier(sys::state& state) {
+float global_naval_construction_time_modifier(const sys::state& state) {
 	return state.defines.alice_naval_unit_build_time_mult;
 }
 
@@ -196,7 +196,7 @@ float global_factory_construction_time_modifier(sys::state& state) {
 	return state.defines.alice_factory_build_time_mult;
 }
 
-float build_cost_multiplier(sys::state& state, dcon::province_id location, bool is_pop_project) {
+float build_cost_multiplier(const sys::state& state, dcon::province_id location, bool is_pop_project) {
 	float admin_eff = state.world.province_get_control_ratio(location);
 	// make factories cheaper to make it a bit easier to get into industry and compensate for low control
 	return (is_pop_project ? 1.f : 2.0f - admin_eff) * 0.5f;
@@ -210,7 +210,7 @@ float factory_build_cost_multiplier(sys::state& state, dcon::nation_id n, dcon::
 }
 
 uint32_t land_unit_construction_time(
-	sys::state& state,
+	const sys::state& state,
 	dcon::unit_type_id utid,
 	dcon::nation_id builder
 ) {
@@ -219,7 +219,7 @@ uint32_t land_unit_construction_time(
 }
 
 uint32_t naval_unit_construction_time(
-	sys::state& state,
+	const sys::state& state,
 	dcon::unit_type_id utid,
 	dcon::nation_id builder
 ) {
@@ -279,6 +279,21 @@ void reset_private_construction_demand(sys::state& state) {
 	}
 }
 
+bool can_advance_construction(const sys::state& state, dcon::province_land_construction_id con ) {
+	auto construction = fatten(state.world, con);
+	auto owner = construction.get_nation();
+	return owner && owner == construction.get_pop().get_province_from_pop_location().get_nation_from_province_control();
+}
+
+bool can_advance_construction(const sys::state& state, dcon::province_naval_construction_id con) {
+	auto construction = fatten(state.world, con);
+	auto owner = construction.get_nation();
+	auto location = construction.get_province();
+	auto all_constructions = location.get_province_naval_construction();
+	// Only the first naval construction in a province can be advanced at a time
+	return owner && owner == location.get_nation_from_province_control() && (*all_constructions.begin()).get_province() == location;
+}
+
 unit_construction_data explain_land_unit_construction(
 	sys::state& state,
 	dcon::province_land_construction_id construction
@@ -288,7 +303,7 @@ unit_construction_data explain_land_unit_construction(
 	auto local_zone = state.world.province_get_state_membership(province);
 	auto unit_type = state.world.province_land_construction_get_type(construction);
 	unit_construction_data result = {
-		.can_be_advanced = (owner && state.world.province_get_nation_from_province_control(province) == owner),
+		.can_be_advanced = can_advance_construction(state, construction),
 		.construction_time = land_unit_construction_time(state, unit_type, owner),
 		.cost_multiplier = build_cost_multiplier(state, province, false),
 		.owner = owner,
@@ -309,7 +324,7 @@ unit_construction_data explain_naval_unit_construction(
 	auto local_zone = state.world.province_get_state_membership(province);
 	auto unit_type = state.world.province_naval_construction_get_type(construction);
 	unit_construction_data result = {
-		.can_be_advanced = (owner && state.world.province_get_nation_from_province_control(province) == owner),
+		.can_be_advanced = can_advance_construction(state, construction),
 		.construction_time = naval_unit_construction_time(state, unit_type, owner),
 		.cost_multiplier = build_cost_multiplier(state, province, false),
 		.owner = owner,

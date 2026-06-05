@@ -1287,7 +1287,7 @@ void populate_army_consumption(sys::state& state) {
 		auto nation = state.world.army_get_controller_from_army_control(army);
 		if(nation) {
 			float land_spending = state.world.nation_get_land_spending(nation) / 100.0f;
-			auto supply_mod = military::get_land_supply_cost_modifiers(state, regiment);
+			auto supply_mod = military::get_supply_cost_modifiers(state, regiment);
 
 			const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
 			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
@@ -1308,7 +1308,7 @@ void populate_army_consumption(sys::state& state) {
 				if(build_cost.commodity_type[i]) {
 					auto required_commodity = build_cost.commodity_type[i];
 					auto required_amounts = build_cost.commodity_amounts[i];
-					auto reinforcement = military::estimate_regiment_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, false>(state, regiment);
+					auto reinforcement = military::estimate_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, false>(state, regiment);
 					if(reinforcement > 0) {
 						// Unit need reinforcement - add extra consumption. Every 1% of reinforcement demands 1% of unit cost
 						// add only a fraction of the build cost per day, to spread it out over the month
@@ -1372,7 +1372,7 @@ void populate_navy_consumption(sys::state& state) {
 		auto nation = state.world.navy_get_controller_from_navy_control(navy);
 		if(nation) {
 			float naval_spending = state.world.nation_get_naval_spending(nation) / 100.0f;
-			auto supply_mod = military::get_naval_supply_cost_modifiers(state, shp);
+			auto supply_mod = military::get_supply_cost_modifiers(state, shp);
 
 			const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
 			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
@@ -1393,7 +1393,7 @@ void populate_navy_consumption(sys::state& state) {
 				if(build_cost.commodity_type[i]) {
 					auto required_commodity = build_cost.commodity_type[i];
 					auto required_amounts = build_cost.commodity_amounts[i];
-					auto reinforcement = military::estimate_ship_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, false>(state, shp);
+					auto reinforcement = military::estimate_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, false>(state, shp);
 					if(reinforcement > 0) {
 						// Ship needs repair - add extra consumption. Every 1% of reinforcement demands 1% of unit cost
 						// add only a fraction of the build cost per day, to spread it out over the month

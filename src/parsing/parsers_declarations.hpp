@@ -1567,6 +1567,23 @@ struct commodity_set : public economy::commodity_set {
 	void finish(scenario_building_context&) { }
 };
 
+// Same as a normal parsers commodity set, but with custom logic in member functions to add to the military supply goods global vars
+struct military_supply_commodity_set : public commodity_set {
+	void any_value(std::string_view name, association_type, float value, error_handler& err, int32_t line,
+			scenario_building_context& context);
+
+	void finish(scenario_building_context&) { }
+};
+
+// Same as a normal parsers commodity set, but with custom logic in member functions to add to the military build goods global vars
+struct military_build_commodity_set : public commodity_set {
+	void any_value(std::string_view name, association_type, float value, error_handler& err, int32_t line,
+			scenario_building_context& context);
+
+	void finish(scenario_building_context&) { }
+};
+
+
 struct unit_definition : public military::unit_definition {
 	void unit_type_text(association_type, std::string_view value, error_handler& err, int32_t line, scenario_building_context& context) {
 		if(is_fixed_token_ci(value.data(), value.data() + value.length(), "support"))

@@ -68,6 +68,14 @@ static_assert(sizeof(unit_definition) ==
 struct global_military_state {
 	tagged_vector<unit_definition, dcon::unit_type_id> unit_base_definitions;
 
+	// Stores the commodity ids  (no amounts!) for the union of all goods used for both supply/build costs for all military units
+	economy::huge_commodity_set military_supply_build_goods;
+	// Stores the commodity ids (no amounts!) for the union of all goods used for only build costs for all military units
+	economy::huge_commodity_set military_build_goods;
+	// Stores the commodity ids (no amounts!) for the union of all goods used for only supply costs for all military units
+	economy::huge_commodity_set military_supply_goods;
+
+
 	dcon::leader_trait_id first_background_trait;
 
 	bool great_wars_enabled = false;
@@ -101,8 +109,6 @@ struct global_military_state {
 
 	bool pending_blackflag_update = false;
 
-	// Cache of values computed from paths regarding supply values to reduce uneeded pathfinding in military supply logic. Will be flushed once per day
-	tagged_vector<ankerl::unordered_dense::map<dcon::province_id, supply_values>, dcon::state_instance_id> supply_paths_cache;
 };
 
 }
