@@ -4924,6 +4924,11 @@ void state::game_loop() {
 	game_speed[2] = int32_t(defines.alice_speed_2);
 	game_speed[3] = int32_t(defines.alice_speed_3);
 	game_speed[4] = int32_t(defines.alice_speed_4);
+	ankerl::unordered_dense::set<int> c;
+	for(int i = 0; i < 30; i++) {
+		c.insert(i);
+	}
+	auto& vals = c.values();
 
 	while(quit_signaled.load(std::memory_order::acquire) == false) {
 		if(network_mode == sys::network_mode_type::single_player) {

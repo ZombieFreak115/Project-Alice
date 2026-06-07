@@ -1480,6 +1480,17 @@ object {
 	}
 
 	property{
+		name{ supply_route_requires_daily_update }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ supply_route_requires_weekly_update }
+		type{ bitfield }
+		tag{ save }
+	}
+
+	property{
 		name{ crime }
 		type{ crime_id }
 		tag{ save }
@@ -5096,116 +5107,6 @@ relationship{
 		name{ buffered_goods }
 		type{ economy::commodity_amount_array }
 		tag{ save }
-	}
-
-}
-
-
-
-
-
-relationship{
-	name{ navy_supply_route_node }
-	storage_type{ compactable }
-	size{ 50000 }
-	tag{ save }
-
-	link{
-		object{province}
-		name{province}
-		type{many}
-		index_storage{array}
-	}
-	link{
-		object{navy_supply_route}
-		name{supply_route}
-		type{many}
-		index_storage{array}
-	}
-	composite_key{
-		name{route_province_pair}
-		index{province}
-		index{supply_route}
-	}
-
-}
-
-
-relationship{
-	name{ army_supply_route_node }
-	storage_type{ compactable }
-	size{ 50000 }
-	tag{ save }
-
-	link{
-		object{province}
-		name{province}
-		type{many}
-		index_storage{array}
-	}
-	link{
-		object{army_supply_route}
-		name{supply_route}
-		type{many}
-		index_storage{array}
-	}
-	composite_key{
-		name{route_province_pair}
-		index{province}
-		index{supply_route}
-	}
-
-}
-
-
-relationship{
-	name{ land_construction_supply_route_node }
-	storage_type{ compactable }
-	size{ 50000 }
-	tag{ save }
-
-	link{
-		object{province}
-		name{province}
-		type{many}
-		index_storage{array}
-	}
-	link{
-		object{land_construction_supply_route }
-		name{supply_route}
-		type{many}
-		index_storage{array}
-	}
-	composite_key{
-		name{route_province_pair}
-		index{province}
-		index{supply_route}
-	}
-
-}
-
-relationship{
-	name{ naval_construction_supply_route_node }
-	storage_type{ compactable }
-	size{ 50000 }
-	tag{ save }
-
-	link{
-		object{province}
-		name{province}
-		type{many}
-		index_storage{array}
-	}
-	link{
-		object{naval_construction_supply_route }
-		name{supply_route}
-		type{many}
-		index_storage{array}
-	}
-	composite_key{
-		name{route_province_pair}
-		index{province}
-		index{supply_route}
 	}
 
 }

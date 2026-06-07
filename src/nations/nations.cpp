@@ -776,8 +776,8 @@ bool identity_has_holder(sys::state const& state, dcon::national_identity_id ide
 	return bool(fat_ident.get_nation_from_identity_holder().id);
 }
 
-bool are_allied(sys::state& state, dcon::nation_id a, dcon::nation_id b) {
-	auto rel = state.world.get_diplomatic_relation_by_diplomatic_pair(a, b);
+bool are_allied(const sys::state& state, dcon::nation_id a, dcon::nation_id b) {
+	auto rel = const_cast<sys::state&>(state).world.get_diplomatic_relation_by_diplomatic_pair(a, b);
 	return state.world.diplomatic_relation_get_are_allied(rel);
 }
 

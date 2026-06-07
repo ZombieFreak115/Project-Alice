@@ -301,8 +301,7 @@ int32_t total_ships(sys::state& state, dcon::nation_id n);
 // Schedules a path update on all supply paths passing through the given province
 void schedule_supply_paths_update(sys::state& state, dcon::province_id to_update);
 
-// Schedules a path update on all supply paths passing through the given province which are hostile to nation_as
-void schedule_enemy_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation_as);
+
 
 dcon::regiment_id create_new_regiment(sys::state& state, dcon::nation_id n, dcon::unit_type_id t);
 dcon::ship_id create_new_ship(sys::state& state, dcon::nation_id n, dcon::unit_type_id t);

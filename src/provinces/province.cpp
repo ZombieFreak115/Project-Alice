@@ -1524,7 +1524,7 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 // returns true if a strait between the two provinces are blocked by an enemy navy from the perspective of thisnation
 // Reads sea adjacency data from the v2 adjacencies file to determine if it is blocked
 bool is_crossing_blocked(const sys::state& state, dcon::nation_id thisnation, dcon::province_id from, dcon::province_id to) {
-	auto adjacency = state.world.get_province_adjacency_by_province_pair(to, from);
+	auto adjacency = const_cast<sys::state&>(state).world.get_province_adjacency_by_province_pair(to, from);
 	return is_crossing_blocked(state, thisnation, adjacency);
 }
 
@@ -2398,7 +2398,7 @@ bool has_access_to_province(const sys::state& state, dcon::nation_id nation_as, 
 	if(state.world.overlord_get_ruler(coverl) == nation_as)
 		return true;
 
-	auto url = state.world.get_unilateral_relationship_by_unilateral_pair(controller, nation_as);
+	auto url = const_cast<sys::state&>(state).world.get_unilateral_relationship_by_unilateral_pair(controller, nation_as);
 	if(state.world.unilateral_relationship_get_military_access(url))
 		return true;
 
@@ -2449,12 +2449,6 @@ bool has_supply_access_to_province(sys::state& state, dcon::nation_id nation_as,
 
 	if(controller == nation_as)
 		return true;
-
-	// The province is only invalid for military supply access if it is controlled by an enemy AND there is no active siege
-	float siege_progress = state.world.province_get_siege_progress(prov);
-	if(siege_progress == 0.0f && military::are_enemies(state, nation_as, controller)) {
-		return false;
-	}
 
 	if(state.world.nation_get_in_sphere_of(controller) == nation_as)
 		return true;
