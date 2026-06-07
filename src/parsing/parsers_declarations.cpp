@@ -443,22 +443,23 @@ void military_supply_commodity_set::any_value(std::string_view name, association
 	auto found_commodity = context.map_of_commodity_names.find(std::string(name));
 	if(found_commodity != context.map_of_commodity_names.end()) {
 		auto com = fatten(context.state.world, found_commodity->second);
+		auto& union_supply_build_goods = context.state.military_definitions.military_supply_build_goods;
+		auto& union_supply_goods = context.state.military_definitions.military_supply_goods;
 		// Have we already added it?
-		if(com.get_unit_supply_build_goods_index() != -1) {
-			auto both_index = context.state.military_definitions.military_supply_build_goods.try_add(com, 0.0f);
-			// If index is -1, that means no slot is available and we are outta space
-			if(both_index != -1) {
-				com.set_unit_supply_build_goods_index(both_index);
-				// Have we already added it?
-				if(com.get_unit_supply_goods_index() != -1) {
-					auto supply_index = context.state.military_definitions.military_supply_goods.try_add(com, 0.0f);
-					if(supply_index != -1) {
-						com.set_unit_supply_goods_index(supply_index);
-					}
-				}
+		if(com.get_unit_supply_build_goods_index() == -1) {
+			bool added = union_supply_build_goods.push_back(com);
+			// If it was not added, then we are out of capacity. Otherwise, store the index as the container size - 1
+			if(added) {
+				com.set_unit_supply_build_goods_index(int16_t(union_supply_build_goods.size() - 1));
 			} else {
-				err.accumulated_errors += "Too many unique commodities in combined military unit supply&build costs (limit is " + std::to_string(context.state.military_definitions.military_supply_build_goods.set_size) + ") . Tried to add " + std::string(name) + " in file " + err.file_name + " line " + std::to_string(line) + "\n";
-				return;
+				err.accumulated_errors += "Too many unique commodities in combined military unit supply&build costs (limit is " + std::to_string(context.state.military_definitions.military_supply_build_goods.total_capacity()) + ") . Tried to add " + std::string(name) + " in file " + err.file_name + " line " + std::to_string(line) + "\n";
+			}
+		}
+		// Have we already added it to the supply-only container?
+		if(com.get_unit_supply_goods_index() == -1) {
+			bool added = union_supply_goods.push_back(com);
+			if(added) {
+				com.set_unit_supply_goods_index(int16_t(union_supply_goods.size() - 1));
 			}
 		}
 	} else {
@@ -476,22 +477,23 @@ void military_build_commodity_set::any_value(std::string_view name, association_
 	auto found_commodity = context.map_of_commodity_names.find(std::string(name));
 	if(found_commodity != context.map_of_commodity_names.end()) {
 		auto com = fatten(context.state.world, found_commodity->second);
+		auto& union_supply_build_goods = context.state.military_definitions.military_supply_build_goods;
+		auto& union_build_goods = context.state.military_definitions.military_build_goods;
 		// Have we already added it?
-		if(com.get_unit_supply_build_goods_index() != -1) {
-			auto both_index = context.state.military_definitions.military_supply_build_goods.try_add(com, 0.0f);
-			// If index is -1, that means no slot is available and we are outta space
-			if(both_index != -1) {
-				com.set_unit_supply_build_goods_index(both_index);
-				// Have we already added it?
-				if(com.get_unit_build_goods_index() != -1) {
-					auto build_index = context.state.military_definitions.military_build_goods.try_add(com, 0.0f);
-					if(build_index != -1) {
-						com.set_unit_build_goods_index(build_index);
-					}
-				}
+		if(com.get_unit_supply_build_goods_index() == -1) {
+			auto added = union_supply_build_goods.push_back(com);
+			// If it was not added, then we are out of capacity. Otherwise, store the index as the container size - 1
+			if(added) {
+				com.set_unit_supply_build_goods_index(int16_t(union_supply_build_goods.size() - 1));
 			} else {
-				err.accumulated_errors += "Too many unique commodities in combined military unit supply&build costs (limit is " + std::to_string(context.state.military_definitions.military_supply_build_goods.set_size) + ") . Tried to add " + std::string(name) + " in file " + err.file_name + " line " + std::to_string(line) + "\n";
-				return;
+				err.accumulated_errors += "Too many unique commodities in combined military unit supply&build costs (limit is " + std::to_string(context.state.military_definitions.military_supply_build_goods.total_capacity()) + ") . Tried to add " + std::string(name) + " in file " + err.file_name + " line " + std::to_string(line) + "\n";
+			}
+		}
+		// Have we already added it to the supply-only container?
+		if(com.get_unit_build_goods_index() == -1) {
+			bool added = union_build_goods.push_back(com);
+			if(added) {
+				com.set_unit_build_goods_index(int16_t(union_build_goods.size() - 1));
 			}
 		}
 	} else {

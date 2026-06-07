@@ -296,6 +296,199 @@ static_assert(sizeof(player_password_raw) == sizeof(player_password_raw::data));
 
 
 
+
+
+
+// A fixed-size array wrapper which implements a vector-like interface for keeping track of size.
+template<typename data_type, uint32_t capacity>
+class fixed_size_vector {
+private:
+	uint32_t storage_size = 0;
+	std::array<data_type, capacity> _storage{};
+
+	void init() {
+		std::memset(this, 0, sizeof(fixed_size_vector)); // Call this in every ctor to make sure that all potential padding is zero'd out
+	}
+
+public:
+
+	using iterator = std::array<data_type, capacity>::iterator;
+	using const_iterator = std::array<data_type, capacity>::const_iterator;
+	using reverse_iterator = std::array<data_type, capacity>::reverse_iterator;
+	using const_reverse_iterator = std::array<data_type, capacity>::const_reverse_iterator;
+
+	constexpr fixed_size_vector() {
+		init();
+	}
+
+	constexpr fixed_size_vector(const std::initializer_list<data_type> initializer) {
+		init();
+		assert(initializer.size() <= capacity);
+		storage_size = initializer.size();
+		std::copy(initializer.begin(), initializer.end(), data());
+	}
+	constexpr fixed_size_vector(uint32_t size, const data_type& init_val = data_type{ }) {
+		init();
+		assert(size <= total_capacity());
+		std::fill_n(_storage.data(), size, init_val);
+		storage_size = size;
+	}
+
+	constexpr fixed_size_vector(const fixed_size_vector& obj) {
+		std::memcpy(this, &obj, sizeof(fixed_size_vector));
+	}
+
+	constexpr fixed_size_vector(fixed_size_vector&& obj) {
+		std::memcpy(this, &obj, sizeof(fixed_size_vector));
+	}
+
+	fixed_size_vector& operator=(fixed_size_vector const& other) noexcept {
+		std::memcpy(this, &other, sizeof(fixed_size_vector));
+		return *this;
+	}
+	fixed_size_vector& operator=(fixed_size_vector&& other) noexcept {
+		std::memcpy(this, &other, sizeof(fixed_size_vector));
+		return *this;
+	}
+	// Use memcmp in equals operator to check for padding too
+	bool operator==(fixed_size_vector const& other) const {
+		return std::memcmp(this, &other, sizeof(fixed_size_vector)) == 0;
+	}
+	bool operator!=(fixed_size_vector const& other) const {
+		return !(*this == other);
+	}
+
+	constexpr operator std::span<data_type>() { return std::span<data_type>(begin(), end()); };
+
+	constexpr uint32_t total_capacity() const {
+		return capacity;
+	}
+
+
+	const data_type* data() const {
+		return _storage.data();
+	}
+	data_type* data() {
+		return _storage.data();
+	}
+
+
+	constexpr data_type const& operator[](uint32_t index) const {
+		assert(index < size());
+		return _storage[index];
+	}
+	constexpr data_type& operator[](uint32_t index) {
+		assert(index < size());
+		return _storage[index];
+	}
+	// This will remove the element at the given index by moving it to the end of the collection and then popping it
+	constexpr void remove_at(uint32_t index) {
+		assert(index < size());
+		std::swap(_storage[index], _storage[size() - 1]);
+		pop_back();
+	}
+	// This will remove the given iterator element by moving it to the end of the collection and then popping it
+	constexpr void remove_at(const_iterator iterator) {
+		size_t index = iterator - begin();
+		remove_at(index);
+	}
+
+	constexpr void clear() {
+		_storage.fill(data_type{});
+		storage_size = 0;
+	}
+
+	constexpr auto begin() const {
+		return _storage.begin();
+	}
+	constexpr auto begin() {
+		return _storage.begin();
+	}
+	constexpr auto end() const {
+		return const_iterator(data(), size());
+	}
+	constexpr auto end() {
+		return iterator(data(), size());
+	}
+	constexpr auto rbegin() {
+		return reverse_iterator(end());
+	}
+	constexpr auto rbegin() const {
+		return const_reverse_iterator(end());
+	}
+	constexpr auto rend() const {
+		return const_reverse_iterator(begin());
+	}
+	constexpr auto rend() {
+		return reverse_iterator(begin());
+	}
+	constexpr uint32_t size() const {
+		return storage_size;
+	}
+	constexpr void resize(uint32_t new_size, const data_type& val = data_type{ }) {
+		assert(size() <= total_capacity());
+		if(new_size < size()) {
+			std::fill_n(&_storage[new_size], size() - new_size, data_type{ });
+		}
+		else {
+			std::fill_n(&_storage[size()], new_size - size(), val);
+		}
+		storage_size = new_size;
+	}
+	constexpr void pop_back() {
+		assert(size() != 0);
+		_storage[size() - 1] = data_type{ };
+		storage_size--;
+	}
+	// Returns true if there were enough capacity to add the item, false if not
+	constexpr bool push_back(data_type&& v) {
+		if(size() != capacity) {
+			_storage[size()] = std::move(v);
+			storage_size++;
+			return true;
+		} else {
+			return false;
+		}
+	}
+	// Returns true if there were enough capacity to add the item, false if not
+	constexpr bool push_back(const data_type& v) {
+		if(size() != capacity) {
+			_storage[size()] = v;
+			storage_size++;
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	// Pushes back the item regardless of the capacity. Caller's responsibility to check for appropriate capacity
+	constexpr void push_back_unsafe(data_type&& v) {
+		assert(size() != capacity);
+		_storage[size()] = std::move(v);
+		storage_size++;
+	}
+	// Pushes back the item regardless of the capacity. Caller's responsibility to check for appropriate capacity
+	constexpr void push_back_unsafe(const data_type& v) {
+		assert(size() != capacity);
+		_storage[size()] = v;
+		storage_size++;
+	}
+	constexpr data_type& back() {
+		return _storage[size() - 1];
+	}
+	constexpr data_type const& back() const {
+		return _storage[size() - 1];
+	}
+	constexpr data_type& front() {
+		return _storage.front();
+	}
+	constexpr data_type const& front() const {
+		return _storage.front();
+	}
+
+};
+
+
 }
 
 
@@ -316,7 +509,7 @@ struct commodity_set_base {
 	bool operator!=(const commodity_set_base& other) const {
 		return !(other == *this);
 	}
-	commodity_set_base() {
+	constexpr commodity_set_base() {
 		std::memset(this, 0, sizeof(commodity_set_base)); // Clears any potential padding, too
 	}
 	template<typename F>
@@ -377,27 +570,40 @@ struct commodity_set_base {
 
 };
 
-
-//using huge_commodity_amount_array = fixed_size_vector<float, 32>;
-//
-//using huge_commodity_id_array = fixed_size_vector<dcon::commodity_id, 32>;
-
+constexpr uint32_t small_set_size = 6;
+constexpr uint32_t set_size = 8;
+constexpr uint32_t huge_set_size = 32;
 
 
+using huge_commodity_amount_array = sys::fixed_size_vector<float, huge_set_size>;
 
-using huge_commodity_set = commodity_set_base<32>;
+static_assert(sizeof(huge_commodity_amount_array) == huge_set_size * sizeof(float) + sizeof(uint32_t));
+
+using huge_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, huge_set_size>;
+
+static_assert(sizeof(huge_commodity_id_array) == huge_set_size * sizeof(dcon::commodity_id) + sizeof(uint32_t));
+
+using commodity_amount_array = sys::fixed_size_vector<float, set_size>;
+
+static_assert(sizeof(commodity_amount_array) == set_size * sizeof(float) + sizeof(uint32_t));
+
+using commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, set_size>;
+
+static_assert(sizeof(commodity_id_array) == set_size * sizeof(dcon::commodity_id) + sizeof(uint32_t));
+
+using huge_commodity_set = commodity_set_base<huge_set_size>;
 static_assert(sizeof(huge_commodity_set) ==
 	sizeof(huge_commodity_set::commodity_amounts) +
 	+ sizeof(huge_commodity_set::commodity_type));
 
 
-using commodity_set = commodity_set_base<8>;
+using commodity_set = commodity_set_base<set_size>;
 static_assert(sizeof(commodity_set) ==
 	sizeof(commodity_set::commodity_amounts) +
 	+ sizeof(commodity_set::commodity_type));
 
 
-using small_commodity_set = commodity_set_base<6>;
+using small_commodity_set = commodity_set_base<small_set_size>;
 static_assert(sizeof(small_commodity_set) ==
 	sizeof(small_commodity_set::commodity_amounts) +
 	+ sizeof(small_commodity_set::commodity_type) + 2); // take into account two padding bytes

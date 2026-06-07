@@ -9583,9 +9583,8 @@ void increase_dig_in(sys::state& state) {
 
 
 
-tagged_vector<float, dcon::commodity_id> get_last_required_reinforcement_supply(sys::state& state, dcon::nation_id owner, dcon::army_id army) {
-	uint32_t total_commodities = state.world.commodity_size();
-	tagged_vector<float, dcon::commodity_id> commodities(total_commodities);
+economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::nation_id owner, dcon::army_id army) {
+	economy::huge_commodity_amount_array commodities(state.military_definitions.military_build_goods.size());
 
 	for(auto r : state.world.army_get_army_membership(army)) {
 		auto reg = fatten(state.world, r);
@@ -9595,8 +9594,10 @@ tagged_vector<float, dcon::commodity_id> get_last_required_reinforcement_supply(
 		const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
 		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
 			auto com_type = build_cost.commodity_type[i];
+			auto index = state.world.commodity_get_unit_build_goods_index(com_type);
+			assert(index >= 0);
 			if(com_type) {
-				commodities[com_type] += build_cost.commodity_amounts[i] * mods;
+				commodities[index] += build_cost.commodity_amounts[i] * mods;
 			} else {
 				break;
 			}
@@ -9607,9 +9608,8 @@ tagged_vector<float, dcon::commodity_id> get_last_required_reinforcement_supply(
 	return commodities;
 }
 
-tagged_vector<float, dcon::commodity_id> get_last_required_reinforcement_supply(sys::state& state, dcon::nation_id owner, dcon::navy_id navy) {
-	uint32_t total_commodities = state.world.commodity_size();
-	tagged_vector<float, dcon::commodity_id> commodities(total_commodities);
+economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::nation_id owner, dcon::navy_id navy) {
+	economy::huge_commodity_amount_array commodities(state.military_definitions.military_build_goods.size());
 
 	for(auto r : state.world.navy_get_navy_membership(navy)) {
 		auto ship = fatten(state.world, r);
@@ -9619,8 +9619,10 @@ tagged_vector<float, dcon::commodity_id> get_last_required_reinforcement_supply(
 		const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
 		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
 			auto com_type = build_cost.commodity_type[i];
+			auto index = state.world.commodity_get_unit_build_goods_index(com_type);
+			assert(index >= 0);
 			if(com_type) {
-				commodities[com_type] += build_cost.commodity_amounts[i] * mods;
+				commodities[index] += build_cost.commodity_amounts[i] * mods;
 			} else {
 				break;
 			}
@@ -9636,9 +9638,9 @@ tagged_vector<float, dcon::commodity_id> get_last_required_reinforcement_supply(
 
 
 
-tagged_vector<float, dcon::commodity_id> get_last_required_supply(sys::state& state, dcon::nation_id owner, dcon::army_id army) {
-	uint32_t total_commodities = state.world.commodity_size();
-	tagged_vector<float, dcon::commodity_id> commodities(total_commodities);
+economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::nation_id owner, dcon::army_id army) {
+
+	economy::huge_commodity_amount_array commodities(state.military_definitions.military_supply_goods.size());
 
 	for(auto r : state.world.army_get_army_membership(army)) {
 		auto reg = fatten(state.world, r);
@@ -9648,8 +9650,10 @@ tagged_vector<float, dcon::commodity_id> get_last_required_supply(sys::state& st
 		const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
 		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
 			auto com_type = supply_cost.commodity_type[i];
+			auto index = state.world.commodity_get_unit_supply_goods_index(com_type);
+			assert(index >= 0);
 			if(com_type) {
-				commodities[com_type] += supply_cost.commodity_amounts[i] * mods;
+				commodities[index] += supply_cost.commodity_amounts[i] * mods;
 			} else {
 				break;
 			}
@@ -9660,9 +9664,8 @@ tagged_vector<float, dcon::commodity_id> get_last_required_supply(sys::state& st
 	return commodities;
 }
 
-tagged_vector<float, dcon::commodity_id> get_last_required_supply(sys::state& state, dcon::nation_id owner, dcon::navy_id navy) {
-	uint32_t total_commodities = state.world.commodity_size();
-	tagged_vector<float, dcon::commodity_id> commodities(total_commodities);
+economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::nation_id owner, dcon::navy_id navy) {
+	economy::huge_commodity_amount_array commodities(state.military_definitions.military_supply_goods.size());
 
 
 	for(auto sh : state.world.navy_get_navy_membership(navy)) {
@@ -9674,8 +9677,10 @@ tagged_vector<float, dcon::commodity_id> get_last_required_supply(sys::state& st
 			const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
 			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
 				auto com_type = supply_cost.commodity_type[i];
+				auto index = state.world.commodity_get_unit_supply_goods_index(com_type);
+				assert(index >= 0);
 				if(com_type) {
-					commodities[com_type] += supply_cost.commodity_amounts[i] * mods;
+					commodities[index] += supply_cost.commodity_amounts[i] * mods;
 				} else {
 					break;
 				}
@@ -10382,13 +10387,11 @@ void resolve_unit_constructions(sys::state& state) {
 
 
 struct unit {
-	bool is_army;
+	bool is_army = false;
 	union unit_type_union {
 		dcon::army_id army;
-		dcon::navy_id navy;
-		constexpr unit_type_union() {
-
-		}
+		dcon::navy_id navy{};
+		constexpr unit_type_union() = default;
 	} content;
 
 	template<concepts::military_unit unit_type>
@@ -10397,12 +10400,16 @@ struct unit {
 			is_army = true;
 			content.army = unit;
 		}
-		else {
+		else if constexpr(std::is_same<unit_type, dcon::navy_id>::value) {
 			is_army = false;
 			content.navy = unit;
 		}
 	}
 	constexpr unit() = default;
+	/*constexpr unit(const unit&) = default;
+	constexpr unit(unit&&) = default;
+	constexpr unit& operator=(unit const&) = default;
+	constexpr unit& operator=(unit&&) = default;*/
 };
 
 void update_army_supply_route_throughput_attrition(sys::state& state, dcon::army_supply_route_id route, dcon::nation_id controller) {
@@ -10739,6 +10746,9 @@ void try_update_route_path(sys::state& state, route_type r) {
 dcon::army_supply_route_id create_supply_route(sys::state& state, dcon::army_id army, dcon::market_id origin) {
 	assert(state.world.army_get_controller_from_army_control(army));
 	auto route = state.world.force_create_army_supply_route(army, origin);
+	// Resize to fit with the total amount of possible supply/reinforcement goods 
+	state.world.army_supply_route_get_buffered_reinforcement_goods(route).resize(state.military_definitions.military_build_goods.size());
+	state.world.army_supply_route_get_buffered_supply_goods(route).resize(state.military_definitions.military_supply_goods.size());
 	update_supply_route_path(state, route);
 	update_supply_route_throughput_attrition(state, route, state.world.army_get_controller_from_army_control(army));
 	return route;
@@ -10747,6 +10757,8 @@ dcon::army_supply_route_id create_supply_route(sys::state& state, dcon::army_id 
 dcon::navy_supply_route_id create_supply_route(sys::state& state, dcon::navy_id navy, dcon::market_id origin) {
 	assert(state.world.navy_get_controller_from_navy_control(navy));
 	auto route = state.world.force_create_navy_supply_route(navy, origin);
+	state.world.navy_supply_route_get_buffered_reinforcement_goods(route).resize(state.military_definitions.military_build_goods.size());
+	state.world.navy_supply_route_get_buffered_supply_goods(route).resize(state.military_definitions.military_supply_goods.size());
 	update_supply_route_path(state, route);
 	update_supply_route_throughput_attrition(state, route, state.world.navy_get_controller_from_navy_control(navy));
 	return route;
@@ -10758,8 +10770,10 @@ dcon::land_construction_supply_route_id create_supply_route(sys::state& state, d
 	auto type = state.world.province_land_construction_get_type(construction);
 	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
 	auto& route_goods = state.world.land_construction_supply_route_get_buffered_goods(route);
-	// Initialize the set with the types equivalent to the build cost types
-	std::memcpy(&route_goods.commodity_type, &build_cost.commodity_type, sizeof(economy::commodity_set::commodity_type));
+	// Push back one element for each commodity in the build_cost for the unit type, so they have the same size
+	build_cost.for_each_commodity([&](dcon::commodity_id, float) {
+		route_goods.push_back_unsafe(0.0f);
+	});
 
 	update_supply_route_path(state, route);
 	update_supply_route_throughput_attrition(state, route, state.world.province_land_construction_get_nation(construction));
@@ -10772,8 +10786,10 @@ dcon::naval_construction_supply_route_id create_supply_route(sys::state& state, 
 	auto type = state.world.province_naval_construction_get_type(construction);
 	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
 	auto& route_goods = state.world.naval_construction_supply_route_get_buffered_goods(route);
-	// Initialize the set with the types equivalent to the build cost types
-	std::memcpy(&route_goods.commodity_type, &build_cost.commodity_type, sizeof(economy::commodity_set::commodity_type));
+	// Push back one element for each commodity in the build_cost for the unit type, so they have the same size
+	build_cost.for_each_commodity([&](dcon::commodity_id, float) {
+		route_goods.push_back_unsafe(0.0f);
+	});
 
 	update_supply_route_path(state, route);
 	update_supply_route_throughput_attrition(state, route, state.world.province_naval_construction_get_nation(construction));
@@ -10800,24 +10816,13 @@ void update_supply_routes_monthly(sys::state& state) {
 	});
 }
 
-enum class supply_route_goods_type : uint8_t {
-	supply,
-	reinforcement,
-	other
-};
 
-
-template<concepts::commodity_set_type buffer_type>
-bool any_needs_left(const sys::state& state, buffer_type& goods_needs) {
-	for(uint32_t i = 0; i < buffer_type::set_size; i++) {
-		if(goods_needs.commodity_type[i]) {
-			if(goods_needs.commodity_amounts[i] > 0.0f) {
-				return true;
-			}
-		} else {
-			return false;
+template<concepts::commodity_amount_array_type buffer_type>
+bool any_needs_left(const sys::state& state, const buffer_type& goods_needs) {
+	for(uint32_t i = 0; i < goods_needs.size(); i++) {
+		if(goods_needs[i] > 0.0f) {
+			return true;
 		}
-
 	}
 	return false;
 };
@@ -10865,8 +10870,8 @@ bool any_needs_left(const sys::state& state, buffer_type& goods_needs) {
 
 // Updates the supply route buffered goods, volume and subtracts the goods consumed from the stockpile buffers of all potential supply routes connected to the military unit.
 // Supply type decides whether to update supply, or reinforcement goods
-template<supply_route_goods_type supply_type, concepts::military_unit unit_type>
-void update_military_unit_routes_satisfaction(sys::state& state, unit_type unit, economy::huge_commodity_set& goods_needs, std::vector<dcon::state_instance_id>& stockpiles_buffer) {
+template<unit_consumption_type supply_type, concepts::military_unit unit_type>
+void update_military_unit_routes_satisfaction(sys::state& state, unit_type unit, economy::huge_commodity_amount_array& goods_needs, std::vector<dcon::state_instance_id>& stockpiles_buffer) {
 	for(auto stockpile_state : stockpiles_buffer) {
 		auto market = state.world.state_instance_get_market_from_local_market(stockpile_state);
 		auto r = [&]() {
@@ -10884,41 +10889,41 @@ void update_military_unit_routes_satisfaction(sys::state& state, unit_type unit,
 			if(!need_more_goods) {
 				break;
 			}
-			// Update satisfaction of the route by decrementing the market govt stockpile satisfaction buffer to keep track of how many goods are left.
-			// The containers storing the buffered supply&reinforcement for the route is assumed the same indexes as the respective commodity types in military_definitions
-			// That means we can simply iterate over the container with indexes and expect the goods_needed and buffered_supply/reinforcement containers to line up
-			for(uint32_t i = 0; i < economy::huge_commodity_set::set_size; i++) {
-				auto com_id = goods_needs.commodity_type[i];
-				if(com_id) {
-					float& amount_needed = goods_needs.commodity_amounts[i];
-					if(amount_needed <= 0.0f) {
-						return;
-					}
-					float stockpile_buffer_amount = state.world.market_get_govt_stockpile_satisfaction_buffer(market, com_id);
-					// The amount to consume is the minimum of the desired amount or the amount available in stockpile, multiplied by the route throughput which limits how many supplies may be routed
-					float to_consume = std::min(amount_needed, stockpile_buffer_amount) * route.get_throughput();
-					// Compute how much to consume to compensate for the expected attrition on the route.
-					float to_consume_w_attrition = std::min(amount_needed / route.get_route_attrition(), stockpile_buffer_amount) * route.get_throughput();
-					assert(stockpile_buffer_amount - to_consume >= 0.0f);
-					assert(stockpile_buffer_amount - to_consume_w_attrition >= 0.0f);
-					// Update stockpile buffer to reflect the amount that will be subtracted later
-					state.world.market_set_govt_stockpile_satisfaction_buffer(market, com_id, stockpile_buffer_amount - to_consume_w_attrition);
-					if constexpr(supply_type == supply_route_goods_type::supply) {
-						// Verify that the index assuming is true, just in case
-						assert(i == state.world.commodity_get_unit_supply_goods_index(com_id) && i == state.world.commodity_get_unit_supply_goods_index(route.get_buffered_supply_goods().commodity_type[i]));
-						assert(goods_needs.commodity_type[i] == route.get_buffered_supply_goods().commodity_type[i]);
-						route.get_buffered_supply_goods().commodity_amounts[i] += to_consume_w_attrition;
-					} else if constexpr(supply_type == supply_route_goods_type::reinforcement) {
-						assert(i == state.world.commodity_get_unit_build_goods_index(com_id) && i == state.world.commodity_get_unit_build_goods_index(route.get_buffered_reinforcement_goods().commodity_type[i]));
-						assert(goods_needs.commodity_type[i] == route.get_buffered_reinforcement_goods().commodity_type[i]);
-						route.get_buffered_reinforcement_goods().commodity_amounts[i] += to_consume_w_attrition;
-					}
-					route.set_volume(route.get_volume() + to_consume_w_attrition);
-					// Subtract from route need. Subtract the non-attrition compenstated amount as that is the amount we expect will actually make it through the route
-					amount_needed -= to_consume;
-				} else {
-					break;
+			economy::huge_commodity_id_array commodity_ids = [&]() {
+				if constexpr(supply_type == unit_consumption_type::supply)
+					return state.military_definitions.military_supply_goods;
+				else if constexpr(supply_type == unit_consumption_type::reinforcement) {
+					return state.military_definitions.military_build_goods;
 				}
+			}();
+			// Update satisfaction of the route by decrementing the market govt stockpile satisfaction buffer to keep track of how many goods are left.
+			// The containers storing the buffered supply&reinforcement for the route is assumed the same indexes as the respective commodity types in military_definitions (commodity_ids container)
+			// That means we can simply iterate over the container with indexes and expect the goods_needed and buffered_supply/reinforcement containers to line up
+			for(uint32_t i = 0; i < goods_needs.size(); i++) {
+				auto com_id = commodity_ids[i];
+				assert(com_id);
+
+				float& amount_needed = goods_needs[i];
+				if(amount_needed <= 0.0f) {
+					return;
+				}
+				float stockpile_buffer_amount = state.world.market_get_govt_stockpile_satisfaction_buffer(market, com_id);
+				// The amount to consume is the minimum of the desired amount or the amount available in stockpile, multiplied by the route throughput which limits how many supplies may be routed
+				float to_consume = std::min(amount_needed, stockpile_buffer_amount) * route.get_throughput();
+				// Compute how much to consume to compensate for the expected attrition on the route.
+				float to_consume_w_attrition = std::min(amount_needed / route.get_route_attrition(), stockpile_buffer_amount) * route.get_throughput();
+				assert(stockpile_buffer_amount - to_consume >= 0.0f);
+				assert(stockpile_buffer_amount - to_consume_w_attrition >= 0.0f);
+				// Update stockpile buffer to reflect the amount that will be subtracted later
+				state.world.market_set_govt_stockpile_satisfaction_buffer(market, com_id, stockpile_buffer_amount - to_consume_w_attrition);
+				if constexpr(supply_type == unit_consumption_type::supply) {
+					route.get_buffered_supply_goods()[i] += to_consume_w_attrition;
+				} else if constexpr(supply_type == unit_consumption_type::reinforcement) {
+					route.get_buffered_reinforcement_goods()[i] += to_consume_w_attrition;
+				}
+				route.set_volume(route.get_volume() + to_consume_w_attrition);
+				// Subtract from route need. Subtract the non-attrition compenstated amount as that is the amount we expect will actually make it through the route
+				amount_needed -= to_consume;
 			}
 		}
 	}
@@ -10930,8 +10935,10 @@ void update_military_unit_routes_satisfaction(sys::state& state, unit_type unit,
 // Updates the supply route buffered goods, volume and subtracts the goods consumed from the stockpile buffers of all potential supply routes connected to the military unit.
 // Supply type decides whether to update supply, or reinforcement goods
 template<concepts::military_construction_type construction_type>
-void update_construction_routes_satisfaction(sys::state& state, construction_type conc, economy::commodity_set& goods_needs, std::vector<dcon::state_instance_id>& stockpiles_buffer) {
+void update_construction_routes_satisfaction(sys::state& state, construction_type conc, economy::commodity_amount_array& goods_needs, std::vector<dcon::state_instance_id>& stockpiles_buffer) {
 	auto construction = fatten(state.world, conc);
+	auto type = construction.get_type();
+	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
 	for(auto stockpile_state : stockpiles_buffer) {
 		auto market = state.world.state_instance_get_market_from_local_market(stockpile_state);
 		auto r = [&]() {
@@ -10953,10 +10960,10 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 			// Update satisfaction of the route by decrementing the market govt stockpile satisfaction buffer to keep track of how many goods are left.
 			// The containers storing the buffered goods for the route is assumed the same indexes as the respective build cost for the unit type which the construction is building
 			// That means we can simply iterate over the container with indexes and expect the goods_needed and buffered_goods containers to line up
-			for(uint32_t i = 0; i < economy::huge_commodity_set::set_size; i++) {
-				auto com_id = goods_needs.commodity_type[i];
+			for(uint32_t i = 0; i < build_cost.set_size; i++) {
+				dcon::commodity_id com_id = build_cost.commodity_type[i];
 				if(com_id) {
-					float& amount_needed = goods_needs.commodity_amounts[i];
+					float& amount_needed = goods_needs[i];
 					if(amount_needed <= 0.0f) {
 						return;
 					}
@@ -10969,10 +10976,8 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 					assert(stockpile_buffer_amount - to_consume_w_attrition >= 0.0f);
 					// Update stockpile buffer to reflect the amount that will be subtracted later
 					state.world.market_set_govt_stockpile_satisfaction_buffer(market, com_id, stockpile_buffer_amount - to_consume_w_attrition);
-					auto type = construction.get_type();
-					// Verify that the index assuming is true, just in case
-					assert(goods_needs.commodity_type[i] == route.get_buffered_goods().commodity_type[i]);
-					route.get_buffered_goods().commodity_amounts[i] += to_consume_w_attrition;
+
+					route.get_buffered_goods()[i] += to_consume_w_attrition;
 
 					route.set_volume(route.get_volume() + to_consume_w_attrition);
 					// Subtract from route need. Subtract the non-attrition compenstated amount as that is the amount we expect will actually make it through the route
@@ -10986,9 +10991,9 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 }
 
 template<concepts::military_construction_type construction_type>
-void accumulate_construction_requirements(const sys::state& state, construction_type c, economy::commodity_set& buffer, std::vector<dcon::state_instance_id>& stockpiles_buffer) {
+void accumulate_construction_requirements(const sys::state& state, construction_type c, economy::commodity_amount_array& buffer, std::vector<dcon::state_instance_id>& stockpiles_buffer) {
 	auto construction = fatten(state.world, c);
-	buffer.clear_all();
+	buffer.clear();
 	auto nation = construction.get_nation();
 	auto type = construction.get_type();
 	dcon::province_id location;
@@ -11003,16 +11008,16 @@ void accumulate_construction_requirements(const sys::state& state, construction_
 	}
 	auto build_cost_mult = economy::build_cost_multiplier(state, location, false);
 	const auto& currently_fufilled = construction.get_purchased_goods();
-	const auto& base_build_cost = state.military_definitions.unit_base_definitions[type].build_cost;;
-	for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
+	const auto& base_build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
+	for(uint32_t i = 0; i < base_build_cost.set_size; i++) {
 		if(base_build_cost.commodity_type[i]) {
+			assert(base_build_cost.commodity_type[i] == currently_fufilled.commodity_type[i]);
 			float fufilled = currently_fufilled.commodity_amounts[i];
 			float full_cost = base_build_cost.commodity_amounts[i] * build_cost_mult;
 			float remaining_cost = std::max(full_cost - fufilled, 0.0f);
 			float can_consume_per_day = full_cost / construction_time;
 			float to_consume = std::min(remaining_cost, can_consume_per_day);
-			buffer.commodity_type[i] = base_build_cost.commodity_type[i];
-			buffer.commodity_amounts[i] = to_consume;
+			buffer.push_back(to_consume);
 		}
 		else {
 			break;
@@ -11020,7 +11025,7 @@ void accumulate_construction_requirements(const sys::state& state, construction_
 	}
 }
 template<concepts::military_unit unit_type >
-void accumulate_military_requirements(const sys::state& state, unit_type u, economy::huge_commodity_set& supply_buffer, economy::huge_commodity_set& reinf_buffer, std::vector<dcon::state_instance_id>& stockpiles_buffer) {
+void accumulate_military_requirements(const sys::state& state, unit_type u, economy::huge_commodity_amount_array& supply_buffer, economy::huge_commodity_amount_array& reinf_buffer, std::vector<dcon::state_instance_id>& stockpiles_buffer) {
 	auto unit = fatten(state.world, u);
 	dcon::nation_id nation;
 	dcon::province_id location;
@@ -11041,8 +11046,6 @@ void accumulate_military_requirements(const sys::state& state, unit_type u, econ
 		supply_consumption = state.world.nation_get_naval_supply_consumption(nation) / 100.0f;
 		reinforcement_consumption = state.world.nation_get_naval_reinforcement_consumption(nation) / 100.0f;
 	}
-	state.military_definitions.military_supply_goods.copy_types_to(supply_buffer);
-	state.military_definitions.military_build_goods.copy_types_to(reinf_buffer);
 	auto national_sup_mods = get_national_supply_cost_modifiers(state, nation);
 	if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
 		for(auto r : state.world.army_get_army_membership(unit)) {
@@ -11061,14 +11064,14 @@ void accumulate_military_requirements(const sys::state& state, unit_type u, econ
 				assert(supply_idx >= 0);
 
 				float full_supply_req = amount * total_sup_mods * supply_consumption;
-				supply_buffer.commodity_amounts[supply_idx] += full_supply_req;
+				supply_buffer[supply_idx] += full_supply_req;
 			});
 			build_cost.for_each_commodity([&](dcon::commodity_id cid, float amount) {
 				auto reinf_idx = state.world.commodity_get_unit_build_goods_index(cid);
 				assert(reinf_idx >= 0);
 
 				float full_reinf_req = amount * potential_reinforcement * reinforcement_consumption;
-				reinf_buffer.commodity_amounts[reinf_idx] += full_reinf_req;
+				reinf_buffer[reinf_idx] += full_reinf_req;
 			});
 		}
 	} else if constexpr(std::is_same_v<unit_type, dcon::navy_id>) {
@@ -11088,14 +11091,14 @@ void accumulate_military_requirements(const sys::state& state, unit_type u, econ
 				assert(supply_idx >= 0);
 
 				float full_supply_req = amount * total_sup_mods * supply_consumption;
-				supply_buffer.commodity_amounts[supply_idx] += full_supply_req;
+				supply_buffer[supply_idx] += full_supply_req;
 			});
 			build_cost.for_each_commodity([&](dcon::commodity_id cid, float amount) {
 				auto reinf_idx = state.world.commodity_get_unit_build_goods_index(cid);
 				assert(reinf_idx >= 0);
 
 				float full_reinf_req = amount * potential_reinforcement * reinforcement_consumption;
-				reinf_buffer.commodity_amounts[reinf_idx] += full_reinf_req;
+				reinf_buffer[reinf_idx] += full_reinf_req;
 			});
 		}
 	}
@@ -11157,30 +11160,28 @@ void update_unit_commodity_satisfaction(sys::state& state, unit_type u) {
 		}
 	}
 
-	economy::huge_commodity_set available_goods_buffer;
-	state.military_definitions.military_supply_goods.copy_types_to(available_goods_buffer);
+
+	const economy::huge_commodity_id_array& commodity_ids = [&]() {
+		if constexpr(consumption_type == unit_consumption_type::supply) {
+			return state.military_definitions.military_supply_goods;
+		} else if constexpr(consumption_type == unit_consumption_type::reinforcement) {
+			return state.military_definitions.military_build_goods;
+		}
+	}();
+
+	economy::huge_commodity_amount_array available_goods_buffer(commodity_ids.size());
 
 	for(auto route : routes) {
-		for(uint32_t i = 0; i < economy::huge_commodity_set::set_size; i++) {
-			dcon::commodity_id com_id;
+		for(uint32_t i = 0; i < commodity_ids.size(); i++) {
+			dcon::commodity_id com_id = commodity_ids[i];
+			assert(com_id);
 			if constexpr(consumption_type == unit_consumption_type::supply) {
-				com_id = state.military_definitions.military_supply_goods.commodity_type[i];
+				available_goods_buffer[i] += (route.get_buffered_supply_goods()[i] * route.get_route_attrition());
 			}
-			else if constexpr(consumption_type == unit_consumption_type::supply) {
-				com_id = state.military_definitions.military_build_goods.commodity_type[i];
+			else if constexpr(consumption_type == unit_consumption_type::reinforcement) {
+				available_goods_buffer[i] += (route.get_buffered_reinforcement_goods()[i] * route.get_route_attrition());
 			}
-			if(com_id) {
-				if constexpr(consumption_type == unit_consumption_type::supply) {
-					assert(com_id == available_goods_buffer.commodity_type[i] && com_id == route.get_buffered_supply_goods().commodity_type[i]);
-					available_goods_buffer.commodity_amounts[i] += (route.get_buffered_supply_goods().commodity_amounts[i] * route.get_route_attrition());
-				}
-				else if constexpr(consumption_type == unit_consumption_type::reinforcement) {
-					assert(com_id == available_goods_buffer.commodity_type[i] && com_id == route.get_buffered_reinforcement_goods().commodity_type[i]);
-					available_goods_buffer.commodity_amounts[i] += (route.get_buffered_reinforcement_goods().commodity_amounts[i] * route.get_route_attrition());
-				}
-			} else {
-				break;
-			}
+			
 		}
 	}
 
@@ -11213,13 +11214,19 @@ void update_unit_commodity_satisfaction(sys::state& state, unit_type u) {
 		float total_goods_desired = 0.0f;
 		float total_goods_consumed = 0.0f;
 		goods_cost.for_each_commodity([&](dcon::commodity_id com_id, float desired_amount) {
-			auto index = state.world.commodity_get_unit_supply_goods_index(com_id);
+			int16_t index;
+			if constexpr(consumption_type == unit_consumption_type::supply) {
+				index = state.world.commodity_get_unit_supply_goods_index(com_id);
+			}
+			else if constexpr(consumption_type == unit_consumption_type::reinforcement) {
+				index = state.world.commodity_get_unit_build_goods_index(com_id);
+			}
 			assert(index >= 0);
 			desired_amount *= goods_cost_mod * consumption_rate;
-			float max_available = available_goods_buffer.commodity_amounts[index];
+			float max_available = available_goods_buffer[index];
 			float to_consume = std::min(max_available, desired_amount);
 			assert(max_available - to_consume >= 0.0f);
-			available_goods_buffer.commodity_amounts[index] = max_available - to_consume;
+			available_goods_buffer[index] = max_available - to_consume;
 			total_goods_desired += desired_amount;
 			total_goods_consumed += to_consume;
 		});
@@ -11265,12 +11272,12 @@ void update_construction_commodity_satisfaction(sys::state& state, construction_
 	const auto& build_costs = state.military_definitions.unit_base_definitions[type].build_cost;
 	for(auto route : routes) {
 		const auto& route_goods = route.get_buffered_goods();
-		for(uint32_t j = 0; j < economy::commodity_set::set_size; j++) {
+		for(uint32_t j = 0; j < build_costs.set_size; j++) {
 			dcon::commodity_id com_id = build_costs.commodity_type[j];
-			assert(com_id == current_fufilled.commodity_type[j] && com_id == route_goods.commodity_type[j]);
+			assert(build_costs.commodity_type[j] == current_fufilled.commodity_type[j]);
 			if(com_id) {
 				float& current_amount = current_fufilled.commodity_amounts[j];
-				float route_amount = route_goods.commodity_amounts[j] * route.get_route_attrition();
+				float route_amount = route_goods[j] * route.get_route_attrition();
 				current_amount += route_amount;
 			}
 			else {
@@ -11279,6 +11286,43 @@ void update_construction_commodity_satisfaction(sys::state& state, construction_
 		}
 	}
 }
+template<unit_consumption_type consumption_type, concepts::commodity_amount_array_type buffer_type>
+bool military_goods_potential_in_govt_stockpile(const sys::state& state, dcon::market_id origin, const buffer_type& supply_route_need) {
+	economy::huge_commodity_id_array ids = [&]() {
+		if constexpr(consumption_type == unit_consumption_type::supply) {
+			return state.military_definitions.military_supply_goods;
+		} else if constexpr(consumption_type == unit_consumption_type::reinforcement) {
+			return state.military_definitions.military_build_goods;
+		}
+	}();
+	for(uint32_t i = 0; i < supply_route_need.size(); i++) {
+		dcon::commodity_id commodity = ids[i];
+		assert(commodity);
+		float amount_wanted = supply_route_need[i];
+		auto available_stockpile_amount = state.world.market_get_government_stockpile(origin, commodity);
+		if(amount_wanted > 0.0f && available_stockpile_amount > 0.0f) {
+			return true;
+		}
+	}
+	return false;
+};
+template<concepts::commodity_amount_array_type buffer_type, concepts::military_construction_type construction_type>
+bool construction_goods_potential_in_govt_stockpile(const sys::state& state, dcon::market_id origin, construction_type c, const buffer_type& supply_route_need) {
+	auto construction = fatten(state.world, c);
+	auto type = construction.get_type();
+	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
+	for(uint32_t i = 0; i < supply_route_need.size(); i++) {
+		dcon::commodity_id commodity = build_cost.commodity_type[i];
+		assert(commodity);
+		float amount_wanted = supply_route_need[i];
+		auto available_stockpile_amount = state.world.market_get_government_stockpile(origin, commodity);
+		if(amount_wanted > 0.0f && available_stockpile_amount > 0.0f) {
+			return true;
+		}
+
+	}
+	return false;
+};
 
 
 
@@ -11289,12 +11333,12 @@ struct closest_stockpiles_buffer {
 	tagged_vector<std::vector<dcon::state_instance_id>, dcon::province_naval_construction_id> naval_construction_closest_stockpiles;
 };
 struct army_navy_consumption_buffer {
-	tagged_vector<economy::huge_commodity_set, dcon::army_id> army_supply_need;
-	tagged_vector<economy::huge_commodity_set, dcon::army_id> army_reinforcement_need;
-	tagged_vector<economy::huge_commodity_set, dcon::navy_id> navy_supply_need;
-	tagged_vector<economy::huge_commodity_set, dcon::navy_id> navy_reinforcement_need;
-	tagged_vector<economy::commodity_set, dcon::province_land_construction_id> land_constructions_need;
-	tagged_vector<economy::commodity_set, dcon::province_naval_construction_id> naval_constructions_need;
+	tagged_vector<economy::huge_commodity_amount_array, dcon::army_id> army_supply_need;
+	tagged_vector<economy::huge_commodity_amount_array, dcon::army_id> army_reinforcement_need;
+	tagged_vector<economy::huge_commodity_amount_array, dcon::navy_id> navy_supply_need;
+	tagged_vector<economy::huge_commodity_amount_array, dcon::navy_id> navy_reinforcement_need;
+	tagged_vector<economy::commodity_amount_array, dcon::province_land_construction_id> land_constructions_need;
+	tagged_vector<economy::commodity_amount_array, dcon::province_naval_construction_id> naval_constructions_need;
 };
 
 void update_supply_routes_daily(sys::state& state) {
@@ -11305,30 +11349,26 @@ void update_supply_routes_daily(sys::state& state) {
 	[&]() {
 		state.world.execute_serial_over_army_supply_route([&](auto route_ids) {
 			state.world.army_supply_route_set_volume(route_ids, ve::fp_vector{ 0.0f });
-			state.world.for_each_commodity([&](dcon::commodity_id com_id) {
-				ve::apply([&](auto route) {
-					// Clear commodity amounts only and keep the types. It should not be possible to have new goods appear as build costs for the same unit type at runtime
-					economy::huge_commodity_set& reinf_goods = state.world.army_supply_route_get_buffered_reinforcement_goods(route, com_id);
-					economy::huge_commodity_set& supply_goods = state.world.army_supply_route_get_buffered_supply_goods(route, com_id);
-					reinf_goods.clear_amounts();
-					supply_goods.clear_amounts();
-				}, route_ids);
-			});
+			ve::apply([&](auto route) {
+				// Clear commodity amounts. It should not be possible to have new goods appear as build costs for the same unit type at runtime so we can keep the same size
+				economy::huge_commodity_amount_array& reinf_goods = state.world.army_supply_route_get_buffered_reinforcement_goods(route);
+				economy::huge_commodity_amount_array& supply_goods = state.world.army_supply_route_get_buffered_supply_goods(route);
+				std::fill(reinf_goods.begin(), reinf_goods.end(), 0.0f);
+				std::fill(supply_goods.begin(), supply_goods.end(), 0.0f);
+			}, route_ids);
 		});
 	},
 
 	[&]() {
 		state.world.execute_serial_over_navy_supply_route([&](auto route_ids) {
 			state.world.navy_supply_route_set_volume(route_ids, ve::fp_vector{ 0.0f });
-			state.world.for_each_commodity([&](dcon::commodity_id com_id) {
-				ve::apply([&](auto route) {
-					// Clear commodity amounts only and keep the types. It should not be possible to have new goods appear as build costs for the same unit type at runtime
-					economy::huge_commodity_set& reinf_goods = state.world.navy_supply_route_get_buffered_reinforcement_goods(route, com_id);
-					economy::huge_commodity_set& supply_goods = state.world.navy_supply_route_get_buffered_supply_goods(route, com_id);
-					reinf_goods.clear_amounts();
-					supply_goods.clear_amounts();
-				}, route_ids);
-			});
+			ve::apply([&](auto route) {
+					
+				economy::huge_commodity_amount_array& reinf_goods = state.world.navy_supply_route_get_buffered_reinforcement_goods(route);
+				economy::huge_commodity_amount_array& supply_goods = state.world.navy_supply_route_get_buffered_supply_goods(route);
+				std::fill(reinf_goods.begin(), reinf_goods.end(), 0.0f);
+				std::fill(supply_goods.begin(), supply_goods.end(), 0.0f);
+			}, route_ids);
 		});
 	},
 	[&]() {
@@ -11336,9 +11376,9 @@ void update_supply_routes_daily(sys::state& state) {
 			state.world.land_construction_supply_route_set_volume(route_ids, ve::fp_vector{ 0.0f });
 			state.world.for_each_commodity([&](dcon::commodity_id com_id) {
 				ve::apply([&](auto route) {
-					// Clear commodity amounts only and keep the types. It should not be possible to have new goods appear as build costs for the same unit type at runtime
-					economy::commodity_set& goods = state.world.land_construction_supply_route_get_buffered_goods(route);
-					goods.clear_amounts();
+					
+					economy::commodity_amount_array& goods = state.world.land_construction_supply_route_get_buffered_goods(route);
+					std::fill(goods.begin(), goods.end(), 0.0f);
 				}, route_ids);
 			});
 		});
@@ -11346,9 +11386,9 @@ void update_supply_routes_daily(sys::state& state) {
 			state.world.naval_construction_supply_route_set_volume(route_ids, ve::fp_vector{ 0.0f });
 			state.world.for_each_commodity([&](dcon::commodity_id com_id) {
 				ve::apply([&](auto route) {
-					// same as above
-					economy::commodity_set& goods = state.world.naval_construction_supply_route_get_buffered_goods(route);
-					goods.clear_amounts();
+					
+					economy::commodity_amount_array& goods = state.world.naval_construction_supply_route_get_buffered_goods(route);
+					std::fill(goods.begin(), goods.end(), 0.0f);
 				}, route_ids);
 			});
 		});
@@ -11370,34 +11410,15 @@ void update_supply_routes_daily(sys::state& state) {
 	);
 
 
-
-	auto goods_potential_in_govt_stockpile = [&]<concepts::commodity_set_type buffer_type>(dcon::market_id origin, const buffer_type& supply_route_need) {
-		for(uint32_t i = 0; i < buffer_type::set_size; i++) {
-			dcon::commodity_id commodity = supply_route_need.commodity_type[i];
-			if(commodity) {
-				float amount_wanted = supply_route_need.commodity_amounts[i];
-				auto available_stockpile_amount = state.world.market_get_government_stockpile(origin, commodity);
-				if(amount_wanted > 0.0f && available_stockpile_amount > 0.0f) {
-					return true;
-				}
-			}
-			else {
-				break;
-			}
-		}
-		return false;
-	};
-
-
 	static army_navy_consumption_buffer consumption_buffer;
 	static closest_stockpiles_buffer stockpiles_buffer;
 	stockpiles_buffer.army_closest_stockpiles.resize(state.world.army_size());
 	stockpiles_buffer.navy_closest_stockpiles.resize(state.world.navy_size());
 
-	consumption_buffer.army_supply_need.resize(state.world.army_size());
-	consumption_buffer.army_reinforcement_need.resize(state.world.army_size());
-	consumption_buffer.navy_supply_need.resize(state.world.navy_size());
-	consumption_buffer.navy_reinforcement_need.resize(state.world.navy_size());
+	consumption_buffer.army_supply_need.resize(state.world.army_size(), economy::huge_commodity_amount_array(state.military_definitions.military_supply_goods.size()));
+	consumption_buffer.army_reinforcement_need.resize(state.world.army_size(), economy::huge_commodity_amount_array(state.military_definitions.military_build_goods.size()));
+	consumption_buffer.navy_supply_need.resize(state.world.navy_size(), economy::huge_commodity_amount_array(state.military_definitions.military_supply_goods.size()));
+	consumption_buffer.navy_reinforcement_need.resize(state.world.navy_size(), economy::huge_commodity_amount_array(state.military_definitions.military_build_goods.size()));
 	consumption_buffer.land_constructions_need.resize(state.world.province_land_construction_size());
 	consumption_buffer.naval_constructions_need.resize(state.world.province_naval_construction_size());
 
@@ -11491,18 +11512,18 @@ void update_supply_routes_daily(sys::state& state) {
 		if(!nations::exists(state, nation)) {
 			return;
 		}
-		sorted_by_supply_prio[nation.id].clear();
-		sorted_by_reinforcement_prio[nation.id].clear();
+		sorted_by_supply_prio[nation].clear();
+		sorted_by_reinforcement_prio[nation].clear();
 		for(auto r : nation.get_army_control()) {
-			sorted_by_supply_prio.emplace_back(unit{ r.get_army().id });
-			sorted_by_reinforcement_prio.emplace_back(unit{ r.get_army().id });
+			sorted_by_supply_prio[nation].emplace_back(unit{ r.get_army().id });
+			sorted_by_reinforcement_prio[nation].emplace_back(unit{ r.get_army().id });
 		}
 		for(auto r : nation.get_navy_control()) {
-			sorted_by_supply_prio.emplace_back(unit{ r.get_navy().id });
-			sorted_by_reinforcement_prio.emplace_back(unit{ r.get_navy().id });
+			sorted_by_supply_prio[nation].emplace_back(unit{ r.get_navy().id });
+			sorted_by_reinforcement_prio[nation].emplace_back(unit{ r.get_navy().id });
 		}
-		std::sort(sorted_by_supply_prio.begin(), sorted_by_supply_prio.end(), supply_prio_comparator);
-		std::sort(sorted_by_reinforcement_prio.begin(), sorted_by_reinforcement_prio.end(), reinforcement_prio_comparator);
+		std::sort(sorted_by_supply_prio[nation].begin(), sorted_by_supply_prio[nation].end(), supply_prio_comparator);
+		std::sort(sorted_by_reinforcement_prio[nation].begin(), sorted_by_reinforcement_prio[nation].end(), reinforcement_prio_comparator);
 	});
 
 
@@ -11520,7 +11541,7 @@ void update_supply_routes_daily(sys::state& state) {
 		for(auto stockpile_state : stockpiles_buffer.army_closest_stockpiles[army]) {
 			auto market = state.world.state_instance_get_market_from_local_market(stockpile_state);
 			auto route = state.world.get_army_supply_route_by_origin_army_pair(army, market);
-			if(!route && (goods_potential_in_govt_stockpile(market, consumption_buffer.army_supply_need[army]) || goods_potential_in_govt_stockpile(market, consumption_buffer.army_reinforcement_need[army]))) {
+			if(!route && (military_goods_potential_in_govt_stockpile<unit_consumption_type::supply>(state, market, consumption_buffer.army_supply_need[army]) || military_goods_potential_in_govt_stockpile<unit_consumption_type::reinforcement>(state, market, consumption_buffer.army_reinforcement_need[army]))) {
 				create_supply_route(state, army, market);
 			}
 		}
@@ -11529,7 +11550,7 @@ void update_supply_routes_daily(sys::state& state) {
 		for(auto stockpile_state : stockpiles_buffer.navy_closest_stockpiles[navy]) {
 			auto market = state.world.state_instance_get_market_from_local_market(stockpile_state);
 			auto route = state.world.get_navy_supply_route_by_origin_navy_pair(navy, market);
-			if(!route && (goods_potential_in_govt_stockpile(market, consumption_buffer.navy_supply_need[navy]) || goods_potential_in_govt_stockpile(market, consumption_buffer.navy_reinforcement_need[navy]))) {
+			if(!route && (military_goods_potential_in_govt_stockpile<unit_consumption_type::supply>(state, market, consumption_buffer.navy_supply_need[navy]) || military_goods_potential_in_govt_stockpile<unit_consumption_type::reinforcement>(state, market, consumption_buffer.navy_reinforcement_need[navy]))) {
 				create_supply_route(state, navy, market);
 			}
 		}
@@ -11539,7 +11560,7 @@ void update_supply_routes_daily(sys::state& state) {
 			for(auto stockpile_state : stockpiles_buffer.land_construction_closest_stockpiles[construction]) {
 				auto market = state.world.state_instance_get_market_from_local_market(stockpile_state);
 				auto route = state.world.get_land_construction_supply_route_by_origin_construction_pair(construction, market);
-				if(!route && goods_potential_in_govt_stockpile(market, consumption_buffer.land_constructions_need[construction])) {
+				if(!route && construction_goods_potential_in_govt_stockpile(state, market, construction, consumption_buffer.land_constructions_need[construction])) {
 					create_supply_route(state, construction, market);
 				}
 			}
@@ -11550,7 +11571,7 @@ void update_supply_routes_daily(sys::state& state) {
 			for(auto stockpile_state : stockpiles_buffer.naval_construction_closest_stockpiles[construction]) {
 				auto market = state.world.state_instance_get_market_from_local_market(stockpile_state);
 				auto route = state.world.get_naval_construction_supply_route_by_origin_construction_pair(construction, market);
-				if(!route && goods_potential_in_govt_stockpile(market, consumption_buffer.naval_constructions_need[construction])) {
+				if(!route && construction_goods_potential_in_govt_stockpile(state, market, construction, consumption_buffer.naval_constructions_need[construction])) {
 					create_supply_route(state, construction, market);
 				}
 			}
@@ -11620,21 +11641,21 @@ void update_supply_routes_daily(sys::state& state) {
 		for(auto unit : sorted_by_supply_prio[nation]) {
 			if(unit.is_army) {
 				auto army = unit.content.army;
-				update_military_unit_routes_satisfaction<supply_route_goods_type::supply>(state, army, consumption_buffer.army_supply_need[army], stockpiles_buffer.army_closest_stockpiles[army]);
+				update_military_unit_routes_satisfaction<unit_consumption_type::supply>(state, army, consumption_buffer.army_supply_need[army], stockpiles_buffer.army_closest_stockpiles[army]);
 			}
 			else {
 				auto navy = unit.content.navy;
-				update_military_unit_routes_satisfaction<supply_route_goods_type::supply>(state, navy, consumption_buffer.navy_supply_need[navy], stockpiles_buffer.navy_closest_stockpiles[navy]);
+				update_military_unit_routes_satisfaction<unit_consumption_type::supply>(state, navy, consumption_buffer.navy_supply_need[navy], stockpiles_buffer.navy_closest_stockpiles[navy]);
 			}
 		}
 		// Then reinforcement
 		for(auto unit : sorted_by_reinforcement_prio[nation]) {
 			if(unit.is_army) {
 				auto army = unit.content.army;
-				update_military_unit_routes_satisfaction<supply_route_goods_type::reinforcement>(state, army, consumption_buffer.army_reinforcement_need[army], stockpiles_buffer.army_closest_stockpiles[army]);
+				update_military_unit_routes_satisfaction<unit_consumption_type::reinforcement>(state, army, consumption_buffer.army_reinforcement_need[army], stockpiles_buffer.army_closest_stockpiles[army]);
 			} else {
 				auto navy = unit.content.navy;
-				update_military_unit_routes_satisfaction<supply_route_goods_type::reinforcement>(state, navy, consumption_buffer.navy_reinforcement_need[navy], stockpiles_buffer.navy_closest_stockpiles[navy]);
+				update_military_unit_routes_satisfaction<unit_consumption_type::reinforcement>(state, navy, consumption_buffer.navy_reinforcement_need[navy], stockpiles_buffer.navy_closest_stockpiles[navy]);
 			}
 		}
 		// Then land constructions

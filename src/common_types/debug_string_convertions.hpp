@@ -55,5 +55,6 @@ std::string to_debug_string(const military::battle_regiment& obj);
 
 std::string to_debug_string(const military::available_cb& obj);
 
+
 }
 

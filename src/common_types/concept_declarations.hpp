@@ -31,4 +31,36 @@ template<typename T>
 concept commodity_set_type = is_commodity_set<T>::value;
 
 
+
+
+template<typename T>
+struct is_commodity_amount_array : std::false_type {
+};
+
+template<uint32_t N>
+struct is_commodity_amount_array<sys::fixed_size_vector<float, N>> : std::true_type {
+};
+
+template<typename T>
+concept commodity_amount_array_type = is_commodity_amount_array<T>::value;
+
+
+
+
+
+
+
+template<typename T>
+struct is_commodity_id_array : std::false_type {
+};
+
+template<uint32_t N>
+struct is_commodity_id_array<sys::fixed_size_vector<dcon::commodity_id, N>> : std::true_type {
+};
+
+template<typename T>
+concept commodity_id_array_type = is_commodity_id_array<T>::value;
+
+
+
 }

@@ -1468,6 +1468,9 @@ std::string generate_full_oos_report(const sys::state& state_1, const sys::state
 			add_compare_to_oos_report(state_1.culture_definitions.conversion_chance, state_2.culture_definitions.conversion_chance, "conversion_chance") +
 			add_compare_to_oos_report(state_1.military_definitions.first_background_trait, state_2.military_definitions.first_background_trait, "first_background_trait") +
 			add_collection_compare_to_oos_report<military::unit_definition>(state_1.military_definitions.unit_base_definitions, state_2.military_definitions.unit_base_definitions, "unit_base_definitions") +
+			add_collection_compare_to_oos_report<dcon::commodity_id>(state_1.military_definitions.military_supply_build_goods, state_2.military_definitions.military_supply_build_goods, "military_supply_build_goods") +
+			add_collection_compare_to_oos_report<dcon::commodity_id>(state_1.military_definitions.military_build_goods, state_2.military_definitions.military_build_goods, "military_build_goods") +
+			add_collection_compare_to_oos_report<dcon::commodity_id>(state_1.military_definitions.military_supply_goods, state_2.military_definitions.military_supply_goods, "military_supply_goods") +
 			add_compare_to_oos_report(state_1.military_definitions.base_army_unit, state_2.military_definitions.base_army_unit, "base_army_unit") +
 			add_compare_to_oos_report(state_1.military_definitions.base_naval_unit, state_2.military_definitions.base_naval_unit, "base_naval_unit") +
 			add_compare_to_oos_report(state_1.military_definitions.standard_civil_war, state_2.military_definitions.standard_civil_war, "standard_civil_war") +

@@ -4907,12 +4907,12 @@ relationship{
 	}
 	property{
 		name{ buffered_supply_goods }
-		type{ economy::huge_commodity_set }
+		type{ economy::huge_commodity_amount_array }
 		tag{ save }
 	}
 	property{
 		name{ buffered_reinforcement_goods }
-		type{ economy::huge_commodity_set }
+		type{ economy::huge_commodity_amount_array }
 		tag{ save }
 	}
 
@@ -4969,12 +4969,12 @@ relationship{
 	}
 	property{
 		name{ buffered_supply_goods }
-		type{ economy::huge_commodity_set }
+		type{ economy::huge_commodity_amount_array }
 		tag{ save }
 	}
 	property{
 		name{ buffered_reinforcement_goods }
-		type{ economy::huge_commodity_set }
+		type{ economy::huge_commodity_amount_array }
 		tag{ save }
 	}
 
@@ -5036,7 +5036,7 @@ relationship{
 	}
 	property{
 		name{ buffered_goods }
-		type{ economy::commodity_set }
+		type{ economy::commodity_amount_array }
 		tag{ save }
 	}
 
@@ -5094,7 +5094,7 @@ relationship{
 	}
 	property{
 		name{ buffered_goods }
-		type{ economy::commodity_set }
+		type{ economy::commodity_amount_array }
 		tag{ save }
 	}
 
