@@ -327,7 +327,13 @@ public:
 		storage_size = initializer.size();
 		std::copy(initializer.begin(), initializer.end(), data());
 	}
-	constexpr fixed_size_vector(uint32_t size, const data_type& init_val = data_type{ }) {
+	constexpr fixed_size_vector(uint32_t size) {
+		init();
+		assert(size <= total_capacity());
+		std::fill_n(_storage.data(), size, data_type{});
+		storage_size = size;
+	}
+	constexpr fixed_size_vector(uint32_t size, const data_type& init_val) {
 		init();
 		assert(size <= total_capacity());
 		std::fill_n(_storage.data(), size, init_val);

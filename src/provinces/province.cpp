@@ -2887,8 +2887,8 @@ std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& st
 
 
 // Creates a military supply path, but will actively try to find the path with good supply thoughput and supply attrition. Path is inserted into the passed-in buffer. Buffer must be cleared first
-void make_military_supply_path(sys::state& state, dcon::state_instance_id start_si, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result) {
-	auto start = state.world.state_instance_get_capital(start_si);
+void make_military_supply_path(sys::state& state, dcon::state_instance_id origin, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result) {
+	auto start = state.world.state_instance_get_capital(origin);
 
 	auto adjacency_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj) {
 		// Cannot go though this adjacency if there is a port_to province on either end, and its blockaded
@@ -2901,9 +2901,6 @@ void make_military_supply_path(sys::state& state, dcon::state_instance_id start_
 		return !is_adjacency_impassable(state, nation_as, adj);
 	};
 	auto province_func = [&](dcon::province_id to) {
-		if(end == to) {
-			return true; // We are always allowed to path to the destination province, provided we dont get stopped before that
-		}
 		if(province::is_land(state, to)) { // is land;
 			return has_supply_access_to_province(state, nation_as, to);
 		} else {
@@ -2914,12 +2911,13 @@ void make_military_supply_path(sys::state& state, dcon::state_instance_id start_
 	auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance) {
 		// Take into account the expected supply thoughput comsumption (max_supply_thoughput + expected_volume) and multiply with supply attrition to get a heuristic of the cost
 		float used_supply_thoughput = state.world.province_get_used_supply_throughput(to);
-		float thoughput_factor = (used_supply_thoughput != 0.0f ? std::min((military::max_supply_throughput(state, to, nation_as) + expected_volume) / used_supply_thoughput, 1.0f) : 0.0f);
+		float thoughput_factor = (used_supply_thoughput != 0.0f ? std::min((military::max_supply_throughput(state, to, nation_as) + expected_volume) / used_supply_thoughput, 1.0f) : 1.0f);
 		return military::adjacency_supply_attrition(state, adj, nation_as) * thoughput_factor;
 
 	};
-
-	return make_path_to_prov<1.0f>(state, start, end, path_result, adjacency_func, province_func, modifier_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
+	// We are passing "start" province as end, and "end" as start. This is because creating the path in reverse has some desired effects. For example it means the province the army is on will not be path of the path (so that you wont lose supply instantly when adjacen to a friendly province)
+	// And will enable faster early-exists if units are deep in enemy territory
+	return make_path_to_prov<1.0f>(state, end, start, path_result, adjacency_func, province_func, modifier_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
 
 }
 
