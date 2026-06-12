@@ -141,6 +141,7 @@ list(APPEND ALICE_INCREMENTAL_SOURCES_LIST
 	"${PROJECT_SOURCE_DIR}/src/gui/labour_details.cpp"
 	"${PROJECT_SOURCE_DIR}/src/map/map_modes.cpp"
 	"${PROJECT_SOURCE_DIR}/src/military/military.cpp"
+	"${PROJECT_SOURCE_DIR}/src/supply_routes/supply_route.cpp"
 	"${PROJECT_SOURCE_DIR}/src/common_types/debug_string_convertions.cpp"
 	"${PROJECT_SOURCE_DIR}/src/nations/nations.cpp"
 	"${PROJECT_SOURCE_DIR}/src/network/SHA512.cpp"

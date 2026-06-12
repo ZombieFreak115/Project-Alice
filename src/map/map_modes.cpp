@@ -730,6 +730,7 @@ std::vector<uint32_t> players_map_from(sys::state& state) {
 
 #include "gui_element_types.hpp"
 #include <province_templates.hpp>
+#include <supply_route.hpp>
 
 std::vector<uint32_t> select_states_map_from(sys::state& state) {
 	uint32_t province_size = state.world.province_size();
@@ -797,13 +798,13 @@ std::vector<uint32_t> supply_loss_map_from(sys::state& state) {
 		float mx = 0.0f;
 		float mn = 1.0f;
 		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
-			auto v = military::province_supply_attrition(state, p.get_province(), state.local_player_nation);
+			auto v = supply_routes::province_supply_attrition(state, p.get_province(), state.local_player_nation);
 			mn = std::min(mn, v);
 			mx = std::max(mx, v);
 		}
 		if(mx > mn) {
 			for(auto p : state.world.nation_get_province_ownership(for_nation)) {
-				auto v = military::province_supply_attrition(state, p.get_province(), state.local_player_nation);
+				auto v = supply_routes::province_supply_attrition(state, p.get_province(), state.local_player_nation);
 
 				uint32_t color = ogl::color_gradient((v - mn) / (mx - mn),
 					sys::pack_color(46, 247, 15),	// to green
@@ -818,13 +819,13 @@ std::vector<uint32_t> supply_loss_map_from(sys::state& state) {
 		float mx = 0.0f;
 		float mn = 1.0f;
 		province::for_each_land_province(state, [&](dcon::province_id prov) {
-			auto v = military::province_supply_attrition(state, prov, state.local_player_nation);
+			auto v = supply_routes::province_supply_attrition(state, prov, state.local_player_nation);
 			mn = std::min(mn, v);
 			mx = std::max(mx, v);
 		});
 		if(mx > mn) {
 			province::for_each_land_province(state, [&](dcon::province_id prov) {
-				auto v = military::province_supply_attrition(state, prov, state.local_player_nation);
+				auto v = supply_routes::province_supply_attrition(state, prov, state.local_player_nation);
 
 				uint32_t color = ogl::color_gradient((v - mn) / (mx - mn),
 					sys::pack_color(46, 247, 15),	// to green
@@ -855,13 +856,13 @@ std::vector<uint32_t> supply_throughput_map_from(sys::state& state) {
 		float mx = 0.0f;
 		float mn = 1.0f;
 		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
-			auto v = military::max_supply_throughput(state, p.get_province(), state.local_player_nation);
+			auto v = supply_routes::max_supply_throughput(state, p.get_province(), state.local_player_nation);
 			mn = std::min(mn, v);
 			mx = std::max(mx, v);
 		}
 		if(mx > mn) {
 			for(auto p : state.world.nation_get_province_ownership(for_nation)) {
-				auto v = military::max_supply_throughput(state, p.get_province(), state.local_player_nation);
+				auto v = supply_routes::max_supply_throughput(state, p.get_province(), state.local_player_nation);
 
 				uint32_t color = ogl::color_gradient((v - mn) / (mx - mn),
 					sys::pack_color(46, 247, 15),	// to green
@@ -876,13 +877,13 @@ std::vector<uint32_t> supply_throughput_map_from(sys::state& state) {
 		float mx = 0.0f;
 		float mn = 1.0f;
 		province::for_each_land_province(state, [&](dcon::province_id prov) {
-			auto v = military::max_supply_throughput(state, prov, state.local_player_nation);
+			auto v = supply_routes::max_supply_throughput(state, prov, state.local_player_nation);
 			mn = std::min(mn, v);
 			mx = std::max(mx, v);
 		});
 		if(mx > mn) {
 			province::for_each_land_province(state, [&](dcon::province_id prov) {
-				auto v = military::max_supply_throughput(state, prov, state.local_player_nation);
+				auto v = supply_routes::max_supply_throughput(state, prov, state.local_player_nation);
 
 				uint32_t color = ogl::color_gradient((v - mn) / (mx - mn),
 					sys::pack_color(46, 247, 15),	// to green
@@ -911,7 +912,7 @@ std::vector<uint32_t> supply_route_efficiency_map_from(sys::state& state) {
 		float mx = 0.0f;
 		float mn = 1.0f;
 		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
-			auto sup_throughput = military::max_supply_throughput(state, p.get_province(), state.local_player_nation);
+			auto sup_throughput = supply_routes::max_supply_throughput(state, p.get_province(), state.local_player_nation);
 			auto used_sup_throughput = p.get_province().get_used_supply_throughput();
 			float eff = std::min(sup_throughput / (used_sup_throughput == 0 ? 1.0f : used_sup_throughput), 1.0f);
 			mn = std::min(mn, eff);
@@ -919,7 +920,7 @@ std::vector<uint32_t> supply_route_efficiency_map_from(sys::state& state) {
 		}
 		if(mx > mn) {
 			for(auto p : state.world.nation_get_province_ownership(for_nation)) {
-				auto sup_throughput = military::max_supply_throughput(state, p.get_province(), state.local_player_nation);
+				auto sup_throughput = supply_routes::max_supply_throughput(state, p.get_province(), state.local_player_nation);
 				auto used_sup_throughput = p.get_province().get_used_supply_throughput();
 				float eff = std::min(sup_throughput / (used_sup_throughput == 0 ? 1.0f : used_sup_throughput), 1.0f);
 
@@ -936,7 +937,7 @@ std::vector<uint32_t> supply_route_efficiency_map_from(sys::state& state) {
 		float mx = 0.0f;
 		float mn = 1.0f;
 		province::for_each_land_province(state, [&](dcon::province_id prov) {
-			auto sup_throughput = military::max_supply_throughput(state, prov, state.local_player_nation);
+			auto sup_throughput = supply_routes::max_supply_throughput(state, prov, state.local_player_nation);
 			auto used_sup_throughput = state.world.province_get_used_supply_throughput(prov);
 			float eff = std::min(sup_throughput / (used_sup_throughput == 0 ? 1.0f : used_sup_throughput), 1.0f);
 			mn = std::min(mn, eff);
@@ -944,7 +945,7 @@ std::vector<uint32_t> supply_route_efficiency_map_from(sys::state& state) {
 		});
 		if(mx > mn) {
 			province::for_each_land_province(state, [&](dcon::province_id prov) {
-				auto sup_throughput = military::max_supply_throughput(state, prov, state.local_player_nation);
+				auto sup_throughput = supply_routes::max_supply_throughput(state, prov, state.local_player_nation);
 				auto used_sup_throughput = state.world.province_get_used_supply_throughput(prov);
 				float eff = std::min(sup_throughput / (used_sup_throughput == 0 ? 1.0f : used_sup_throughput), 1.0f);
 

@@ -54,7 +54,7 @@ void for_each_province_in_state_instance(sys::state& state, dcon::state_instance
 }
 
 template<typename F>
-void for_each_province_building(sys::state& state, F const& function) {
+void for_each_province_building(const sys::state& state, F const& function) {
 	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
 		function(t);
 	}
@@ -142,7 +142,7 @@ struct path_node_heuristic {
 // ProvFunc: Lambda which takes a province_id as parameter and returns a bool. Decides if the given province is passable from any direction
 // MovementCostFunc: Lambda which takes the following as parameters (to_prov, from_prov, adjacency, distance) and returns a float. The returned value is used as movement cost in pathfinding
 template<float HeuristicModifier, typename AdjFunc, typename ProvFunc, typename MovementCostFunc>
-void make_path_to_prov(sys::state& state, dcon::province_id start, dcon::province_id end, std::vector<dcon::province_id>& path_result, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func) {
+void make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::province_id end, std::vector<dcon::province_id>& path_result, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func) {
 
 	// uses an A* implementation with direct distance as heuristic
 
@@ -253,7 +253,7 @@ void make_path_to_prov(sys::state& state, dcon::province_id start, dcon::provinc
 // ProvFunc: Lambda which takes a province_id as parameter and returns a bool. Decides if the given province is passable from any direction
 // MovementCostFunc: Lambda which takes the following as parameters (to_prov, from_prov, adjacency, distance) and returns a float. The returned value is used as movement cost in pathfinding
 template<float HeuristicModifier, typename AdjFunc, typename ProvFunc, typename MovementCostFunc>
-std::vector<dcon::province_id> make_path_to_prov(sys::state& state, dcon::province_id start, dcon::province_id end, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func) {
+std::vector<dcon::province_id> make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::province_id end, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func) {
 
 	std::vector<dcon::province_id> path_result;
 	make_path_to_prov<HeuristicModifier>(state, start, end, path_result, adj_func, prov_func, movementcost_func);
@@ -365,7 +365,7 @@ struct path_node {
 // MovementCostFunc: Lambda which takes the following as parameters (to_prov, from_prov, adjacency, distance) and returns a float. The returned value is used as movement cost in pathfinding
 // EndFunc: Lambda which takes a province_id and returns a bool. Decides if the given province is the end goal
 template<typename AdjFunc, typename ProvFunc, typename MovementCostFunc, typename EndFunc>
-std::vector<dcon::province_id> make_path_to_expression(sys::state& state, dcon::province_id start, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func, EndFunc&& end_expression) {
+std::vector<dcon::province_id> make_path_to_expression(const sys::state& state, dcon::province_id start, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func, EndFunc&& end_expression) {
 
 	// uses an Dijkstra's algorithm implementation to find the best possible path to the end expression
 

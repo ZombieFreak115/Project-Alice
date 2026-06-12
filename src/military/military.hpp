@@ -247,9 +247,6 @@ float primary_warscore_from_battles(sys::state& state, dcon::war_id w);
 float primary_warscore_from_war_goals(sys::state& state, dcon::war_id w);
 float primary_warscore_from_blockades(sys::state& state, dcon::war_id w);
 
-// Consumes from national stockpiles and updates supply and reinforcement satisfaction values accordingly
-void update_regiment_supply_reinforcement_satisfaction(sys::state& state);
-
 // war score from the perspective of the primary nation offering peace to the secondary nation; 0 to 100
 // DO NOT use this when calculating the overall score of the war or when looking at a peace deal between primary attacker and
 // defender
@@ -440,7 +437,7 @@ float movement_time_from_to(sys::state& state, dcon::navy_id n, dcon::province_i
 // Computes the effective military distance between two provinces by taking movement cost modifiers into account
 float effective_military_distance(sys::state& state, dcon::nation_id as_nation, dcon::province_id from, dcon::province_id to);
 // Calculates the avg movement cost modifier between two provinces as a specific nation
-float get_avg_movement_cost_modifier(sys::state& state, dcon::nation_id as_nation, dcon::province_id prov_a, dcon::province_id prov_b);
+float get_avg_movement_cost_modifier(const sys::state& state, dcon::nation_id as_nation, dcon::province_id prov_a, dcon::province_id prov_b);
 // Calculates the avg movement cost modifier between two provinces as unowned (ie blackflagged)
 float get_avg_movement_cost_modifier_unowned(sys::state& state, dcon::province_id prov_a, dcon::province_id prov_b);
 arrival_time_info arrival_time_to(sys::state& state, dcon::army_id a, dcon::province_id p);
@@ -545,10 +542,10 @@ void send_rebel_hunter_to_next_province(sys::state& state, dcon::army_id ar, dco
 void resolve_unit_constructions(sys::state& state);
 
 // Gets the net total supply cost modifier for the naval unit,with all modifiers included
-float get_supply_cost_modifiers(sys::state& state, dcon::ship_id ship);
+float get_supply_cost_modifiers(const sys::state& state, dcon::ship_id ship);
 
 // Gets the net total supply cost modifier for the land unit, with all modifiers included
-float get_supply_cost_modifiers(sys::state& state, dcon::regiment_id regiment);
+float get_supply_cost_modifiers(const sys::state& state, dcon::regiment_id regiment);
 
 
 float get_land_reinforcement_modifiers(const sys::state& state, dcon::regiment_id regiment);
@@ -602,8 +599,8 @@ float army_get_strength(const sys::state& state, dcon::army_id army);
 template<regiment_dmg_source damage_source>
 void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id);
 
-void update_supply_routes_daily(sys::state& state);
-void update_supply_routes_monthly(sys::state& state);
+
+float get_national_supply_cost_modifiers(const sys::state& state, dcon::nation_id nation);
 
 // Gets the average good satisfaction for all navies a nation has. Does not include constructions
 template<unit_consumption_type consumption_type>
@@ -611,10 +608,6 @@ float average_naval_consumption_satisfaction(const sys::state& state, dcon::nati
 // Gets the average good satisfaction for all regiments a nation has. Does not include constructions
 template<unit_consumption_type consumption_type>
 float average_land_consumption_satisfaction(const sys::state& state, dcon::nation_id nation);
-
-float max_supply_throughput(sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
-float province_supply_attrition(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
-float adjacency_supply_attrition(sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
 
 military::unit_priority increment_priority(military::unit_priority priority);
 military::unit_priority decrement_priority(military::unit_priority priority);

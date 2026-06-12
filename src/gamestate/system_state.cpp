@@ -37,6 +37,7 @@
 #include "alice_ui.hpp"
 #include "commands.hpp"
 #include "dcon_oos_reporter_generated.hpp"
+#include "supply_route.hpp"
 
 namespace sys {
 
@@ -3495,7 +3496,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	// ai::update_ai_research(*this);
 	ai::update_influence_priorities(*this);
 	ai::update_focuses(*this);
-	military::update_supply_routes_daily(*this);
+	supply_routes::update_supply_routes_daily(*this);
 
 	military::recover_org(*this);
 
@@ -4443,7 +4444,7 @@ void state::single_game_tick() {
 		//
 		// ALTERNATE PAR DEMO START POINT B
 		//
-		military::update_supply_routes_daily(*this);
+		supply_routes::update_supply_routes_daily(*this);
 
 		// Resolving military unit constructions should be handled right after updating supply routes, as they will add to the "purchased_goods" stockpile for unit constructions
 		military::resolve_unit_constructions(*this);
@@ -4572,7 +4573,7 @@ void state::single_game_tick() {
 			ai::update_ai_embargoes(*this);
 			break;
 		case 22:
-			military::update_supply_routes_monthly(*this);
+			supply_routes::update_supply_routes_monthly(*this);
 			ai::take_reforms(*this);
 			break;
 		case 23:

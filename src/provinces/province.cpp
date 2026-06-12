@@ -15,6 +15,7 @@
 #include <set>
 #include "economy.hpp"
 #include "military_templates.hpp"
+#include "supply_route.hpp"
 
 namespace province {
 
@@ -1545,7 +1546,7 @@ bool is_crossing_blocked(const sys::state& state, dcon::nation_id thisnation, dc
 	return false;
 }
 
-bool is_adjacency_impassable(sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adj) {
+bool is_adjacency_impassable(const sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adj) {
 	// if impassable bit is set, always return true
 	auto type = state.world.province_adjacency_get_type(adj);
 	if((type & province::border::impassible_bit) != 0) {
@@ -1738,7 +1739,7 @@ bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_defi
 	}
 }
 
-float get_province_modifier_without_hostile_buildings(sys::state& state, dcon::nation_id as_nation, dcon::province_id prov, dcon::provincial_modifier_value prov_mod_val) {
+float get_province_modifier_without_hostile_buildings(const sys::state& state, dcon::nation_id as_nation, dcon::province_id prov, dcon::provincial_modifier_value prov_mod_val) {
 	auto modifier_val = state.world.province_get_modifier_values(prov, prov_mod_val);
 	// if the "as_nation" is not at war with the controller, we don't need to subtract anything
 	auto prov_controller = state.world.province_get_nation_from_province_control(prov);
@@ -2309,7 +2310,7 @@ float distance_km(sys::state& state, dcon::province_adjacency_id pair) {
 
 
 // direct distance between two provinces; does not pathfind
-float direct_distance(sys::state& state, dcon::province_id a, dcon::province_id b) {
+float direct_distance(const sys::state& state, dcon::province_id a, dcon::province_id b) {
 	auto apos = state.world.province_get_mid_point_b(a);
 	auto bpos = state.world.province_get_mid_point_b(b);
 	auto dot = (apos.x * bpos.x + apos.y * bpos.y) + apos.z * bpos.z;
@@ -2440,7 +2441,7 @@ bool has_safe_access_to_province(sys::state& state, dcon::nation_id nation_as, d
 
 
 
-bool has_supply_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov) {
+bool has_supply_access_to_province(const sys::state& state, dcon::nation_id nation_as, dcon::province_id prov) {
 	assert(nation_as);
 	auto controller = state.world.province_get_nation_from_province_control(prov);
 
@@ -2457,7 +2458,7 @@ bool has_supply_access_to_province(sys::state& state, dcon::nation_id nation_as,
 	if(state.world.overlord_get_ruler(coverl) == nation_as)
 		return true;
 
-	auto url = state.world.get_unilateral_relationship_by_unilateral_pair(controller, nation_as);
+	auto url = const_cast<sys::state&>(state).world.get_unilateral_relationship_by_unilateral_pair(controller, nation_as);
 	if(state.world.unilateral_relationship_get_military_access(url))
 		return true;
 
@@ -2887,7 +2888,7 @@ std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& st
 
 
 // Creates a military supply path, but will actively try to find the path with good supply thoughput and supply attrition. Path is inserted into the passed-in buffer. Buffer must be cleared first
-void make_military_supply_path(sys::state& state, dcon::state_instance_id origin, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result) {
+void make_military_supply_path(const sys::state& state, dcon::state_instance_id origin, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result) {
 	auto start = state.world.state_instance_get_capital(origin);
 
 	auto adjacency_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj) {
@@ -2911,8 +2912,8 @@ void make_military_supply_path(sys::state& state, dcon::state_instance_id origin
 	auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance) {
 		// Take into account the expected supply thoughput comsumption (max_supply_thoughput + expected_volume) and multiply with supply attrition to get a heuristic of the cost
 		float used_supply_thoughput = state.world.province_get_used_supply_throughput(to);
-		float thoughput_factor = (used_supply_thoughput != 0.0f ? std::min((military::max_supply_throughput(state, to, nation_as) + expected_volume) / used_supply_thoughput, 1.0f) : 1.0f);
-		return military::adjacency_supply_attrition(state, adj, nation_as) * thoughput_factor;
+		float thoughput_factor = (used_supply_thoughput != 0.0f ? std::min((supply_routes::max_supply_throughput(state, to, nation_as) + expected_volume) / used_supply_thoughput, 1.0f) : 1.0f);
+		return supply_routes::adjacency_supply_attrition(state, adj, nation_as) * thoughput_factor;
 
 	};
 	// We are passing "start" province as end, and "end" as start. This is because creating the path in reverse has some desired effects. For example it means the province the army is on will not be path of the path (so that you wont lose supply instantly when adjacen to a friendly province)
