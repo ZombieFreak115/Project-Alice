@@ -4897,6 +4897,11 @@ relationship{
 		tag{ save }
 	}
 	property{
+		name{ is_active }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
 		name{ path }
 		type{vector_pool{5000}{province_id}}
 		tag{ save }
@@ -4955,6 +4960,11 @@ relationship{
 	}
 	property{
 		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ is_active }
 		type{ bitfield }
 		tag{ save }
 	}
@@ -5026,6 +5036,11 @@ relationship{
 		tag{ save }
 	}
 	property{
+		name{ is_active }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
 		name{ path }
 		type{vector_pool{5000}{province_id}}
 		tag{ save }
@@ -5080,6 +5095,11 @@ relationship{
 	}
 	property{
 		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ is_active }
 		type{ bitfield }
 		tag{ save }
 	}

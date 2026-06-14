@@ -229,8 +229,6 @@ float navy_strength_present(const sys::state& state, dcon::province_id location,
 }
 
 
-
-
 // Calculates whether province can support more regiments
 // Considers existing regiments and construction as well
 // Takes a filter function template to filter out which pops are eligible

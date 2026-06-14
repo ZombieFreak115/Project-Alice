@@ -19,6 +19,14 @@ template<typename T>
 concept military_construction_type = std::is_same_v<T, dcon::province_land_construction_id> ||
 									 std::is_same_v<T, dcon::province_naval_construction_id>;
 
+template<typename T>
+concept economy_construction_type = std::is_same_v<T, dcon::factory_construction_id> ||
+									std::is_same_v<T, dcon::province_building_construction_id>;
+
+template<typename T>
+concept construction_type = economy_construction_type<T> || military_construction_type<T>;
+
+
 
 // This is really ugly and unintuitive. If anyone knows a nicer way of doing this (have a concept that accepts all specializations of a specific template) feel free to chang eit
 template<typename T>

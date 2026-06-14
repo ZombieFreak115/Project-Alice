@@ -20,7 +20,7 @@
 #include "advanced_province_buildings.hpp"
 #include "concept_declarations.hpp"
 #include "xac.hpp"
-#include "supply_route_templates.hpp"
+#include "supply_route_light_templates.hpp"
 
 namespace duplicates {
 glm::vec2 get_port_location(sys::state& state, dcon::province_id p) {

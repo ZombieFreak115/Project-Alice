@@ -573,6 +573,18 @@ struct commodity_set_base {
 	void clear_all() {
 		std::memset(this, 0, sizeof(commodity_set_base));
 	}
+	uint32_t size_used() const {
+		uint32_t count = 0;
+		for(uint32_t i = 0; i < set_size; i++) {
+			if(commodity_type[i]) {
+				count++;
+			}
+			else {
+				break;
+			}
+		}
+		return count;
+	}
 
 };
 

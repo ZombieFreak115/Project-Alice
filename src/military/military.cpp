@@ -8658,6 +8658,7 @@ crossing_type get_crossing_type(const sys::state& state, dcon::province_adjacenc
 	}
 }
 
+
 void navy_arrives_in_province(sys::state& state, dcon::navy_id n, dcon::province_id p, dcon::naval_battle_id from) {
 	assert(state.world.navy_is_valid(n));
 	assert(!state.world.navy_get_battle_from_navy_battle_participation(n));

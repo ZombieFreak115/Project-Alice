@@ -2918,7 +2918,7 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 	};
 	// We are passing "start" province as end, and "end" as start. This is because creating the path in reverse has some desired effects. For example it means the province the army is on will not be path of the path (so that you wont lose supply instantly when adjacen to a friendly province)
 	// And will enable faster early-exists if units are deep in enemy territory
-	return make_path_to_prov<1.0f>(state, end, start, path_result, adjacency_func, province_func, modifier_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
+	make_path_to_prov<1.0f>(state, end, start, path_result, adjacency_func, province_func, modifier_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
 
 }
 
