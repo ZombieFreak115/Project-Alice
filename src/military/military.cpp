@@ -9474,7 +9474,7 @@ void increase_dig_in(sys::state& state) {
 
 
 
-economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::nation_id owner, dcon::army_id army) {
+economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::army_id army) {
 	economy::huge_commodity_amount_array commodities(state.military_definitions.military_build_goods.size());
 
 	for(auto r : state.world.army_get_army_membership(army)) {
@@ -9499,7 +9499,7 @@ economy::huge_commodity_amount_array get_last_required_reinforcement_supply(cons
 	return commodities;
 }
 
-economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::nation_id owner, dcon::navy_id navy) {
+economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::navy_id navy) {
 	economy::huge_commodity_amount_array commodities(state.military_definitions.military_build_goods.size());
 
 	for(auto r : state.world.navy_get_navy_membership(navy)) {
@@ -9529,7 +9529,7 @@ economy::huge_commodity_amount_array get_last_required_reinforcement_supply(cons
 
 
 
-economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::nation_id owner, dcon::army_id army) {
+economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::army_id army) {
 
 	economy::huge_commodity_amount_array commodities(state.military_definitions.military_supply_goods.size());
 
@@ -9555,7 +9555,7 @@ economy::huge_commodity_amount_array get_last_required_supply(const sys::state& 
 	return commodities;
 }
 
-economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::nation_id owner, dcon::navy_id navy) {
+economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::navy_id navy) {
 	economy::huge_commodity_amount_array commodities(state.military_definitions.military_supply_goods.size());
 
 
@@ -9563,20 +9563,19 @@ economy::huge_commodity_amount_array get_last_required_supply(const sys::state& 
 		auto shp = fatten(state.world, sh.get_ship());
 		auto type = state.world.ship_get_type(sh.get_ship());
 
-		if(owner) {
-			auto mods = shp.get_last_supply_cost_modifier();
-			const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
-			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-				auto com_type = supply_cost.commodity_type[i];
-				auto index = state.world.commodity_get_unit_supply_goods_index(com_type);
-				assert(index >= 0);
-				if(com_type) {
-					commodities[index] += supply_cost.commodity_amounts[i] * mods;
-				} else {
-					break;
-				}
+		auto mods = shp.get_last_supply_cost_modifier();
+		const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
+		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
+			auto com_type = supply_cost.commodity_type[i];
+			auto index = state.world.commodity_get_unit_supply_goods_index(com_type);
+			assert(index >= 0);
+			if(com_type) {
+				commodities[index] += supply_cost.commodity_amounts[i] * mods;
+			} else {
+				break;
 			}
 		}
+		
 	};
 
 	return commodities;

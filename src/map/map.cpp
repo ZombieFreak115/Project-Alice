@@ -2589,9 +2589,8 @@ void make_army_path(sys::state& state, std::vector<map::curved_line_vertex>& buf
 
 
 template<concepts::supply_route_type route_type>
-void make_supply_route_path(sys::state& state, std::vector<map::curved_line_vertex>& buffer, route_type r, float size_x, float size_y) {
+void make_supply_route_path(sys::state& state, std::vector<map::curved_line_vertex>& buffer, route_type r, std::span<const dcon::province_id> path, float size_x, float size_y) {
 	auto route = fatten(state.world, r);
-	auto path = route.get_path();
 	if(auto ps = path.size(); ps > 0) {
 		auto progress = 0.0f;
 		// The "destination" is actually the start in the path, as it is more convinient to path FROM the army/construction to the origin (market stockpile).
@@ -2634,10 +2633,10 @@ void make_supply_route_path(sys::state& state, std::vector<map::curved_line_vert
 	}
 }
 
-template void make_supply_route_path<dcon::army_supply_route_id>(sys::state& state, std::vector<map::curved_line_vertex>& buffer, dcon::army_supply_route_id r, float size_x, float size_y);
-template void make_supply_route_path<dcon::navy_supply_route_id>(sys::state& state, std::vector<map::curved_line_vertex>& buffer, dcon::navy_supply_route_id r, float size_x, float size_y);
-template void make_supply_route_path<dcon::land_construction_supply_route_id>(sys::state& state, std::vector<map::curved_line_vertex>& buffer, dcon::land_construction_supply_route_id r, float size_x, float size_y);
-template void make_supply_route_path<dcon::naval_construction_supply_route_id>(sys::state& state, std::vector<map::curved_line_vertex>& buffer, dcon::naval_construction_supply_route_id r, float size_x, float size_y);
+template void make_supply_route_path<dcon::army_supply_route_id>(sys::state& state, std::vector<map::curved_line_vertex>& buffer, dcon::army_supply_route_id r, std::span<const dcon::province_id> path, float size_x, float size_y);
+template void make_supply_route_path<dcon::navy_supply_route_id>(sys::state& state, std::vector<map::curved_line_vertex>& buffer, dcon::navy_supply_route_id r, std::span<const dcon::province_id> path, float size_x, float size_y);
+template void make_supply_route_path<dcon::land_construction_supply_route_id>(sys::state& state, std::vector<map::curved_line_vertex>& buffer, dcon::land_construction_supply_route_id r, std::span<const dcon::province_id> path, float size_x, float size_y);
+template void make_supply_route_path<dcon::naval_construction_supply_route_id>(sys::state& state, std::vector<map::curved_line_vertex>& buffer, dcon::naval_construction_supply_route_id r, std::span<const dcon::province_id> path, float size_x, float size_y);
 
 
 

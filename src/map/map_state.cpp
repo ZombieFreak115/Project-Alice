@@ -1072,20 +1072,26 @@ void update_supply_route_arrows(sys::state& state, display_data& map_data) {
 	map_data.strategy_unit_arrow_starts.clear();
 	for(auto selected_army : state.selected_armies) {
 		for(auto route : state.world.army_get_army_supply_route(selected_army)) {
-			if(auto ps = route.get_path(); ps.size() > 0) {
+			// make a copy of the path so that there arent the possibilty of the path being modified while the renderer reads from it
+			auto path = route.get_path();
+			if(path.size() > 0) {
+				auto path_copy = std::vector<dcon::province_id>(path.begin(), path.end());
 				auto old_size = map_data.strategy_unit_arrow_vertices.size();
 				map_data.strategy_unit_arrow_starts.push_back(GLint(old_size));
-				map::make_supply_route_path(state, map_data.strategy_unit_arrow_vertices, route.id, float(map_data.size_x), float(map_data.size_y));
+				map::make_supply_route_path(state, map_data.strategy_unit_arrow_vertices, route.id, path_copy, float(map_data.size_x), float(map_data.size_y));
 				map_data.strategy_unit_arrow_counts.push_back(GLsizei(map_data.strategy_unit_arrow_vertices.size() - old_size));
 			}
 		}
 	}
 	for(auto selected_navy : state.selected_navies) {
 		for(auto route : state.world.navy_get_navy_supply_route(selected_navy)) {
-			if(auto ps = route.get_path(); ps.size() > 0) {
+			// make a copy of the path so that there arent the possibilty of the path being modified while the renderer reads from it
+			auto path = route.get_path();
+			if(path.size() > 0) {
+				auto path_copy = std::vector<dcon::province_id>(path.begin(), path.end());
 				auto old_size = map_data.strategy_unit_arrow_vertices.size();
 				map_data.strategy_unit_arrow_starts.push_back(GLint(old_size));
-				map::make_supply_route_path(state, map_data.strategy_unit_arrow_vertices, route.id, float(map_data.size_x), float(map_data.size_y));
+				map::make_supply_route_path(state, map_data.strategy_unit_arrow_vertices, route.id, path_copy, float(map_data.size_x), float(map_data.size_y));
 				map_data.strategy_unit_arrow_counts.push_back(GLsizei(map_data.strategy_unit_arrow_vertices.size() - old_size));
 			}
 		}

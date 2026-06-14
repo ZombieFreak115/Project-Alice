@@ -434,7 +434,7 @@ void make_land_path(
 	float size_y
 );
 template<concepts::supply_route_type route_type>
-void make_supply_route_path(sys::state& state, std::vector<map::curved_line_vertex>& buffer, route_type r, float size_x, float size_y);
+void make_supply_route_path(sys::state& state, std::vector<map::curved_line_vertex>& buffer, route_type r, std::span<const dcon::province_id> path, float size_x, float size_y);
 
 void make_army_path(sys::state& state, std::vector<map::curved_line_vertex>& buffer, dcon::army_id selected_army, float size_x, float size_y);
 void make_army_direction(sys::state& state, std::vector<map::curved_line_vertex>& buffer, dcon::army_id selected_army, float size_x, float size_y);

@@ -514,10 +514,10 @@ battle_regiment get_land_combat_target(const sys::state& state, dcon::regiment_i
 void apply_attrition_to_army(sys::state& state, dcon::army_id army);
 void apply_attrition(sys::state& state);
 void increase_dig_in(sys::state& state);
-economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::nation_id owner, dcon::army_id army);
-economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::nation_id owner, dcon::navy_id navy);
-economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::nation_id owner, dcon::navy_id navy);
-economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::nation_id owner, dcon::army_id army);
+economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::army_id army);
+economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::navy_id navy);
+economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::navy_id navy);
+economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::army_id army);
 void recover_org(sys::state& state);
 float calculate_location_reinforce_modifier_battle(const sys::state& state, dcon::province_id location, dcon::nation_id in_nation);
 float unit_get_strength(sys::state& state, dcon::regiment_id regiment_id);

@@ -2194,26 +2194,19 @@ public:
 
 template<military::unit_consumption_type supply_type, concepts::military_unit unit_type>
 void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_layout& contents) {
-	dcon::nation_id owner{};
 	economy::huge_commodity_amount_array commodities_required;
 	economy::huge_commodity_amount_array commodities_satisfied_before_loss;
 	economy::huge_commodity_amount_array commodities_satisfied;
 	// We get the last requires supplies instead of the future required supplies because all the route data is current
 	if constexpr(supply_type == military::unit_consumption_type::supply) {
-		commodities_required = military::get_last_required_supply(state, owner, unit);
+		commodities_required = military::get_last_required_supply(state, unit);
 		commodities_satisfied_before_loss.resize(state.military_definitions.military_supply_goods.size());
 		commodities_satisfied.resize(state.military_definitions.military_supply_goods.size());
 	}
 	else if constexpr(supply_type == military::unit_consumption_type::reinforcement) {
-		commodities_required = military::get_last_required_reinforcement_supply(state, owner, unit);
+		commodities_required = military::get_last_required_reinforcement_supply(state, unit);
 		commodities_satisfied_before_loss.resize(state.military_definitions.military_build_goods.size());
 		commodities_satisfied.resize(state.military_definitions.military_build_goods.size());
-	}
-	if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
-		owner = state.world.army_get_controller_from_army_control(unit);
-	}
-	else {
-		owner = state.world.navy_get_controller_from_navy_control(unit);
 	}
 
 	auto routes = [&]() {
