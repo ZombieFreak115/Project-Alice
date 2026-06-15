@@ -7,6 +7,7 @@
 #include "military_constants.hpp"
 #include "constants_dcon.hpp"
 #include "commands_constants.hpp"
+#include "concept_declarations.hpp"
 
 namespace military {
 namespace cb_flag {
@@ -43,20 +44,6 @@ inline constexpr uint32_t po_unequal_treaty = 0x08000000;
 
 } // namespace cb_flag
 
-// The distance from one side of of the naval battle to the middle. Unit speed is cast to this distance with define:NAVAL_COMBAT_SPEED_TO_DISTANCE_FACTOR and naval_battle_speed_mult.
-// The "total" distance for both sides is double this number, as each ship will start at 100 distance from the middle (which equals to 200 distance between them)
-// the actual integer is 1000 units, which here means 100.0 with one fixed-point decimal.
-constexpr uint16_t naval_battle_distance_to_center = 1000;
-
-constexpr uint16_t naval_battle_total_distance = naval_battle_distance_to_center * 2; // total distance from one end of the battle to another
-
-constexpr uint16_t naval_battle_center_line = 0; // The "center line" of a naval battle. Ships on one side cannot go past this.
-
-constexpr uint16_t naval_battle_speed_mult = 1000; // mult for casting unit speed to battle speed
-
-
-constexpr inline int32_t river_crossing_modifier = -1;
-constexpr inline int32_t strait_crossing_modifier = -2;
 
 
 
@@ -147,35 +134,6 @@ struct naval_range_display_data {
 	sys::date timestamp;
 };
 
-constexpr inline int32_t days_before_retreat = 11;
-
-enum class battle_result {
-	indecisive, attacker_won, defender_won
-};
-enum class regiment_dmg_source {
-	combat, attrition
-};
-
-enum class battle_role : uint8_t {
-	attacker = 0,
-	defender = 1
-};
-
-enum class battle_line : uint8_t {
-	frontline = 0,
-	backline = 1
-};
-
-enum class interval_estimation {
-	daily, monthly
-};
-enum class supply_estimation {
-	based_on_satisfaction, full_supply_always
-};
-enum class unit_consumption_type : uint8_t {
-	supply,
-	reinforcement
-};
 
 struct ai_path_length {
 	uint32_t length = 0;
@@ -183,11 +141,6 @@ struct ai_path_length {
 	bool operator!=(const ai_path_length& other) const = default;
 
 };
-
-
-
-
-
 
 
 void reset_unit_stats(sys::state& state);
@@ -514,10 +467,12 @@ battle_regiment get_land_combat_target(const sys::state& state, dcon::regiment_i
 void apply_attrition_to_army(sys::state& state, dcon::army_id army);
 void apply_attrition(sys::state& state);
 void increase_dig_in(sys::state& state);
-economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::army_id army);
-economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::navy_id navy);
-economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::navy_id navy);
-economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::army_id army);
+template<unit_consumption_type consumption_type, concepts::military_unit unit_type>
+economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, unit_type unit);
+
+template<unit_consumption_type consumption_type, concepts::military_unit unit_type>
+economy::huge_commodity_amount_array get_last_fufilled_supply(const sys::state& state, unit_type u);
+
 void recover_org(sys::state& state);
 float calculate_location_reinforce_modifier_battle(const sys::state& state, dcon::province_id location, dcon::nation_id in_nation);
 float unit_get_strength(sys::state& state, dcon::regiment_id regiment_id);

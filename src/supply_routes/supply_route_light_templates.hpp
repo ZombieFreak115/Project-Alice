@@ -2,6 +2,7 @@
 
 #include "concept_declarations.hpp"
 #include "system_state.hpp"
+#include "military.hpp"
 
 namespace supply_routes {
 
@@ -25,6 +26,31 @@ dcon::province_id supply_route_origin(const sys::state& state, route_type route)
 	auto fat_route = fatten(state.world, route);
 	return fat_route.get_origin().get_zone_from_local_market().get_capital();
 }
+
+
+
+
+template<military::unit_consumption_type consumption_type, concepts::military_supply_route_type route_type>
+economy::huge_commodity_amount_array& military_route_buffered_goods(sys::state& state, route_type route) {
+	auto fat_route = fatten(state.world, route);
+	if constexpr(consumption_type == military::unit_consumption_type::supply) {
+		return fat_route.get_buffered_supply_goods();
+	}
+	else if constexpr(consumption_type == military::unit_consumption_type::reinforcement) {
+		return fat_route.get_buffered_reinforcement_goods();
+	}
+}
+
+template<military::unit_consumption_type consumption_type, concepts::military_supply_route_type route_type>
+const economy::huge_commodity_amount_array& military_route_buffered_goods(const sys::state& state, route_type route) {
+	auto fat_route = fatten(state.world, route);
+	if constexpr(consumption_type == military::unit_consumption_type::supply) {
+		return fat_route.get_buffered_supply_goods();
+	} else if constexpr(consumption_type == military::unit_consumption_type::reinforcement) {
+		return fat_route.get_buffered_reinforcement_goods();
+	}
+}
+
 
 template<concepts::supply_route_type route_type>
 dcon::nation_id supply_route_owner(const sys::state& state, route_type route) {

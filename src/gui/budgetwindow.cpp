@@ -684,23 +684,35 @@ void  budgetwindow_main_military_table_t::update(sys::state& state, layout_windo
 	add_section_header(budget_categories::land_supply);
 	/*if(budget_categories::expanded[budget_categories::land_supply]) {
 		add_bottom_spacer();
-		auto fraction = float(state.world.nation_get_land_spending(state.local_player_nation)) / 100.0f;
-		auto goods = state.world.commodity_make_vectorizable_float_buffer();
-
-		uint32_t total_commodities = state.world.commodity_size();
-		state.world.nation_for_each_state_ownership(state.local_player_nation, [&](auto soid) {
-			auto local_state = state.world.state_ownership_get_state(soid);
-			auto market = state.world.state_instance_get_market_from_local_market(local_state);
-			for(uint32_t i = 1; i < total_commodities; ++i) {
-				dcon::commodity_id cid{ dcon::commodity_id::value_base_t(i) };
-				goods.set(cid, goods.get(cid) + state.world.market_get_army_demand(market, cid)
-					* economy::price(state, market, cid)
-					* state.world.market_get_actual_probability_to_buy(market, cid));
+		const auto& commodity_types = state.military_definitions.military_supply_goods;
+		economy::huge_commodity_amount_array total_required(commodity_types.size());
+		economy::huge_commodity_amount_array total_fufilled(commodity_types.size());
+		for(auto a : state.world.nation_get_army_control(state.local_player_nation)) {
+			auto army = a.get_army();
+			const auto required = military::get_last_required_supply<military::unit_consumption_type::supply>(state, army.id);
+			const auto fufilled = military::get_last_fufilled_supply<military::unit_consumption_type::supply>(state, army.id);
+			for(uint32_t i = 0; i < commodity_types.size(); i++) {
+				total_required[i] += required[i];
+				total_fufilled[i] += fufilled[i];
 			}
-		});
-		for(auto c : state.world.in_commodity) {
-			if(goods.get(c) > 0.0f) {
-				add_budget_row(text::produce_simple_string(state, state.world.commodity_get_name(c)), goods.get(c) * fraction);
+		}
+		for(auto a : state.world.nation_get_navy_control(state.local_player_nation)) {
+			auto navy = a.get_navy();
+			const auto required = military::get_last_required_supply<military::unit_consumption_type::supply>(state, navy.id);
+			const auto fufilled = military::get_last_fufilled_supply<military::unit_consumption_type::supply>(state, navy.id);
+			for(uint32_t i = 0; i < commodity_types.size(); i++) {
+				total_required[i] += required[i];
+				total_fufilled[i] += fufilled[i];
+			}
+		}
+
+		for(uint32_t i = 0; i < commodity_types.size(); i++) {
+			auto com_id = commodity_types[i];
+			float required_count = total_required[i];
+			float fufilled_count = total_fufilled[i];
+			if(required_count > 0.0f) {
+				float fufillment = std::min(fufilled_count / required_count, 1.0f);
+				add_budget_row(text::produce_simple_string(state, state.world.commodity_get_name(com_id)), fufillment);
 			}
 		}
 	}*/

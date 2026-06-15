@@ -23,7 +23,8 @@
 #include "economy_templates.hpp"
 #include "construction.hpp"
 #include "concept_declarations.hpp"
-#include "supply_route_templates.hpp"
+#include "military_light_templates.hpp"
+#include "supply_route_light_templates.hpp"
 
 namespace military {
 
@@ -9472,106 +9473,52 @@ void increase_dig_in(sys::state& state) {
 
 
 
-
-
-economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::army_id army) {
-	economy::huge_commodity_amount_array commodities(state.military_definitions.military_build_goods.size());
-
-	for(auto r : state.world.army_get_army_membership(army)) {
-		auto reg = fatten(state.world, r);
-		auto type = state.world.regiment_get_type(r.get_regiment());
-
-		auto mods = reg.get_regiment().get_last_potential_reinforcement();
-		const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-			auto com_type = build_cost.commodity_type[i];
-			auto index = state.world.commodity_get_unit_build_goods_index(com_type);
-			assert(index >= 0);
-			if(com_type) {
-				commodities[index] += build_cost.commodity_amounts[i] * mods;
-			} else {
-				break;
-			}
+template<unit_consumption_type consumption_type, concepts::military_unit unit_type>
+economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, unit_type unit) {
+	const economy::huge_commodity_id_array& commodity_types = [&]() {
+		if constexpr(consumption_type == unit_consumption_type::supply) {
+			return state.military_definitions.military_supply_goods;
+		} else if constexpr(consumption_type == unit_consumption_type::reinforcement) {
+			return state.military_definitions.military_build_goods;
 		}
+	}();
+	economy::huge_commodity_amount_array commodities(commodity_types.size());
 
-	}
-
-	return commodities;
-}
-
-economy::huge_commodity_amount_array get_last_required_reinforcement_supply(const sys::state& state, dcon::navy_id navy) {
-	economy::huge_commodity_amount_array commodities(state.military_definitions.military_build_goods.size());
-
-	for(auto r : state.world.navy_get_navy_membership(navy)) {
-		auto ship = fatten(state.world, r);
-		auto type = state.world.ship_get_type(ship.get_ship());
-
-		auto mods = ship.get_ship().get_last_potential_reinforcement();
-		const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-			auto com_type = build_cost.commodity_type[i];
-			auto index = state.world.commodity_get_unit_build_goods_index(com_type);
-			assert(index >= 0);
-			if(com_type) {
-				commodities[index] += build_cost.commodity_amounts[i] * mods;
-			} else {
-				break;
+	const auto membership = unit_membership(state, unit);
+	for(auto s : membership) {
+		auto subunit = [&]() {
+			if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
+				return fatten(state.world, s.get_regiment());
 			}
-		}
-
-	}
-
-	return commodities;
-}
-
-
-
-
-
-
-economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::army_id army) {
-
-	economy::huge_commodity_amount_array commodities(state.military_definitions.military_supply_goods.size());
-
-	for(auto r : state.world.army_get_army_membership(army)) {
-		auto reg = fatten(state.world, r);
-		auto type = state.world.regiment_get_type(r.get_regiment());
-
-		auto mods = reg.get_regiment().get_last_supply_cost_modifier();
-		const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-			auto com_type = supply_cost.commodity_type[i];
-			auto index = state.world.commodity_get_unit_supply_goods_index(com_type);
-			assert(index >= 0);
-			if(com_type) {
-				commodities[index] += supply_cost.commodity_amounts[i] * mods;
-			} else {
-				break;
+			if constexpr(std::is_same_v<unit_type, dcon::navy_id>) {
+				return fatten(state.world, s.get_ship());
 			}
-		}
+		}();
+		auto type = subunit.get_type();
 
-	}
-
-	return commodities;
-}
-
-economy::huge_commodity_amount_array get_last_required_supply(const sys::state& state, dcon::navy_id navy) {
-	economy::huge_commodity_amount_array commodities(state.military_definitions.military_supply_goods.size());
-
-
-	for(auto sh : state.world.navy_get_navy_membership(navy)) {
-		auto shp = fatten(state.world, sh.get_ship());
-		auto type = state.world.ship_get_type(sh.get_ship());
-
-		auto mods = shp.get_last_supply_cost_modifier();
-		const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-			auto com_type = supply_cost.commodity_type[i];
-			auto index = state.world.commodity_get_unit_supply_goods_index(com_type);
-			assert(index >= 0);
+		float mods = [&]() {
+			if constexpr(consumption_type == unit_consumption_type::supply) {
+				return subunit.get_last_supply_cost_modifier();
+			}
+			else if constexpr(consumption_type == unit_consumption_type::reinforcement) {
+				return subunit.get_last_potential_reinforcement();
+			}
+		}();
+		const economy::commodity_set& goods_cost = unit_type_commodity_costs<consumption_type>(state, type);
+		for(uint32_t i = 0; i < goods_cost.set_size; ++i) {
+			auto com_type = goods_cost.commodity_type[i];
 			if(com_type) {
-				commodities[index] += supply_cost.commodity_amounts[i] * mods;
-			} else {
+				int16_t index = [&]() {
+					if constexpr(consumption_type == unit_consumption_type::supply) {
+						return state.world.commodity_get_unit_supply_goods_index(com_type);
+					} else if constexpr(consumption_type == unit_consumption_type::reinforcement) {
+						return state.world.commodity_get_unit_build_goods_index(com_type);
+					}
+				}();
+				assert(index >= 0);
+				commodities[index] += goods_cost.commodity_amounts[i] * mods;
+			}
+			else {
 				break;
 			}
 		}
@@ -9580,7 +9527,29 @@ economy::huge_commodity_amount_array get_last_required_supply(const sys::state& 
 
 	return commodities;
 }
+template economy::huge_commodity_amount_array get_last_required_supply<unit_consumption_type::supply>(const sys::state& state, dcon::army_id unit);
+template economy::huge_commodity_amount_array get_last_required_supply<unit_consumption_type::supply>(const sys::state& state, dcon::navy_id unit);
+template economy::huge_commodity_amount_array get_last_required_supply<unit_consumption_type::reinforcement>(const sys::state& state, dcon::army_id unit);
+template economy::huge_commodity_amount_array get_last_required_supply<unit_consumption_type::reinforcement>(const sys::state& state, dcon::navy_id unit);
 
+template<unit_consumption_type consumption_type, concepts::military_unit unit_type>
+economy::huge_commodity_amount_array get_last_fufilled_supply(const sys::state& state, unit_type u) {
+	economy::huge_commodity_amount_array fufilled(state.military_definitions.military_supply_goods.size());
+	auto routes = unit_supply_routes(state, u);
+	for(auto route : routes) {
+		const economy::huge_commodity_amount_array& buffered_goods = supply_routes::military_route_buffered_goods<consumption_type>(state, route.id);
+		for(uint32_t i = 0; i < state.military_definitions.military_supply_goods.size(); i++) {
+			auto com_id = state.military_definitions.military_supply_goods[i];
+			assert(com_id);
+			fufilled[i] += (buffered_goods[i] * route.get_route_attrition()); // take into account goods which will be lost to attrition
+		}
+	}
+	return fufilled;
+}
+template economy::huge_commodity_amount_array get_last_fufilled_supply<unit_consumption_type::supply>(const sys::state& state, dcon::army_id u);
+template economy::huge_commodity_amount_array get_last_fufilled_supply<unit_consumption_type::supply>(const sys::state& state, dcon::navy_id u);
+template economy::huge_commodity_amount_array get_last_fufilled_supply<unit_consumption_type::reinforcement>(const sys::state& state, dcon::army_id u);
+template economy::huge_commodity_amount_array get_last_fufilled_supply<unit_consumption_type::reinforcement>(const sys::state& state, dcon::navy_id u);
 
 
 float get_land_org_regain_modifiers(const sys::state& state, dcon::regiment_id regiment) {

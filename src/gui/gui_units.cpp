@@ -22,6 +22,8 @@
 #include "commands.hpp"
 #include "economy_templates.hpp"
 #include "concept_declarations.hpp"
+#include "supply_route_light_templates.hpp"
+#include "military_light_templates.hpp"
 
 namespace ui {
 
@@ -2197,51 +2199,34 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 	economy::huge_commodity_amount_array commodities_required;
 	economy::huge_commodity_amount_array commodities_satisfied_before_loss;
 	economy::huge_commodity_amount_array commodities_satisfied;
-	// We get the last requires supplies instead of the future required supplies because all the route data is current
-	if constexpr(supply_type == military::unit_consumption_type::supply) {
-		commodities_required = military::get_last_required_supply(state, unit);
-		commodities_satisfied_before_loss.resize(state.military_definitions.military_supply_goods.size());
-		commodities_satisfied.resize(state.military_definitions.military_supply_goods.size());
-	}
-	else if constexpr(supply_type == military::unit_consumption_type::reinforcement) {
-		commodities_required = military::get_last_required_reinforcement_supply(state, unit);
-		commodities_satisfied_before_loss.resize(state.military_definitions.military_build_goods.size());
-		commodities_satisfied.resize(state.military_definitions.military_build_goods.size());
-	}
-
-	auto routes = [&]() {
-		if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
-			return state.world.army_get_army_supply_route(unit);
-		}
-		else if constexpr(std::is_same_v<unit_type, dcon::navy_id>) {
-			return state.world.navy_get_navy_supply_route(unit);
-		}
-	}();
+	economy::huge_commodity_amount_array commodities_satisfied_w_throughput;
 
 	const economy::huge_commodity_id_array& commodity_types = [&]() {
 		if constexpr(supply_type == military::unit_consumption_type::supply) {
 			return state.military_definitions.military_supply_goods;
-		}
-		else if constexpr(supply_type == military::unit_consumption_type::reinforcement) {
+		} else if constexpr(supply_type == military::unit_consumption_type::reinforcement) {
 			return state.military_definitions.military_build_goods;
 		}
 	}();
+	commodities_satisfied_before_loss.resize(commodity_types.size());
+	commodities_satisfied.resize(commodity_types.size());
+	commodities_satisfied_w_throughput.resize(commodity_types.size());
 
+	// We get the last requires supplies instead of the future required supplies because all the route data is current
+	commodities_required = military::get_last_required_supply<supply_type>(state, unit);
+
+	auto routes = military::unit_supply_routes(state, unit);
 
 	for(auto route : routes) {
+		const economy::huge_commodity_amount_array& buffered_goods = supply_routes::military_route_buffered_goods<supply_type>(state, route.id);
 		for(uint32_t i = 0; i < commodity_types.size(); i++) {
 			dcon::commodity_id com_id = commodity_types[i];
 			assert(com_id);
-			if constexpr(supply_type == military::unit_consumption_type::supply) {
-				commodities_satisfied[i] += (route.get_buffered_supply_goods()[i] * route.get_route_attrition());
-				commodities_satisfied_before_loss[i] += route.get_buffered_supply_goods()[i];
-			} else if constexpr(supply_type == military::unit_consumption_type::reinforcement) {
-				commodities_satisfied[i] += (route.get_buffered_reinforcement_goods()[i] * route.get_route_attrition());
-				commodities_satisfied_before_loss[i] += route.get_buffered_reinforcement_goods()[i];
-			}
+			commodities_satisfied[i] += (buffered_goods[i] * route.get_route_attrition());
+			commodities_satisfied_before_loss[i] += buffered_goods[i];
+			commodities_satisfied_w_throughput[i] += (buffered_goods[i] * route.get_throughput());
 		}
 	}
-	
 	for(uint32_t i = 0; i < commodity_types.size(); i++) {
 		dcon::commodity_id com_id = commodity_types[i];
 		assert(com_id);
@@ -2251,14 +2236,29 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 			float supply_route_loss = (commodities_satisfied_before_loss[i] == 0.0f ? 0.0f : 1.0f - (commodities_satisfied[i] / commodities_satisfied_before_loss[i]));
 			float num_satisfied = commodities_satisfied[i];
 			float num_required = commodities_required[i];
+			float avg_throughput = (commodities_satisfied[i] == 0.0f ? 0.0f : std::min(commodities_satisfied_w_throughput[i] / commodities_satisfied[i], 1.0f));
 
+			text::substitution_map sub{};
+			auto com_icon = text::get_commodity_text_icon(state, com_id);
+			//text::add_to_substitution_map(sub, text::variable_type::what, std::string_view(com_icon));
+			text::add_to_substitution_map(sub, text::variable_type::val, text::fp_three_places{ num_satisfied });
+			text::add_to_substitution_map(sub, text::variable_type::value, text::fp_three_places{ num_required });
+			text::add_to_substitution_map(sub, text::variable_type::total, text::int_wholenum{ display_satisfaction });
+			text::add_to_substitution_map(sub, text::variable_type::x, text::fp_percentage_two_places{ supply_route_loss });
+			text::add_to_substitution_map(sub, text::variable_type::y, text::fp_percentage_two_places{ avg_throughput });
+			auto box = text::open_layout_box(contents);
+			text::add_unparsed_text_to_layout_box(state, contents, box, com_icon);
 			if(satisfaction == 1 || satisfaction >= 0.95) {
-				text::add_line(state, contents, "unit_current_supply_high", text::variable_type::what, state.world.commodity_get_name(com_id), text::variable_type::val, text::fp_three_places{ num_satisfied }, text::variable_type::value, text::fp_three_places{ num_required }, text::variable_type::total, display_satisfaction, text::variable_type::x, text::fp_percentage_two_places{ supply_route_loss });
+				text::localised_format_box(state, contents, box, "unit_current_supply_high", sub);
+				//text::add_line(state, contents, "unit_current_supply_high", text::variable_type::what, state.world.commodity_get_name(com_id), text::variable_type::val, text::fp_three_places{ num_satisfied }, text::variable_type::value, text::fp_three_places{ num_required }, text::variable_type::total, display_satisfaction, text::variable_type::x, text::fp_percentage_two_places{ supply_route_loss });
 			} else if(satisfaction < 0.95 && satisfaction >= 0.5) {
-				text::add_line(state, contents, "unit_current_supply_mid", text::variable_type::what, state.world.commodity_get_name(com_id), text::variable_type::val, text::fp_three_places{ num_satisfied }, text::variable_type::value, text::fp_three_places{ num_required }, text::variable_type::total, display_satisfaction, text::variable_type::x, text::fp_percentage_two_places{ supply_route_loss });
+				text::localised_format_box(state, contents, box, "unit_current_supply_mid", sub);
+				//text::add_line(state, contents, "unit_current_supply_mid", text::variable_type::what, state.world.commodity_get_name(com_id), text::variable_type::val, text::fp_three_places{ num_satisfied }, text::variable_type::value, text::fp_three_places{ num_required }, text::variable_type::total, display_satisfaction, text::variable_type::x, text::fp_percentage_two_places{ supply_route_loss });
 			} else {
-				text::add_line(state, contents, "unit_current_supply_low", text::variable_type::what, state.world.commodity_get_name(com_id), text::variable_type::val, text::fp_three_places{ num_satisfied }, text::variable_type::value, text::fp_three_places{ num_required }, text::variable_type::total, display_satisfaction, text::variable_type::x, text::fp_percentage_two_places{ supply_route_loss });
+				text::localised_format_box(state, contents, box, "unit_current_supply_low", sub);
+				//text::add_line(state, contents, "unit_current_supply_low", text::variable_type::what, state.world.commodity_get_name(com_id), text::variable_type::val, text::fp_three_places{ num_satisfied }, text::variable_type::value, text::fp_three_places{ num_required }, text::variable_type::total, display_satisfaction, text::variable_type::x, text::fp_percentage_two_places{ supply_route_loss });
 			}
+			text::close_layout_box(contents, box);
 		}
 	}
 }
