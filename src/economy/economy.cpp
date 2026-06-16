@@ -27,6 +27,7 @@
 #include "economy_pops_constants.hpp"
 #include "economy_templates.hpp"
 #include "military_templates.hpp"
+#include "military_light_templates.hpp"
 
 namespace economy {
 
@@ -462,20 +463,18 @@ float consume_from_government_stockpiles(sys::state& state, economy::commodity_s
 }
 
 
-
+constexpr float base_market_demand_weight = 0.0001f; // Even if it dosent have any supply of the commodity, still spread the demand abit
 
 void set_stockpile_market_demand_weights(sys::state& state, dcon::nation_id nation, tagged_vector<tagged_vector<float, dcon::market_id>, dcon::commodity_id>& market_demand_weights) {
 
-
-	constexpr float base_weight = 0.001f; // Even if it dosent have any supply of the commodity, still spread the demand abit
 	economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
 		float total_commodity_weights = 0;
 		market_demand_weights[commodity].resize(state.world.market_size());
 		state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
 			dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
 			auto market = state.world.state_instance_get_market_from_local_market(state_instance);
-			market_demand_weights[commodity][market] = state.world.market_get_supply(market, commodity) + base_weight; 
-			total_commodity_weights += state.world.market_get_supply(market, commodity) + base_weight; 
+			market_demand_weights[commodity][market] = state.world.market_get_supply(market, commodity) + base_market_demand_weight;
+			total_commodity_weights += state.world.market_get_supply(market, commodity) + base_market_demand_weight;
 		
 		});
 		state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
@@ -484,8 +483,30 @@ void set_stockpile_market_demand_weights(sys::state& state, dcon::nation_id nati
 			market_demand_weights[commodity][market] = std::min(market_demand_weights[commodity][market] / total_commodity_weights, 1.0f); // clamp to prevent a weight over 1 due to rounding
 		});
 	});
+}
+void set_stockpile_market_demand_weights(sys::state& state, dcon::nation_id nation, tagged_vector<economy::huge_commodity_amount_array, dcon::market_id>& market_demand_weights) {
+
+	const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
+	for(uint32_t i = 0; i < commodity_ids.size(); i++) {
+		auto commodity = commodity_ids[i];
+		assert(commodity);
+		float total_commodity_weights = 0;
+		state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
+			dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
+			auto market = state.world.state_instance_get_market_from_local_market(state_instance);
+			market_demand_weights[market][i] = state.world.market_get_supply(market, commodity) + base_market_demand_weight;
+			total_commodity_weights += state.world.market_get_supply(market, commodity) + base_market_demand_weight;
+
+		});
+		state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
+			dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
+			auto market = state.world.state_instance_get_market_from_local_market(state_instance);
+			market_demand_weights[market][i] = std::min(market_demand_weights[market][i] / total_commodity_weights, 1.0f); // clamp to prevent a weight over 1 due to rounding
+		});
+	}
 
 }
+
 
 
 void populate_government_stockpile_demand(sys::state& state) {
@@ -1259,6 +1280,69 @@ void update_pops_employment(sys::state& state) {
 float convex_function(float x) {
 	return 1.f - (1.f - x) * (1.f - x);
 }
+template<concepts::military_subunit subunit_type>
+void accumulate_subunit_consumption(const sys::state& state, dcon::nation_id owner, subunit_type u, economy::huge_commodity_amount_array& commodity_demand_buffer) {
+	assert(owner);
+	auto subunit = fatten(state.world, u);
+	dcon::unit_type_id type = subunit.get_type();
+
+	float land_spending = state.world.nation_get_land_spending(owner) / 100.0f;
+	auto supply_mod = military::get_supply_cost_modifiers(state, subunit);
+
+	const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
+	for(uint32_t i = 0; i < supply_cost.set_size; ++i) {
+		auto com_id = supply_cost.commodity_type[i];
+		if(com_id) {
+			int16_t index = state.world.commodity_get_unit_supply_build_goods_index(com_id);
+			assert(index >= 0);
+			auto required_commodity = supply_cost.commodity_type[i];
+			auto required_amounts = supply_cost.commodity_amounts[i];
+			commodity_demand_buffer[index] += (required_amounts * supply_mod * land_spending);
+
+		} else {
+			break;
+		}
+	}
+
+
+	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
+	auto reinforcement = military::estimate_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, false>(state, subunit);
+	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
+		auto com_id = supply_cost.commodity_type[i];
+		if(com_id) {
+			int16_t index = state.world.commodity_get_unit_supply_build_goods_index(com_id);
+			assert(index >= 0);
+			auto required_commodity = build_cost.commodity_type[i];
+			auto required_amounts = build_cost.commodity_amounts[i];
+			// Unit need reinforcement - add extra consumption. Every 1% of reinforcement demands 1% of unit cost
+			commodity_demand_buffer[index] += (required_amounts * reinforcement * land_spending);
+
+		} else {
+			break;
+		}
+	}
+	
+}
+
+economy::huge_commodity_amount_array estimate_nation_army_consumption(const sys::state& state, dcon::nation_id nation) {
+	economy::huge_commodity_amount_array consumption{};
+	for(auto a : state.world.nation_get_army_control(nation)) {
+		for(auto r : a.get_army().get_army_membership()) {
+			accumulate_subunit_consumption(state, nation, r.get_regiment().id, consumption);
+		}
+	}
+	return consumption;
+}
+
+economy::huge_commodity_amount_array estimate_nation_navy_consumption(const sys::state& state, dcon::nation_id nation) {
+	economy::huge_commodity_amount_array consumption{};
+	for(auto a : state.world.nation_get_navy_control(nation)) {
+		for(auto r : a.get_navy().get_navy_membership()) {
+			accumulate_subunit_consumption(state, nation, r.get_ship().id, consumption);
+		}
+	}
+	return consumption;
+}
 
 
 void populate_army_consumption(sys::state& state) {
@@ -1269,77 +1353,48 @@ void populate_army_consumption(sys::state& state) {
 			state.world.market_set_army_demand(ids, cid, 0.0f);
 		});
 	}
-
+	const auto commodity_ids = state.military_definitions.military_supply_build_goods;
 	// Buffers all the commodites per nation, to be applied later
-	static tagged_vector<tagged_vector<float, dcon::commodity_id>, dcon::nation_id> commodity_demand_buffer;
+	static tagged_vector<economy::huge_commodity_amount_array, dcon::nation_id> commodity_demand_buffer;
 	commodity_demand_buffer.resize(state.world.nation_size());
-	for(auto& commodity_vec : commodity_demand_buffer) {
-		commodity_vec.resize(state.world.commodity_size());
-		std::fill(commodity_vec.begin(), commodity_vec.end(), 0.0f);
+	for(auto& array : commodity_demand_buffer) {
+		array.resize(commodity_ids.size());
+		std::fill(array.begin(), array.end(), 0.0f);
 	}
-
-
-
 
 	for(auto regiment : state.world.in_regiment) {
 		auto type = state.world.regiment_get_type(regiment);
 		auto army = state.world.regiment_get_army_from_army_membership(regiment);
 		auto nation = state.world.army_get_controller_from_army_control(army);
 		if(nation) {
-			float land_spending = state.world.nation_get_land_spending(nation) / 100.0f;
-			auto supply_mod = military::get_supply_cost_modifiers(state, regiment);
-
-			const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
-			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-				if(supply_cost.commodity_type[i]) {
-					auto required_commodity = supply_cost.commodity_type[i];
-					auto required_amounts = supply_cost.commodity_amounts[i];
-					commodity_demand_buffer[nation][required_commodity] += (required_amounts * supply_mod * land_spending);
-
-				} else {
-					break;
-				}
-			}
-
-
-			const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
-			auto reinforcement = military::estimate_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, false>(state, regiment);
-			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-				if(build_cost.commodity_type[i]) {
-					auto required_commodity = build_cost.commodity_type[i];
-					auto required_amounts = build_cost.commodity_amounts[i];
-					// Unit need reinforcement - add extra consumption. Every 1% of reinforcement demands 1% of unit cost
-					// add only a fraction of the build cost per day, to spread it out over the month
-					commodity_demand_buffer[nation][required_commodity] += (required_amounts * reinforcement * land_spending);
-					
-				} else {
-					break;
-				}
-			}
+			accumulate_subunit_consumption(state, nation, regiment.id, commodity_demand_buffer[nation]);
 		}
 
 	}
+	// Weights for which markets shall receive the demand
+	static tagged_vector<economy::huge_commodity_amount_array, dcon::market_id> market_demand_weights;
+	market_demand_weights.resize(state.world.market_size());
 
 	for(auto nation : state.world.in_nation) {
 		if(!nations::exists(state, nation)) {
 			continue;
 		}
-		// Weights for which markets shall receive the demand
-		static tagged_vector<tagged_vector<float, dcon::market_id>, dcon::commodity_id> market_demand_weights;
-		market_demand_weights.resize(state.world.commodity_size());
+		for(auto& array : market_demand_weights) {
+			array.resize(commodity_ids.size());
+			std::fill(array.begin(), array.end(), 0.0f);
+		}
 		set_stockpile_market_demand_weights(state, nation, market_demand_weights);
 		state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
 			dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
 			auto market = state.world.state_instance_get_market_from_local_market(state_instance);
-			economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
-
-				float percentage_weight = market_demand_weights[commodity][market];
-				state.world.market_set_army_demand(market, commodity, commodity_demand_buffer[nation][commodity] * percentage_weight);
-			});
-
+			for(uint32_t i = 0; i < commodity_ids.size(); i++) {
+				auto commodity = commodity_ids[i];
+				assert(commodity);
+				float percentage_weight = market_demand_weights[market][i];
+				state.world.market_set_army_demand(market, commodity, commodity_demand_buffer[nation][i] * percentage_weight);
+			}
 		});
 		
-
 	}
 }
 
@@ -1353,77 +1408,47 @@ void populate_navy_consumption(sys::state& state) {
 		});
 	}
 
+	const auto commodity_ids = state.military_definitions.military_supply_build_goods;
 	// Buffers all the commodites per nation, to be applied later
-	static tagged_vector<tagged_vector<float, dcon::commodity_id>, dcon::nation_id> commodity_demand_buffer;
+	static tagged_vector<economy::huge_commodity_amount_array, dcon::nation_id> commodity_demand_buffer;
 	commodity_demand_buffer.resize(state.world.nation_size());
-	for(auto& commodity_vec : commodity_demand_buffer) {
-		commodity_vec.resize(state.world.commodity_size());
-		std::fill(commodity_vec.begin(), commodity_vec.end(), 0.0f);
+	for(auto& array : commodity_demand_buffer) {
+		array.resize(commodity_ids.size());
+		std::fill(array.begin(), array.end(), 0.0f);
 	}
 
-
-
-
-	for(auto shp : state.world.in_ship) {
-		auto type = state.world.ship_get_type(shp);
-		auto navy = state.world.ship_get_navy_from_navy_membership(shp);
-		auto nation = state.world.navy_get_controller_from_navy_control(navy);
+	for(auto ship : state.world.in_ship) {
+		auto type = ship.get_type();
+		auto navy = ship.get_navy_from_navy_membership();
+		auto nation = navy.get_controller_from_navy_control();
 		if(nation) {
-			float naval_spending = state.world.nation_get_naval_spending(nation) / 100.0f;
-			auto supply_mod = military::get_supply_cost_modifiers(state, shp);
-
-			const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
-			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-				if(supply_cost.commodity_type[i]) {
-					auto required_commodity = supply_cost.commodity_type[i];
-					auto required_amounts = supply_cost.commodity_amounts[i];
-					commodity_demand_buffer[nation][required_commodity] += (required_amounts * supply_mod * naval_spending);
-
-				} else {
-					break;
-				}
-			}
-
-
-			const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
-			auto reinforcement = military::estimate_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, false>(state, shp);
-			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-				if(build_cost.commodity_type[i]) {
-					auto required_commodity = build_cost.commodity_type[i];
-					auto required_amounts = build_cost.commodity_amounts[i];
-
-					// Ship needs repair - add extra consumption. Every 1% of reinforcement demands 1% of unit cost
-					// add only a fraction of the build cost per day, to spread it out over the month
-					commodity_demand_buffer[nation][required_commodity] += (required_amounts * reinforcement * naval_spending);
-					
-				} else {
-					break;
-				}
-			}
+			accumulate_subunit_consumption(state, nation, ship.id, commodity_demand_buffer[nation]);
 		}
-	
+
 	}
+	// Weights for which markets shall receive the demand
+	static tagged_vector<economy::huge_commodity_amount_array, dcon::market_id> market_demand_weights;
+	market_demand_weights.resize(state.world.market_size());
 
 	for(auto nation : state.world.in_nation) {
 		if(!nations::exists(state, nation)) {
 			continue;
 		}
-		// Weights for which markets shall receive the demand
-		static tagged_vector<tagged_vector<float, dcon::market_id>, dcon::commodity_id> market_demand_weights;
-		market_demand_weights.resize(state.world.commodity_size());
-
+		for(auto& array : market_demand_weights) {
+			array.resize(commodity_ids.size());
+			std::fill(array.begin(), array.end(), 0.0f);
+		}
 		set_stockpile_market_demand_weights(state, nation, market_demand_weights);
 		state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
 			dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
 			auto market = state.world.state_instance_get_market_from_local_market(state_instance);
-			economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
-
-				float percentage_weight = market_demand_weights[commodity][market];
-				state.world.market_set_navy_demand(market, commodity, commodity_demand_buffer[nation][commodity] * percentage_weight);
-			});
-
+			for(uint32_t i = 0; i < commodity_ids.size(); i++) {
+				auto commodity = commodity_ids[i];
+				assert(commodity);
+				float percentage_weight = market_demand_weights[market][i];
+				state.world.market_set_navy_demand(market, commodity, commodity_demand_buffer[nation][i] * percentage_weight);
+			}
 		});
-		
 
 	}
 		

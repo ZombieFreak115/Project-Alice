@@ -7,6 +7,9 @@ namespace concepts {
 template<typename T>
 concept military_unit = std::is_same_v<T, dcon::army_id> || std::is_same_v<T, dcon::navy_id>;
 
+template<typename T>
+concept military_subunit = std::is_same_v<T, dcon::regiment_id> || std::is_same_v<T, dcon::ship_id>;
+
 
 template<typename T>
 concept military_supply_route_type = std::is_same_v<T, dcon::army_supply_route_id> ||

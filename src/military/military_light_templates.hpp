@@ -34,12 +34,13 @@ auto unit_membership(const sys::state& state, unit_type unit) {
 		return state.world.navy_get_navy_membership(unit);
 	}
 }
-template<concepts::military_unit unit_type>
-auto unit_membership(sys::state& state, unit_type unit) {
-	if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
-		return state.world.army_get_army_membership(unit);
-	} else if constexpr(std::is_same_v<unit_type, dcon::navy_id>) {
-		return state.world.navy_get_navy_membership(unit);
+
+template<concepts::military_subunit subunit_type>
+auto subunit_membership(const sys::state& state, subunit_type unit) {
+	if constexpr(std::is_same_v<subunit_type, dcon::regiment_id>) {
+		return state.world.regiment_get_army_from_army_membership(unit);
+	} else if constexpr(std::is_same_v<subunit_type, dcon::ship_id>) {
+		return state.world.ship_get_navy_from_navy_membership(unit);
 	}
 }
 
