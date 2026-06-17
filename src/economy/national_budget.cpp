@@ -213,7 +213,7 @@ value_per_budget_category get_current_priority(sys::state& state, dcon::nation_i
 	priority.construction_supplies = (float)(state.world.nation_get_construction_spending(n)) / 100.f;
 	priority.military_supplies_land = (float)(state.world.nation_get_land_spending(n)) / 100.f;
 	priority.military_supplies_navy = (float)(state.world.nation_get_naval_spending(n)) / 100.f;
-	priority.stockpile = 1.f;
+	priority.stockpile = (float)(state.world.nation_get_stockpile_spending(n)) / 100.f;
 
 	return priority;
 }

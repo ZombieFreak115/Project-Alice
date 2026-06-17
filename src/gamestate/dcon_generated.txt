@@ -4152,6 +4152,11 @@ object {
 		tag{ save }
 	}
 	property {
+		name{ stockpile_spending }
+		type{ int8_t }
+		tag{ save }
+	}
+	property {
 		name{ land_supply_consumption }
 		type{ int8_t }
 		tag{ save }
@@ -4591,6 +4596,11 @@ object{
 	}
 	property {
 		name{ govt_stockpile_satisfaction_buffer }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
+		name{ government_stockpile_demand_weights }
 		type{ array{commodity_id}{float} }
 		tag{ save }
 	}

@@ -738,7 +738,7 @@ void populate_construction_consumption(sys::state& state) {
 		const auto& currently_fufilled = state.world.province_land_construction_get_purchased_goods(lc);
 
 		auto unit_type = state.world.province_land_construction_get_type(lc);
-		uint32_t construction_time = land_unit_construction_time(state, unit_type, builder);
+		uint32_t construction_time = details.construction_time;
 
 		for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
 			dcon::commodity_id cid = base_cost.commodity_type[i];
@@ -776,7 +776,7 @@ void populate_construction_consumption(sys::state& state) {
 
 		const auto& currently_fufilled = state.world.province_naval_construction_get_purchased_goods(c);
 		auto unit_type = state.world.province_naval_construction_get_type(c);
-		uint32_t construction_time = naval_unit_construction_time(state, unit_type, builder);
+		uint32_t construction_time = details.construction_time;
 		for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
 			dcon::commodity_id cid = base_cost.commodity_type[i];
 			if(cid) {
@@ -792,10 +792,7 @@ void populate_construction_consumption(sys::state& state) {
 		}
 	});
 
-	// Weights for which markets shall receive the demand. The buffer will be filled with data once per nation iteration
-	static tagged_vector<tagged_vector<float, dcon::market_id>, dcon::commodity_id> market_demand_weights;
-	market_demand_weights.resize(state.world.commodity_size());
-
+	// Then set the demand in each controlled state in accordance with the government stockpile demand weights
 	for(auto nation : state.world.in_nation) {
 		if(!nations::exists(state, nation)) {
 			continue;
@@ -805,7 +802,7 @@ void populate_construction_consumption(sys::state& state) {
 		}
 		float budget_limit = total_budget.get(nation) * (float(going_unit_constructions.get(nation)) / float(going_constructions.get(nation)));
 		float& budget = current_budget.get(nation);
-		economy::set_stockpile_market_demand_weights(state, nation, market_demand_weights);
+
 		float total_expected_price = 0.0f;
 		economy::for_each_commodity_no_money(state, [&](dcon::commodity_id com_id) {
 			state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
@@ -813,7 +810,7 @@ void populate_construction_consumption(sys::state& state) {
 				auto market = state.world.state_instance_get_market_from_local_market(state_inst);
 				auto price = economy::price(state, market, com_id);
 				auto total_demand = unit_commodity_demand_buffer[nation][com_id];
-				auto percentage_weight = market_demand_weights[com_id][market];
+				auto percentage_weight = state.world.market_get_government_stockpile_demand_weights(market, com_id);
 				total_expected_price += (price * total_demand * percentage_weight);
 			});
 		});
@@ -826,7 +823,7 @@ void populate_construction_consumption(sys::state& state) {
 				auto market = state.world.state_instance_get_market_from_local_market(state_inst);
 				auto price = economy::price(state, market, com_id);
 				auto total_demand = unit_commodity_demand_buffer[nation][com_id];
-				auto percentage_weight = market_demand_weights[com_id][market];
+				auto percentage_weight = state.world.market_get_government_stockpile_demand_weights(market, com_id);
 				assert(price > 0.0f);
 				auto can_purchase_budget = std::min(budget_limit, budget) / price;
 				auto can_purchase_max = total_demand * percentage_weight * demand_multiplier;

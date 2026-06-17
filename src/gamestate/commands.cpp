@@ -1192,6 +1192,9 @@ void execute_change_budget_settings(sys::state& state, dcon::nation_id source, b
 	if(values.social_spending != int8_t(-127)) {
 		state.world.nation_set_social_spending(source, std::clamp(values.social_spending, int8_t(0), int8_t(100)));
 	}
+	if(values.stockpile_spending != int8_t(-127)) {
+		state.world.nation_set_stockpile_spending(source, std::clamp(values.stockpile_spending, int8_t(0), int8_t(100)));
+	}
 	if(values.tariffs_import != int8_t(-127)) {
 		state.world.nation_set_tariffs_import(source, std::clamp(values.tariffs_import, int8_t(-100), int8_t(100)));
 	}

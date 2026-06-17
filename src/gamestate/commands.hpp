@@ -289,6 +289,7 @@ struct budget_settings_data {
 	int8_t land_spending;
 	int8_t naval_spending;
 	int8_t construction_spending;
+	int8_t stockpile_spending;
 	int8_t poor_tax;
 	int8_t middle_tax;
 	int8_t rich_tax;
