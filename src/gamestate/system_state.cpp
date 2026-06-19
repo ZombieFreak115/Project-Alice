@@ -4561,6 +4561,7 @@ void state::single_game_tick() {
 			break;
 		case 19:
 			ai::update_budget(*this);
+			ai::update_stockpile_targets(*this);
 			break;
 		case 20:
 			nations::update_flashpoint_tags(*this);

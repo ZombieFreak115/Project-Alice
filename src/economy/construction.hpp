@@ -22,6 +22,10 @@ economy::commodity_set calculate_factory_upgrade_goods_cost(
 
 float estimate_private_construction_spendings(sys::state& state, dcon::nation_id nid);
 void populate_construction_consumption(sys::state& state);
+void populate_military_construction_consumption(sys::state& state);
+float estimate_military_construction_stockpile_spending(const sys::state& state, dcon::nation_id nation, float budget);
+tagged_vector<float, dcon::commodity_id> estimate_military_construction_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation, float budget);
+
 
 
 struct unit_construction_data {
@@ -63,7 +67,6 @@ struct construction_spending_explanation {
 	float estimated_spendings;
 	std::vector<province_construction_spending_entry> province_buildings;
 	std::vector<state_construction_spending_entry> factories;
-	float unit_constructions;
 };
 struct construction_spending_explanation_light {
 	int32_t ongoing_projects;
@@ -71,8 +74,6 @@ struct construction_spending_explanation_light {
 	float estimated_spendings;
 	float province_buildings;
 	float factories;
-	float land_units;
-	float naval_units;
 };
 
 construction_spending_explanation explain_construction_spending(

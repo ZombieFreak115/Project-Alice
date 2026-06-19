@@ -289,6 +289,7 @@ struct budget_settings_data {
 	int8_t land_spending;
 	int8_t naval_spending;
 	int8_t construction_spending;
+	int8_t military_construction_spending;
 	int8_t stockpile_spending;
 	int8_t poor_tax;
 	int8_t middle_tax;
@@ -868,6 +869,8 @@ inline budget_settings_data make_empty_budget_settings() {
 		.land_spending = int8_t(-127),
 		.naval_spending = int8_t(-127),
 		.construction_spending = int8_t(-127),
+		.military_construction_spending = int8_t(-127),
+		.stockpile_spending = int8_t(-127),
 		.poor_tax = int8_t(-127),
 		.middle_tax = int8_t(-127),
 		.rich_tax = int8_t(-127),

@@ -1168,6 +1168,9 @@ void execute_change_budget_settings(sys::state& state, dcon::nation_id source, b
 	if(values.construction_spending != int8_t(-127)) {
 		state.world.nation_set_construction_spending(source, std::clamp(values.construction_spending, int8_t(0), int8_t(100)));
 	}
+	if(values.military_construction_spending != int8_t(-127)) {
+		state.world.nation_set_military_construction_spending(source, std::clamp(values.military_construction_spending, int8_t(0), int8_t(100)));
+	}
 	if(values.education_spending != int8_t(-127)) {
 		state.world.nation_set_education_spending(source, std::clamp(values.education_spending, int8_t(0), int8_t(100)));
 	}

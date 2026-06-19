@@ -30,6 +30,7 @@ enum class retreat_type : bool {
 	manual = 1,
 };
 
+
 constexpr uint8_t min_combat_width = 2;
 
 
@@ -74,8 +75,21 @@ enum class supply_estimation {
 	based_on_satisfaction, full_supply_always
 };
 enum class unit_consumption_type : uint8_t {
-	supply,
-	reinforcement
+	supply = 0,
+	reinforcement = 1
 };
+
+// These are diffrent enums because only some operations (when dealing with military supply sets) makes sense with the "both" setting. Such as when having an array conisting of both supply and reinforcement goods. Use the below method for converting the "lighter" enum to the heavier one
+enum class commodity_consumption_type : uint8_t {
+	supply = 0,
+	reinforcement = 1,
+	both = 2
+};
+
+constexpr commodity_consumption_type to_consumption_type(unit_consumption_type in) {
+	return commodity_consumption_type(in);
+}
+
+
 
 }

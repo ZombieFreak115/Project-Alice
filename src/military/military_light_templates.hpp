@@ -72,6 +72,23 @@ const economy::commodity_set& unit_type_commodity_costs(const sys::state& state,
 	return unit_type_commodity_costs<consumption_type>(const_cast<sys::state&>(state), type);
 }
 
+// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
+template<commodity_consumption_type consumption_type>
+economy::huge_commodity_id_array& get_military_commodities_union(sys::state& state) {
+	if constexpr(consumption_type == commodity_consumption_type::supply) {
+		return state.military_definitions.military_supply_goods;
+	} else if constexpr(consumption_type == commodity_consumption_type::reinforcement) {
+		return state.military_definitions.military_build_goods;
+	}
+	else if constexpr(consumption_type == commodity_consumption_type::both) {
+		return state.military_definitions.military_supply_build_goods;
+	}
+}
+template<commodity_consumption_type consumption_type>
+const economy::huge_commodity_id_array& get_military_commodities_union(const sys::state& state) {
+	return get_military_commodities_union<consumption_type>(const_cast<sys::state&>(state));
+}
+
 }
 
 

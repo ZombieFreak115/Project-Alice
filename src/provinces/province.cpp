@@ -2913,7 +2913,7 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 		// Take into account the expected supply thoughput comsumption (max_supply_thoughput + expected_volume) and multiply with supply attrition to get a heuristic of the cost
 		float used_supply_thoughput = state.world.province_get_used_supply_throughput(to);
 		float thoughput_factor = (used_supply_thoughput != 0.0f ? std::min((supply_routes::max_supply_throughput(state, to, nation_as) + expected_volume) / used_supply_thoughput, 1.0f) : 1.0f);
-		return supply_routes::adjacency_supply_attrition(state, adj, nation_as) * thoughput_factor;
+		return (distance / supply_routes::avg_adjacency_supply_attrition(state, to, from, nation_as)) * thoughput_factor;
 
 	};
 	// We are passing "start" province as end, and "end" as start. This is because creating the path in reverse has some desired effects. For example it means the province the army is on will not be path of the path (so that you wont lose supply instantly when adjacen to a friendly province)

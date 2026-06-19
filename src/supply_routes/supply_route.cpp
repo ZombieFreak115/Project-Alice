@@ -80,11 +80,23 @@ float province_supply_attrition(const sys::state& state, dcon::province_id provi
 	float control_level = state.world.province_get_control_ratio(province);
 	return std::clamp(1.0f - (base_land_supply_attrition + control_level_supply_attrition * (1.0f - control_level) + militancy_supply_attrition * avg_militancy + hostile_army_supply_attrition * enemy_strength_present), 0.1f, 1.0f);
 }
+
+float avg_adjacency_supply_attrition(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as) {
+	assert(state.world.get_province_adjacency_by_province_pair(prov_1, prov_2));
+	auto avg_supply_attr = (province_supply_attrition(state, prov_1, nation_as) + province_supply_attrition(state, prov_2, nation_as)) / 2.0f;
+	return avg_supply_attr;
+}
+float avg_adjacency_supply_attrition(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as) {
+	auto prov_1 = state.world.province_adjacency_get_connected_provinces(province_adj, 0);
+	auto prov_2 = state.world.province_adjacency_get_connected_provinces(province_adj, 1);
+	return avg_adjacency_supply_attrition(state, prov_1, prov_2, nation_as);
+}
+
 float adjacency_supply_attrition(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as) {
 	auto prov_1 = state.world.province_adjacency_get_connected_provinces(province_adj, 0);
 	auto prov_2 = state.world.province_adjacency_get_connected_provinces(province_adj, 1);
+	auto avg_supply_attr = avg_adjacency_supply_attrition(state, province_adj, nation_as);
 	auto distance = state.world.province_adjacency_get_distance_km(province_adj) * military::get_avg_movement_cost_modifier(state, nation_as, prov_1, prov_2);
-	auto avg_supply_attr = (province_supply_attrition(state, prov_1, nation_as) + province_supply_attrition(state, prov_2, nation_as)) / 2.0f;
 	assert(std::isfinite(distance * avg_supply_attr));
 	return std::powf(avg_supply_attr, distance);
 }
@@ -406,6 +418,27 @@ bool construction_goods_potential_in_govt_stockpile(const sys::state& state, dco
 			return true;
 		}
 
+	}
+	return false;
+};
+
+template<military::unit_consumption_type consumption_type, concepts::commodity_amount_array_type buffer_type>
+bool military_goods_potential_in_govt_stockpile(const sys::state& state, dcon::market_id origin, const buffer_type& supply_route_need) {
+	economy::huge_commodity_id_array ids = [&]() {
+		if constexpr(consumption_type == military::unit_consumption_type::supply) {
+			return state.military_definitions.military_supply_goods;
+		} else if constexpr(consumption_type == military::unit_consumption_type::reinforcement) {
+			return state.military_definitions.military_build_goods;
+		}
+		}();
+	for(uint32_t i = 0; i < supply_route_need.size(); i++) {
+		dcon::commodity_id commodity = ids[i];
+		assert(commodity);
+		float amount_wanted = supply_route_need[i];
+		auto available_stockpile_amount = state.world.market_get_govt_stockpile_satisfaction_buffer(origin, commodity);
+		if(amount_wanted > 0.0f && available_stockpile_amount > 0.0001f) {
+			return true;
+		}
 	}
 	return false;
 };
@@ -922,26 +955,7 @@ void update_construction_commodity_satisfaction(sys::state& state, construction_
 		}
 	}
 }
-template<military::unit_consumption_type consumption_type, concepts::commodity_amount_array_type buffer_type>
-bool military_goods_potential_in_govt_stockpile(const sys::state& state, dcon::market_id origin, const buffer_type& supply_route_need) {
-	economy::huge_commodity_id_array ids = [&]() {
-		if constexpr(consumption_type == military::unit_consumption_type::supply) {
-			return state.military_definitions.military_supply_goods;
-		} else if constexpr(consumption_type == military::unit_consumption_type::reinforcement) {
-			return state.military_definitions.military_build_goods;
-		}
-		}();
-	for(uint32_t i = 0; i < supply_route_need.size(); i++) {
-		dcon::commodity_id commodity = ids[i];
-		assert(commodity);
-		float amount_wanted = supply_route_need[i];
-		auto available_stockpile_amount = state.world.market_get_govt_stockpile_satisfaction_buffer(origin, commodity);
-		if(amount_wanted > 0.0f && available_stockpile_amount > 0.0001f) {
-			return true;
-		}
-	}
-	return false;
-};
+
 
 
 
