@@ -34,7 +34,15 @@ struct unit {
 	constexpr unit() = default;
 };
 
-
+float port_supply_throughput(const sys::state& state, dcon::province_id port_prov) {
+	constexpr float port_supply_throughput_per_naval_base = 10.0f;
+	constexpr float base_port_supply_throughput = 0.1f;
+	assert(state.world.province_get_port_to(port_prov)); // Should always be a port prov
+	// TODO: make it a modifier on the naval base instead of just taking the naval base level
+	auto naval_base_id = uint8_t(economy::province_building_type::naval_base);
+	auto size = state.world.province_get_building_level(port_prov, naval_base_id);
+	return port_supply_throughput_per_naval_base * size + base_port_supply_throughput;
+}
 
 
 
@@ -672,7 +680,7 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 }
 
 template<concepts::military_construction_type construction_type>
-void accumulate_construction_requirements(const sys::state& state, construction_type c, economy::commodity_amount_array& buffer, std::vector<dcon::state_instance_id>& stockpiles_buffer) {
+void accumulate_construction_requirements(const sys::state& state, construction_type c, economy::commodity_amount_array& buffer) {
 	auto construction = fatten(state.world, c);
 	buffer.clear();
 	auto nation = construction.get_nation();
@@ -1235,7 +1243,7 @@ void update_supply_routes_daily(sys::state& state) {
 
 		std::fill(consumption_buffer.land_constructions_need[construction].begin(), consumption_buffer.land_constructions_need[construction].end(), 0.0f);
 		economy::get_closest_available_market_states(state, stockpiles_buffer.land_construction_closest_stockpiles[construction], nation, location);
-		accumulate_construction_requirements(state, construction.id, consumption_buffer.land_constructions_need[construction], stockpiles_buffer.land_construction_closest_stockpiles[construction]);
+		accumulate_construction_requirements(state, construction.id, consumption_buffer.land_constructions_need[construction]);
 
 	});
 	concurrency::parallel_for(uint32_t(0), state.world.province_naval_construction_size(), [&](uint32_t i) {
@@ -1252,7 +1260,7 @@ void update_supply_routes_daily(sys::state& state) {
 
 		std::fill(consumption_buffer.naval_constructions_need[construction].begin(), consumption_buffer.naval_constructions_need[construction].end(), 0.0f);
 		economy::get_closest_available_market_states(state, stockpiles_buffer.naval_construction_closest_stockpiles[construction], nation, location);
-		accumulate_construction_requirements(state, construction.id, consumption_buffer.naval_constructions_need[construction], stockpiles_buffer.naval_construction_closest_stockpiles[construction]);
+		accumulate_construction_requirements(state, construction.id, consumption_buffer.naval_constructions_need[construction]);
 	});
 
 	end = std::chrono::steady_clock::now();

@@ -61,4 +61,6 @@ inline constexpr float aristocrats_greed = 0.2f;
 inline constexpr float artisans_greed = 0.3f;
 inline constexpr float labor_greed_life = 0.1f;
 inline constexpr float capitalists_greed = 0.3f;
+
+inline constexpr float government_stockpile_spoilage = 0.001f; // Decay is 10x larger for govt stockpiles compared to market ones for balance, and to have some constant demand when stockpiling
 }

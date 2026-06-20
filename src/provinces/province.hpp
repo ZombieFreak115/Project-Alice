@@ -28,7 +28,12 @@ inline bool is_sea(const sys::state& state, dcon::province_id prov) {
 
 inline bool is_land(const sys::state& state, dcon::province_id prov) {
 	assert(prov);
-	return state.province_definitions.first_sea_province.index() > prov.index();
+	return !is_sea(state, prov);
+}
+
+inline bool is_port(const sys::state& state, dcon::province_id prov) {
+	assert(prov);
+	return bool(state.world.province_get_port_to(prov));
 }
 
 // Get movement cost. Makes sure it cannot be zero, ever

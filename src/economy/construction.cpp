@@ -709,12 +709,6 @@ tagged_vector<float, dcon::commodity_id> estimate_nation_military_construction_c
 			accumulate_military_construction_consumption(state, nc.id, consumption);
 		}
 	}
-	for_each_commodity_no_money(state, [&](dcon::commodity_id com_id) {
-		float& amount = consumption[com_id];
-		float stockpile_target_balance = government_stockpile_target_balance(state, nation, com_id);
-		amount = std::clamp(amount + stockpile_target_balance, 0.0f, amount); // Don't consume more than we need to reach the target. It is allowed to go above the target temporarily to buy the needed goods as they are expected to be consumed immediately.
-
-	});
 	return consumption;
 	
 }
@@ -722,7 +716,7 @@ tagged_vector<float, dcon::commodity_id> estimate_nation_military_construction_c
 float estimate_military_construction_stockpile_spending(const sys::state& state, dcon::nation_id nation, float budget) {
 	auto goods_consumption = estimate_nation_military_construction_consumption(state, nation);
 	float total_expected_price = get_estimated_stockpile_total_purchase_price<price_estimation::capped_by_availability>(state, nation, goods_consumption);
-	float can_afford_mult = (total_expected_price == 0 ? 1.0f : std::min(budget / total_expected_price, 1.5f));
+	float can_afford_mult = (total_expected_price == 0 ? 1.5f : std::min(budget / total_expected_price, 1.5f));
 	return total_expected_price * can_afford_mult;
 }
 tagged_vector<float, dcon::commodity_id> estimate_military_construction_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation, float budget) {
@@ -807,8 +801,8 @@ void populate_military_construction_consumption(sys::state& state) {
 				auto percentage_weight = state.world.market_get_government_stockpile_demand_weights(market, com_id);
 				assert(price > 0.0f);
 				float can_purchase = total_demand * percentage_weight * can_afford_mult;
-				float clamped_to_stockpile_target = std::clamp(can_purchase + stockpile_target_balance, 0.0f, can_purchase); // Don't buy more than we need to reach the target. It is allowed to go above the target temporarily to buy the needed goods as they are expected to be consumed immediately.
-				register_military_construction_demand(state, market, com_id, clamped_to_stockpile_target);
+				//float clamped_to_stockpile_target = std::clamp(can_purchase + stockpile_target_balance, 0.0f, can_purchase); // Don't buy more than we need to reach the target. It is allowed to go above the target temporarily to buy the needed goods as they are expected to be consumed immediately.
+				register_military_construction_demand(state, market, com_id, can_purchase);
 
 			});
 		});

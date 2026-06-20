@@ -34,6 +34,23 @@ concept economy_construction_type = std::is_same_v<T, dcon::factory_construction
 template<typename T>
 concept construction_type = economy_construction_type<T> || military_construction_type<T>;
 
+template<typename T>
+concept cvref_integral = std::integral<std::remove_cvref_t<T>>;
+
+template <typename T>
+concept dcon_id_type =
+	requires (T t) { { t.index() }-> cvref_integral; }
+&&
+	requires (T t) { { t.value }-> cvref_integral; };
+
+
+template<typename T, typename ID>
+concept dcon_id_ve_type = dcon_id_type<ID> &&
+						  (std::is_same_v<T, ve::contiguous_tags<ID>> ||
+							  std::is_same_v<T, ve::tagged_vector<ID>>||
+							  std::is_same_v<T, ve::value_to_vector_type<ID>> ||
+						  std::is_same_v <T, ve::partial_contiguous_tags<ID>> ||
+						  std::is_same_v <T, ve::unaligned_contiguous_tags<ID>>);
 
 
 // This is really ugly and unintuitive. If anyone knows a nicer way of doing this (have a concept that accepts all specializations of a specific template) feel free to chang eit

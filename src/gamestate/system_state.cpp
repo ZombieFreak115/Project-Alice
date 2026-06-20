@@ -4450,10 +4450,7 @@ void state::single_game_tick() {
 		// Resolving military unit constructions should be handled right after updating supply routes, as they will add to the "purchased_goods" stockpile for unit constructions
 		military::resolve_unit_constructions(*this);
 
-		military::update_cbs(*this); // may add/remove cbs to a nation
-		nations::update_industrial_scores(*this);
 
-		nations::update_military_scores(*this); // depends on ship score, land unit average
 		military::recover_org(*this);
 		military::update_siege_progress(*this);
 		military::update_movement(*this);
@@ -4463,12 +4460,12 @@ void state::single_game_tick() {
 		military::advance_mobilizations(*this);
 
 		province::update_colonization(*this);
-		//military::update_cbs(*this); // may add/remove cbs to a nation
+		military::update_cbs(*this); // may add/remove cbs to a nation
 
 		culture::update_research(*this, uint32_t(ymd_date.year));
 
-		//nations::update_industrial_scores(*this);
-		//nations::update_military_scores(*this); // depends on ship score, land unit average
+		nations::update_industrial_scores(*this);
+		nations::update_military_scores(*this); // depends on ship score, land unit average
 		nations::update_rankings(*this);				// depends on industrial score, military scores
 		nations::update_great_powers(*this);		// depends on rankings
 		nations::update_influence(*this);				// depends on rankings, great powers
