@@ -21,6 +21,40 @@ inline constexpr dcon::province_id from_map_id(uint16_t id) {
 		return dcon::province_id(id - 1);
 }
 
+inline bool is_sea(const sys::state& state, dcon::province_id prov) {
+	assert(prov);
+	return state.province_definitions.first_sea_province.index() <= prov.index();
+}
+
+inline bool is_land(const sys::state& state, dcon::province_id prov) {
+	assert(prov);
+	return !is_sea(state, prov);
+}
+
+inline bool is_port(const sys::state& state, dcon::province_id prov) {
+	assert(prov);
+	return bool(state.world.province_get_port_to(prov));
+}
+
+// Get movement cost. Makes sure it cannot be zero, ever
+inline float movement_cost(const sys::state& state, dcon::province_id prov) {
+	return std::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
+	
+}
+// Get movement cost. Makes sure it cannot be zero, ever
+inline ve::fp_vector movement_cost(sys::state& state, ve::partial_contiguous_tags<dcon::province_id> prov) {
+	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
+}
+//// Get movement cost. Makes sure it cannot be zero, ever
+//inline ve::fp_vector movement_cost(sys::state& state, ve::unaligned_contiguous_tags< dcon::province_id> prov) {
+//	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
+//}
+
+// Get movement cost. Makes sure it cannot be zero, ever
+inline ve::fp_vector movement_cost(sys::state& state, ve::contiguous_tags<dcon::province_id> prov) {
+	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
+}
+
 struct naval_range_data {
 	float distance;
 	bool is_reachable;
@@ -62,7 +96,7 @@ bool state_is_coastal(sys::state& state, dcon::state_instance_id s);
 bool state_is_coastal_non_core_nb(sys::state& state, dcon::state_instance_id s);
 bool state_borders_nation(sys::state& state, dcon::nation_id n, dcon::state_instance_id si);
 
-float get_province_modifier_without_hostile_buildings(sys::state& state, dcon::nation_id as_nation, dcon::province_id prov, dcon::provincial_modifier_value prov_mod_val);
+float get_province_modifier_without_hostile_buildings(const sys::state& state, dcon::nation_id as_nation, dcon::province_id prov, dcon::provincial_modifier_value prov_mod_val);
 
 dcon::province_id pick_capital(sys::state& state, dcon::nation_id n);
 
@@ -71,9 +105,9 @@ float crime_fighting_efficiency(sys::state& state, dcon::province_id id);
 float revolt_risk(sys::state& state, dcon::province_id id);
 
 void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation_id new_owner);
-bool is_crossing_blocked(sys::state& state, dcon::nation_id thisnation, dcon::province_id from, dcon::province_id to);
-bool is_crossing_blocked(sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adjacency);
-bool is_adjacency_impassable(sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adj);
+bool is_crossing_blocked(const sys::state& state, dcon::nation_id thisnation, dcon::province_id from, dcon::province_id to);
+bool is_crossing_blocked(const sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adjacency);
+bool is_adjacency_impassable(const sys::state& state, dcon::nation_id thisnation, dcon::province_adjacency_id adj);
 void conquer_province(sys::state& state, dcon::province_id id, dcon::nation_id new_owner);
 
 void update_crimes(sys::state& state);
@@ -83,6 +117,7 @@ bool can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definiti
 bool fast_can_start_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d, int32_t free_points, dcon::province_id coastal_target, bool& adjacent);
 bool can_invest_in_colony(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
 bool is_colonizing(sys::state& state, dcon::nation_id n, dcon::state_definition_id d);
+float get_infrastructure(const sys::state& state, dcon::province_id province);
 void update_colonization(sys::state& state);
 void increase_colonial_investment(sys::state& state, dcon::nation_id source, dcon::state_definition_id state_def);
 
@@ -101,7 +136,7 @@ float distance(sys::state& state, dcon::province_adjacency_id pair);
 float distance_km(sys::state& state, dcon::province_adjacency_id pair);
 
 // direct distance between two provinces; does not pathfind
-float direct_distance(sys::state& state, dcon::province_id a, dcon::province_id b);
+float direct_distance(const sys::state& state, dcon::province_id a, dcon::province_id b);
 
 float direct_distance_km(sys::state& state, dcon::province_id a, dcon::province_id b);
 
@@ -113,11 +148,14 @@ float sorting_distance(sys::state& state, dcon::province_id a, dcon::province_id
 float state_sorting_distance(sys::state& state, dcon::state_instance_id state_id, dcon::province_id prov_id);
 
 // determines whether a land unit is allowed to move to / be in a province
-bool has_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
+bool has_access_to_province(const sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
 // whether a ship can dock at a land province
 bool has_naval_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
 // determines whether a land unit is allowed to move to / be in a province that isn't an active enemy
 bool has_safe_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
+
+// Determines whether the nation can have supply routes go through this province
+bool has_supply_access_to_province(const sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
 
 enum class blackflagged_state : uint8_t {
 	not_blackflagged,
@@ -168,6 +206,7 @@ std::vector<dcon::province_id> make_land_manual_retreat_path(sys::state& state, 
 std::vector<dcon::province_id> make_path_to_nearest_coast(sys::state& state, dcon::nation_id nation_as, dcon::province_id start);
 std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& state, dcon::province_id start);
 
+void make_military_supply_path(const sys::state& state, dcon::state_instance_id start_si, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result);
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::nation_id n);
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::rebel_faction_id rf);
 

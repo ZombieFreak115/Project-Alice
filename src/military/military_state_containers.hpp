@@ -7,6 +7,21 @@
 
 namespace military {
 
+struct supply_values {
+	float max_thoughput;
+	float total_attrition;
+	std::vector<dcon::province_id> supply_path;
+	constexpr supply_values() {
+
+	}
+	constexpr supply_values(float _max_thoughput, float _total_attrition, std::vector<dcon::province_id>&& _supply_path) : max_thoughput(_max_thoughput), total_attrition(_total_attrition)
+	{
+		supply_path = std::move(_supply_path);
+	}
+};
+
+
+
 struct unit_definition : public sys::unit_variable_stats {
 	economy::commodity_set build_cost;
 	economy::commodity_set supply_cost;
@@ -53,6 +68,14 @@ static_assert(sizeof(unit_definition) ==
 struct global_military_state {
 	tagged_vector<unit_definition, dcon::unit_type_id> unit_base_definitions;
 
+	// Stores the commodity ids  (no amounts!) for the union of all goods used for both supply/build costs for all military units
+	economy::huge_commodity_id_array military_supply_build_goods;
+	// Stores the commodity ids (no amounts!) for the union of all goods used for only build costs for all military units
+	economy::huge_commodity_id_array military_build_goods;
+	// Stores the commodity ids (no amounts!) for the union of all goods used for only supply costs for all military units
+	economy::huge_commodity_id_array military_supply_goods;
+
+
 	dcon::leader_trait_id first_background_trait;
 
 	bool great_wars_enabled = false;
@@ -85,6 +108,7 @@ struct global_military_state {
 	dcon::unit_type_id artillery;
 
 	bool pending_blackflag_update = false;
+
 };
 
 }

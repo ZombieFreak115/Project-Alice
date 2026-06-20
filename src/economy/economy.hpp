@@ -14,6 +14,24 @@ auto desired_needs_spending([[maybe_unused]] sys::state const& state, [[maybe_un
 	return 0.0f;
 }
 
+struct total_stockpile_spendings {
+	float army_stockpile_spendings = 0.0f;
+	float navy_stockpile_spendings = 0.0f;
+	float military_construction_spendings = 0.0f;
+	float stockpile_filling_spendings = 0.0f;
+};
+struct total_stockpile_spendings_by_commodity {
+	economy::huge_commodity_amount_array army_stockpile_spendings{ };
+	economy::huge_commodity_amount_array navy_stockpile_spendings{ };
+	tagged_vector<float, dcon::commodity_id> military_construction_spendings{ };
+	tagged_vector<float, dcon::commodity_id> stockpile_filling_spendings{ };
+};
+
+enum class price_estimation : uint8_t {
+	theoretical_max,
+	capped_by_availability
+};
+
 void presimulate(sys::state& state);
 void sanity_check(sys::state& state);
 
@@ -22,6 +40,29 @@ float subsistence_max_pseudoemployment(sys::state& state, dcon::province_id p);
 bool has_building(sys::state const& state, dcon::state_instance_id si, dcon::factory_type_id fac);
 bool is_bankrupt_debtor_to(sys::state& state, dcon::nation_id debt_holder, dcon::nation_id debtor);
 
+void set_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount);
+void set_government_stockpile(sys::state& state, ve::contiguous_tags<dcon::nation_id> controller, ve::contiguous_tags<dcon::market_id> market, dcon::commodity_id commodity, float amount);
+
+template<price_estimation price_est>
+float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, const tagged_vector<float, dcon::commodity_id>& goods);
+
+template<price_estimation price_est>
+float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, const ve::vectorizable_buffer<float, dcon::commodity_id>& goods);
+template<price_estimation price_est>
+tagged_vector<float, dcon::commodity_id> get_estimated_stockpile_purchase_price_by_commodity(const sys::state& state, dcon::nation_id for_nation, const tagged_vector<float, dcon::commodity_id>& goods);
+
+total_stockpile_spendings estimate_total_stockpile_spendings(const sys::state& state, dcon::nation_id nation_as, float military_construction_budget, float stockpile_filling_budget);
+total_stockpile_spendings_by_commodity estimate_total_stockpile_spendings_by_commodity(const sys::state& state, dcon::nation_id nation_as, float military_construction_budget, float stockpile_filling_budget);
+
+economy::huge_commodity_amount_array estimate_nation_army_consumption(const sys::state& state, dcon::nation_id nation);
+economy::huge_commodity_amount_array estimate_nation_navy_consumption(const sys::state& state, dcon::nation_id nation);
+economy::huge_commodity_amount_array estimate_nation_army_and_navy_consumption(const sys::state& state, dcon::nation_id nation);
+
+// How many goods do we need (or have in excess) in order to be at exactly the stockpile target? If return is negative, that means we excess commodities over the target. Positive means we need more commodities to reach the target
+float government_stockpile_target_balance(const sys::state& state, dcon::nation_id nation, dcon::commodity_id com_id);
+
+// How many goods do we need in order to be at exactly the stockpile target? If we are at the target OR have goods in excess, then the result is 0
+float government_stockpile_desired_commodity_amount(const sys::state& state, dcon::nation_id nation, dcon::commodity_id com_id);
 
 bool nation_is_constructing_factories(sys::state& state, dcon::nation_id n);
 bool nation_has_closed_factories(sys::state& state, dcon::nation_id n);
@@ -37,7 +78,7 @@ float farmer_min_wage(sys::state& state, dcon::market_id m, float min_wage_facto
 float laborer_min_wage(sys::state& state, dcon::market_id m, float min_wage_factor);
 
 void daily_update(sys::state& state, bool presimulation, float presimulation_stage);
-void resolve_constructions(sys::state& state);
+void resolve_building_constructions(sys::state& state);
 
 std::vector<dcon::factory_type_id> commodity_get_factory_types_as_output(sys::state const& state, dcon::commodity_id output_good);
 
@@ -56,14 +97,13 @@ float estimate_diplomatic_expenses(sys::state& state, dcon::nation_id n);
 float estimate_max_domestic_investment(sys::state& state, dcon::nation_id n);
 float estimate_current_domestic_investment(sys::state& state, dcon::nation_id n);
 
-float estimate_land_spending(sys::state& state, dcon::nation_id n);
-float estimate_naval_spending(sys::state& state, dcon::nation_id n);
+float estimate_today_land_spending(sys::state& state, dcon::nation_id n);
+float estimate_today_naval_spending(sys::state& state, dcon::nation_id n);
 float estimate_war_subsidies_spending(sys::state& state, dcon::nation_id n);
 float estimate_reparations_spending(sys::state& state, dcon::nation_id n);
 float estimate_war_subsidies_income(sys::state& state, dcon::nation_id n);
 float estimate_reparations_income(sys::state& state, dcon::nation_id n);
 float estimate_overseas_penalty_spending(sys::state& state, dcon::nation_id n);
-float estimate_stockpile_filling_spending(sys::state& state, dcon::nation_id n);
 
 struct full_construction_factory {
 	float cost = 0.0f;
@@ -80,6 +120,11 @@ struct full_construction_province {
 	dcon::province_id province;
 	bool is_pop_project = false;
 	province_building_type type = province_building_type::railroad;
+};
+
+struct consume_stockpile_result {
+	float amount_consumed;
+	float satisfaction;
 };
 
 std::vector<full_construction_factory> estimate_private_investment_upgrade(sys::state& state, dcon::nation_id nid, float est_private_const_spending);
@@ -118,12 +163,23 @@ bool can_take_loans(sys::state& state, dcon::nation_id n);
 float interest_payment(sys::state& state, dcon::nation_id n);
 float max_loan(sys::state& state, dcon::nation_id n);
 
+// Returns the closest available market states from the location as the nation as a sorted vector
+void get_closest_available_market_states(sys::state& state, std::vector<dcon::state_instance_id>& out_buffer, dcon::nation_id nation_as, dcon::province_id location_from);
+
+// Consumes goods from any of the provided government stockpiles with the given supply-to province and nation.
+// The "to_consume" commodity set will be decremented over time and after the call will only hold the commoditiy quantities which it was unable to fufll.
+// Make SURE that commodity set passed in is ok to be modified
+float consume_from_government_stockpiles(sys::state& state, economy::commodity_set& to_consume, std::span<const dcon::state_instance_id> stockpile_states, dcon::province_id location_from, dcon::nation_id nation_as);
+
+
 float estimate_investment_pool_daily_loss(sys::state& state, dcon::nation_id n);
 
 bool get_commodity_uses_potentials(sys::state& state, dcon::commodity_id c);
 float calculate_province_factory_limit(sys::state& state, dcon::province_id pid, dcon::commodity_id c);
 float calculate_state_factory_limit(sys::state& state, dcon::state_instance_id sid, dcon::commodity_id c);
 float calculate_nation_factory_limit(sys::state& state, dcon::nation_id nid, dcon::commodity_id c);
+
+void update_total_government_stockpiles(sys::state& state);
 
 bool do_resource_potentials_allow_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::factory_type_id type);
 bool do_resource_potentials_allow_upgrade(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::factory_type_id type);

@@ -6,6 +6,7 @@
 #include "economy_production.hpp"
 #include "economy_stats.hpp"
 #include "province.hpp"
+#include "supply_route.hpp"
 
 namespace ui {
 
@@ -846,6 +847,40 @@ void migration_map_tt_box(sys::state& state, text::columnar_layout& contents, dc
 		}
 	}
 }
+
+
+
+
+void supply_loss_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {
+	if(prov) {
+		auto fat = dcon::fatten(state.world, prov);
+		float supply_loss = 1.0f - supply_routes::province_supply_attrition(state, prov, state.local_player_nation);
+		text::add_line(state, contents, "mapmode_tooltip_45", text::variable_type::val, text::fp_percentage_two_places{ supply_loss });
+	}
+		
+}
+
+
+void supply_throughput_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {
+	if(prov) {
+		auto fat = dcon::fatten(state.world, prov);
+		float supply_throughput = supply_routes::max_supply_throughput(state, prov, state.local_player_nation);
+		text::add_line(state, contents, "mapmode_tooltip_46", text::variable_type::val, text::fp_one_place{ supply_throughput });
+	}
+}
+
+void supply_route_efficiency_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {
+	if(prov) {
+		auto fat = dcon::fatten(state.world, prov);
+		float supply_throughput = supply_routes::max_supply_throughput(state, prov, state.local_player_nation);
+		float used_supply_throughput = state.world.province_get_used_supply_throughput(prov);
+		float efficiency = std::min(supply_throughput / (used_supply_throughput == 0 ? 1.0f : used_supply_throughput), 1.0f);
+		text::add_line(state, contents, "mapmode_tooltip_47", text::variable_type::val, text::fp_one_place{ used_supply_throughput }, text::variable_type::value, text::fp_one_place{ supply_throughput }, text::variable_type::result, text::fp_percentage_two_places{efficiency});
+	}
+
+}
+
+
 
 void civilsation_level_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {    //Done
 	auto fat = dcon::fatten(state.world, prov);
@@ -1707,6 +1742,15 @@ void populate_map_tooltip(sys::state& state, text::columnar_layout& contents, dc
 		break;
 	case map_mode::mode::workforce:
 		workforce_map_tt_box(state, contents, prov);
+		break;
+	case map_mode::mode::supply_loss:
+		supply_loss_map_tt_box(state, contents, prov);
+		break;
+	case map_mode::mode::supply_throughput:
+		supply_throughput_map_tt_box(state, contents, prov);
+		break;
+	case map_mode::mode::supply_route_efficiency:
+		supply_route_efficiency_map_tt_box(state, contents, prov);
 		break;
 	default:
 		break;

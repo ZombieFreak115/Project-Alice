@@ -1308,10 +1308,8 @@ bool army_ready_for_battle(sys::state& state, dcon::nation_id n, dcon::army_id a
 	}
 
 
-	auto spending_level = state.world.nation_get_effective_land_spending(n);
-	auto max_org = 0.25f + 0.75f * spending_level;
-
-	return state.world.regiment_get_org(sample_reg) > 0.7f * max_org;
+	// org cap is always 100% no matter supply
+	return state.world.regiment_get_org(sample_reg) > 0.5f;
 }
 
 // MP compliant
@@ -1357,6 +1355,8 @@ float estimate_balanced_composition_factor(sys::state& state, dcon::army_id a) {
 	float str_cav = 0.f;
 	for(const auto reg : regs) {
 		float str = reg.get_regiment().get_strength() * reg.get_regiment().get_org();
+		assert(std::isfinite(reg.get_regiment().get_strength()));
+		assert(std::isfinite(reg.get_regiment().get_org()));
 		if(auto utid = reg.get_regiment().get_type(); utid) {
 			switch(state.military_definitions.unit_base_definitions[utid].type) {
 			case military::unit_type::infantry:

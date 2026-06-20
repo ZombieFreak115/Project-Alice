@@ -880,6 +880,14 @@ bool can_start_naval_unit_construction(sys::state& state, dcon::nation_id source
 
 void execute_start_naval_unit_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::unit_type_id type, dcon::province_id template_province) {
 	auto c = fatten(state.world, state.world.try_create_province_naval_construction(location, source));
+	auto& fufilled_goods = c.get_purchased_goods();
+	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
+	// Initialize the commodity types in the fufilled goods buffer to have identical types as build cost
+	for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
+		fufilled_goods.commodity_type[i] = build_cost.commodity_type[i];
+		fufilled_goods.commodity_amounts[i] = 0.0f;
+
+	}
 	c.set_type(type);
 	c.set_start_date(state.current_date);
 	c.set_template_province(template_province);
@@ -936,8 +944,15 @@ template bool can_start_land_unit_construction<false>(sys::state& state, dcon::n
 
 void execute_start_land_unit_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::culture_id soldier_culture, dcon::unit_type_id type, dcon::province_id template_province) {
 	auto soldier = military::find_available_soldier(state, location, soldier_culture);
-
 	auto c = fatten(state.world, state.world.try_create_province_land_construction(soldier, source));
+	auto& fufilled_goods = c.get_purchased_goods();
+	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
+	// Initialize the commodity types in the fufilled goods buffer to have identical types as build cost
+	for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
+		fufilled_goods.commodity_type[i] = build_cost.commodity_type[i];
+		fufilled_goods.commodity_amounts[i] = 0.0f;
+
+	}
 	c.set_start_date(state.current_date);
 	c.set_type(type);
 	c.set_template_province(template_province);
@@ -1161,6 +1176,9 @@ void execute_change_budget_settings(sys::state& state, dcon::nation_id source, b
 	if(values.construction_spending != int8_t(-127)) {
 		state.world.nation_set_construction_spending(source, std::clamp(values.construction_spending, int8_t(0), int8_t(100)));
 	}
+	if(values.military_construction_spending != int8_t(-127)) {
+		state.world.nation_set_military_construction_spending(source, std::clamp(values.military_construction_spending, int8_t(0), int8_t(100)));
+	}
 	if(values.education_spending != int8_t(-127)) {
 		state.world.nation_set_education_spending(source, std::clamp(values.education_spending, int8_t(0), int8_t(100)));
 	}
@@ -1185,6 +1203,9 @@ void execute_change_budget_settings(sys::state& state, dcon::nation_id source, b
 	if(values.social_spending != int8_t(-127)) {
 		state.world.nation_set_social_spending(source, std::clamp(values.social_spending, int8_t(0), int8_t(100)));
 	}
+	if(values.stockpile_spending != int8_t(-127)) {
+		state.world.nation_set_stockpile_spending(source, std::clamp(values.stockpile_spending, int8_t(0), int8_t(100)));
+	}
 	if(values.tariffs_import != int8_t(-127)) {
 		state.world.nation_set_tariffs_import(source, std::clamp(values.tariffs_import, int8_t(-100), int8_t(100)));
 	}
@@ -1199,6 +1220,18 @@ void execute_change_budget_settings(sys::state& state, dcon::nation_id source, b
 	}
 	if(values.subsidies != int8_t(-127)) {
 		state.world.nation_set_subsidies_spending(source, std::clamp(values.subsidies, int8_t(0), int8_t(100)));
+	}
+	if(values.land_reinforcement != int8_t(-127)) {
+		state.world.nation_set_land_reinforcement_consumption(source, std::clamp(values.land_reinforcement, int8_t(0), int8_t(100)));
+	}
+	if(values.land_supply != int8_t(-127)) {
+		state.world.nation_set_land_supply_consumption(source, std::clamp(values.land_supply, int8_t(0), int8_t(100)));
+	}
+	if(values.naval_reinforcement != int8_t(-127)) {
+		state.world.nation_set_naval_reinforcement_consumption(source, std::clamp(values.naval_reinforcement, int8_t(0), int8_t(100)));
+	}
+	if(values.naval_supply != int8_t(-127)) {
+		state.world.nation_set_naval_supply_consumption(source, std::clamp(values.naval_supply, int8_t(0), int8_t(100)));
 	}
 	economy::bound_budget_settings(state, source);
 }
@@ -4720,6 +4753,91 @@ void execute_split_navy(sys::state& state, dcon::nation_id source, command_data&
 	return military::split_navy<command::actor::player>(state, source, payload.navy, std::span<const dcon::ship_id>(payload.ships(), payload.ship_count), payload.select_both_navies);
 }
 
+
+void set_army_supply_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority) {
+
+	command_data p{ command_type::set_army_supply_priority, state.local_player_id };
+	auto data = set_army_priority_data{};
+	data.army = army;
+	data.priority = priority;
+	p << data;
+	add_to_command_queue(state, p);
+
+}
+bool can_set_army_supply_priority(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& payload = command.get_payload<set_army_priority_data>();
+
+	return military::can_set_army_supply_priority<command::actor::player>(state, source, payload.army, payload.priority);
+}
+void execute_set_army_supply_priority(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& payload = command.get_payload<set_army_priority_data>();
+	military::set_army_supply_priority<command::actor::player>(state, source, payload.army, payload.priority);
+}
+
+
+void set_army_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority) {
+
+	command_data p{ command_type::set_army_reinforcement_priority, state.local_player_id };
+	auto data = set_army_priority_data{};
+	data.army = army;
+	data.priority = priority;
+	p << data;
+	add_to_command_queue(state, p);
+
+}
+bool can_set_army_reinforcement_priority(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& payload = command.get_payload<set_army_priority_data>();
+
+	return military::can_set_army_reinforcement_priority<command::actor::player>(state, source, payload.army, payload.priority);
+}
+void execute_set_army_reinforcement_priority(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& payload = command.get_payload<set_army_priority_data>();
+	military::set_army_reinforcement_priority<command::actor::player>(state, source, payload.army, payload.priority);
+}
+
+
+void set_navy_supply_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority) {
+
+	command_data p{ command_type::set_navy_supply_priority, state.local_player_id };
+	auto data = set_navy_priority_data{};
+	data.navy = navy;
+	data.priority = priority;
+	p << data;
+	add_to_command_queue(state, p);
+
+}
+bool can_set_navy_supply_priority(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& payload = command.get_payload<set_navy_priority_data>();
+
+	return military::can_set_navy_supply_priority<command::actor::player>(state, source, payload.navy, payload.priority);
+}
+void execute_set_navy_supply_priority(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& payload = command.get_payload<set_navy_priority_data>();
+	military::set_navy_supply_priority<command::actor::player>(state, source, payload.navy, payload.priority);
+}
+
+
+void set_navy_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority) {
+
+	command_data p{ command_type::set_navy_reinforcement_priority, state.local_player_id };
+	auto data = set_navy_priority_data{};
+	data.navy = navy;
+	data.priority = priority;
+	p << data;
+	add_to_command_queue(state, p);
+
+}
+bool can_set_navy_reinforcement_priority(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& payload = command.get_payload<set_navy_priority_data>();
+
+	return military::can_set_navy_reinforcement_priority<command::actor::player>(state, source, payload.navy, payload.priority);
+}
+void execute_set_navy_reinforcement_priority(sys::state& state, dcon::nation_id source, command_data& command) {
+	const auto& payload = command.get_payload<set_navy_priority_data>();
+	military::set_navy_reinforcement_priority<command::actor::player>(state, source, payload.navy, payload.priority);
+}
+
+
 void delete_army(sys::state& state, dcon::nation_id source, dcon::army_id a) {
 	command_data p{ command_type::delete_army, state.local_player_id };
 	auto data = army_movement_data{ };
@@ -7122,7 +7240,22 @@ bool can_perform_command(sys::state& state, command_data& c) {
 	{
 		return can_change_naval_unit_type(state, source, c);
 	}
-
+	case command_type::set_army_supply_priority:
+	{
+		return can_set_army_supply_priority(state, source, c);
+	}
+	case command_type::set_army_reinforcement_priority:
+	{
+		return can_set_army_reinforcement_priority(state, source, c);
+	}
+	case command_type::set_navy_supply_priority:
+	{
+		return can_set_navy_supply_priority(state, source, c);
+	}
+	case command_type::set_navy_reinforcement_priority:
+	{
+		return can_set_navy_reinforcement_priority(state, source, c);
+	}
 	}
 	return false;
 }
@@ -7924,6 +8057,26 @@ void execute_command(sys::state& state, command_data& c) {
 	{
 		auto& data = c.get_payload<change_naval_unit_type_data>();
 		execute_change_naval_unit_type(state, source_nation, std::span<const dcon::ship_id>(data.ships(), data.unit_count), data.new_type);
+		break;
+	}
+	case command_type::set_army_supply_priority:
+	{
+		execute_set_army_supply_priority(state, source_nation, c);
+		break;
+	}
+	case command_type::set_army_reinforcement_priority:
+	{
+		execute_set_army_reinforcement_priority(state, source_nation, c);
+		break;
+	}
+	case command_type::set_navy_supply_priority:
+	{
+		execute_set_navy_supply_priority(state, source_nation, c);
+		break;
+	}
+	case command_type::set_navy_reinforcement_priority:
+	{
+		execute_set_navy_reinforcement_priority(state, source_nation, c);
 		break;
 	}
 	}

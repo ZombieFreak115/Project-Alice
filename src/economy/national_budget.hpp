@@ -26,6 +26,7 @@ struct value_per_budget_category {
 	float overseas_penalty;
 	float subsidy;
 	float construction_supplies;
+	float military_construction_supplies;
 	float military_supplies_land;
 	float military_supplies_navy;
 	float stockpile;
@@ -42,6 +43,7 @@ struct budget_spending_details {
 	budget_spending_category overseas_penalty{};
 	budget_spending_category subsidy{};
 	budget_spending_category construction_supplies{};
+	budget_spending_category military_construction_supplies{};
 	budget_spending_category military_supplies_land{};
 	budget_spending_category military_supplies_navy{};
 	budget_spending_category stockpile{};

@@ -1003,11 +1003,16 @@ inline constexpr int32_t domestic_investment = 12;
 inline constexpr int32_t overseas_spending = 13;
 inline constexpr int32_t subsidies = 14;
 inline constexpr int32_t construction = 15;
-inline constexpr int32_t army_upkeep = 16;
-inline constexpr int32_t navy_upkeep = 17;
-inline constexpr int32_t debt_payment = 18;
-inline constexpr int32_t stockpile = 19;
-inline constexpr int32_t category_count = 20;
+inline constexpr int32_t military_construction = 16;
+inline constexpr int32_t army_upkeep = 17;
+inline constexpr int32_t navy_upkeep = 18;
+inline constexpr int32_t debt_payment = 19;
+inline constexpr int32_t stockpile = 20;
+inline constexpr int32_t land_reinforcement = 21;
+inline constexpr int32_t land_supply = 22;
+inline constexpr int32_t naval_reinforcement = 23;
+inline constexpr int32_t naval_supply = 24;
+inline constexpr int32_t category_count = 25;
 inline static bool expanded[category_count] = { false };
 }
 

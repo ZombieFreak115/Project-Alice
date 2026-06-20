@@ -379,6 +379,21 @@ object {
 		tag{ scenario }
 	}
 	property{
+		name{ unit_supply_build_goods_index }
+		type{ int16_t }
+		tag{ scenario }
+	}
+	property{
+		name{ unit_supply_goods_index }
+		type{ int16_t }
+		tag{ scenario }
+	}
+	property{
+		name{ unit_build_goods_index }
+		type{ int16_t }
+		tag{ scenario }
+	}
+	property{
 		name{ rgo_amount }
 		type{ float }
 		tag{ scenario }
@@ -416,7 +431,6 @@ object {
 	property{
 		name{ producer_payout_fraction }
 		type{ float }
-		
 		
 	}
 	property{
@@ -1471,6 +1485,17 @@ object {
 	}
 
 	property{
+		name{ supply_route_requires_daily_update }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ supply_route_requires_weekly_update }
+		type{ bitfield }
+		tag{ save }
+	}
+
+	property{
 		name{ crime }
 		type{ crime_id }
 		tag{ save }
@@ -1740,6 +1765,11 @@ object {
 		tag{ save }
 	}
 	property{
+		name{ used_supply_throughput }
+		type{ float }
+		tag{ save }
+	}
+	property{
 		name{ is_blockaded }
 		type{ bitfield }
 		
@@ -1964,6 +1994,26 @@ object {
 		type{ float }
 		tag{ save }
 	}
+	property{
+		name { supply_satisfaction }
+		type{ float }
+	}
+	property{
+		name { last_supply_cost_modifier }
+		type{ float }
+	}
+	property{
+		name { total_pending_reinforcement  }
+		type{ float }
+	}
+	property{
+		name { last_potential_reinforcement}
+		type{ float }
+	}
+	property{
+		name { reinforcement_satisfaction }
+		type{ float }
+	}
 	property{	
 		name{ pending_combat_damage }
 		type{ float }
@@ -2146,6 +2196,26 @@ object {
 		type{ unit_type_id }
 		tag{ save }
 	}
+	property{
+		name { supply_satisfaction }
+		type{ float }
+	}
+	property{
+		name { last_supply_cost_modifier }
+		type{ float }
+	}
+	property{
+		name { total_pending_reinforcement }
+		type{ float }
+	}
+	property{
+		name { last_potential_reinforcement}
+		type{ float }
+	}
+	property{
+		name { reinforcement_satisfaction }
+		type{ float }
+	}
 	property{	
 		name{ strength }
 		type{ float }
@@ -2188,6 +2258,16 @@ object {
 	property{
 		name{ is_rebel_hunter }
 		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ reinforcement_priority }
+		type{ military::unit_priority }
+		tag{ save }
+	}
+	property{
+		name{ supply_priority }
+		type{ military::unit_priority }
 		tag{ save }
 	}
 	property{
@@ -2279,6 +2359,16 @@ object {
 	property{
 		name{ unused_travel_days }
 		type{ float }
+		tag{ save }
+	}
+	property{
+		name{ reinforcement_priority }
+		type{ military::unit_priority }
+		tag{ save }
+	}
+	property{
+		name{ supply_priority }
+		type{ military::unit_priority }
 		tag{ save }
 	}
 	property{
@@ -3354,6 +3444,24 @@ relationship{
 	}
 }
 
+
+relationship{
+	name{ state_control }
+	tag{ save }
+
+	link{
+		object{state_instance}
+		name{state}
+		type{unique}
+	}
+	link{
+		object{nation}
+		name{nation}
+		type{many}
+		index_storage{array}
+	}
+}
+
 relationship{
 	name{ flashpoint_focus }
 	tag{ save }
@@ -4049,25 +4157,36 @@ object {
 		tag{ save }
 	}
 	property {
-		name{ land_reinforcement_buffer }
-		type{ float }
+		name{ military_construction_spending }
+		type{ int8_t }
 		tag{ save }
 	}
 	property {
-		name{ naval_reinforcement_buffer }
-		type{ float }
+		name{ stockpile_spending }
+		type{ int8_t }
 		tag{ save }
 	}
 	property {
-		name{ effective_land_spending }
-		type{ float }
+		name{ land_supply_consumption }
+		type{ int8_t }
 		tag{ save }
 	}
 	property {
-		name{ effective_naval_spending }
-		type{ float }
+		name{ land_reinforcement_consumption }
+		type{ int8_t }
 		tag{ save }
 	}
+	property {
+		name{ naval_supply_consumption }
+		type{ int8_t }
+		tag{ save }
+	}
+	property {
+		name{ naval_reinforcement_consumption }
+		type{ int8_t }
+		tag{ save }
+	}
+	
 	property {
 		name{ effective_construction_spending }
 		type{ float }
@@ -4228,6 +4347,11 @@ object {
 	}
 	property {
 		name{ stockpiles }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
+		name{ total_stockpiles }
 		type{ array{commodity_id}{float} }
 		tag{ save }
 	}
@@ -4476,6 +4600,21 @@ object{
 		tag{ save }
 	}
 	property {
+		name{ government_stockpile }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
+		name{ govt_stockpile_satisfaction_buffer }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
+		name{ government_stockpile_demand_weights }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
 		name{ wealth }
 		type{ float }
 		tag{ save }
@@ -4496,7 +4635,17 @@ object{
 		tag{ save }
 	}
 	property {
+		name{ government_stockpile_demand }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
 		name{ construction_demand }
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
+		name{ unit_construction_demand }
 		type{ array{commodity_id}{float} }
 		tag{ save }
 	}
@@ -4740,6 +4889,273 @@ relationship{
 		tag{ save }
 	}
 }
+
+
+
+relationship{
+	name{ army_supply_route }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{army}
+		name{army}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{market}
+		name{origin}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{origin_army_pair}
+		index{army}
+		index{origin}
+	}
+
+	property{
+		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ is_active }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ path }
+		type{vector_pool{5000}{province_id}}
+		tag{ save }
+	}
+	property{
+		name{ route_attrition }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ throughput }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ volume }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ buffered_supply_goods }
+		type{ economy::huge_commodity_amount_array }
+		tag{ save }
+	}
+	property{
+		name{ buffered_reinforcement_goods }
+		type{ economy::huge_commodity_amount_array }
+		tag{ save }
+	}
+
+}
+
+
+relationship{
+	name{ navy_supply_route }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{navy}
+		name{navy}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{market}
+		name{origin}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{origin_navy_pair}
+		index{navy}
+		index{origin}
+	}
+	property{
+		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ is_active }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ path }
+		type{vector_pool{5000}{province_id}}
+		tag{ save }
+	}
+	property{
+		name{ route_attrition }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ throughput }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ volume }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ buffered_supply_goods }
+		type{ economy::huge_commodity_amount_array }
+		tag{ save }
+	}
+	property{
+		name{ buffered_reinforcement_goods }
+		type{ economy::huge_commodity_amount_array }
+		tag{ save }
+	}
+
+}
+
+
+
+
+
+
+
+relationship{
+	name{ land_construction_supply_route }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{province_land_construction}
+		name{construction}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{market}
+		name{origin}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{origin_construction_pair}
+		index{construction}
+		index{origin}
+	}
+	property{
+		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ is_active }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ path }
+		type{vector_pool{5000}{province_id}}
+		tag{ save }
+	}
+	property{
+		name{ route_attrition }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ throughput }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ volume }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ buffered_goods }
+		type{ economy::commodity_amount_array }
+		tag{ save }
+	}
+
+}
+
+
+
+relationship{
+	name{ naval_construction_supply_route }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{province_naval_construction}
+		name{construction}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{market}
+		name{origin}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{origin_construction_pair}
+		index{construction}
+		index{origin}
+	}
+	property{
+		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ is_active }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ path }
+		type{vector_pool{5000}{province_id}}
+		tag{ save }
+	}
+	property{
+		name{ route_attrition }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ throughput }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ volume }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ buffered_goods }
+		type{ economy::commodity_amount_array }
+		tag{ save }
+	}
+
+}
+
 
 relationship{
 	name{ diplomatic_relation }

@@ -37,6 +37,7 @@
 #include "alice_ui.hpp"
 #include "commands.hpp"
 #include "dcon_oos_reporter_generated.hpp"
+#include "supply_route.hpp"
 
 namespace sys {
 
@@ -3038,6 +3039,9 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	world.market_resize_stockpile(world.commodity_size());
 	world.market_resize_consumption(world.commodity_size());
 	world.market_resize_intermediate_demand(world.commodity_size());
+	world.market_resize_government_stockpile(world.commodity_size());
+	world.market_resize_govt_stockpile_satisfaction_buffer(world.commodity_size());
+	world.market_resize_government_stockpile_demand_weights(world.commodity_size());
 
 	world.market_resize_life_needs_costs(world.pop_type_size());
 	world.market_resize_everyday_needs_costs(world.pop_type_size());
@@ -3057,6 +3061,8 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	world.market_resize_army_demand(world.commodity_size());
 	world.market_resize_navy_demand(world.commodity_size());
 	world.market_resize_construction_demand(world.commodity_size());
+	world.market_resize_unit_construction_demand(world.commodity_size());
+	world.market_resize_government_stockpile_demand(world.commodity_size());
 	world.market_resize_private_construction_demand(world.commodity_size());
 	world.market_resize_actual_probability_to_buy(world.commodity_size());
 	world.market_resize_actual_probability_to_sell(world.commodity_size());
@@ -3079,6 +3085,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	advanced_province_buildings::initialize_size_of_dcon_arrays(*this);
 
 	world.nation_resize_stockpile_targets(world.commodity_size());
+	world.nation_resize_total_stockpiles(world.commodity_size());
 	world.nation_resize_drawing_on_stockpiles(world.commodity_size());
 	world.commodity_resize_price_record(economy::price_history_length);
 	world.nation_resize_gdp_record(economy::gdp_history_length);
@@ -3494,6 +3501,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	// ai::update_ai_research(*this);
 	ai::update_influence_priorities(*this);
 	ai::update_focuses(*this);
+	supply_routes::update_supply_routes_daily(*this);
 
 	military::recover_org(*this);
 
@@ -4441,6 +4449,11 @@ void state::single_game_tick() {
 		//
 		// ALTERNATE PAR DEMO START POINT B
 		//
+		supply_routes::update_supply_routes_daily(*this);
+
+		// Resolving military unit constructions should be handled right after updating supply routes, as they will add to the "purchased_goods" stockpile for unit constructions
+		military::resolve_unit_constructions(*this);
+
 
 		military::recover_org(*this);
 		military::update_siege_progress(*this);
@@ -4519,6 +4532,7 @@ void state::single_game_tick() {
 			break;
 		case 10:
 			province::update_crimes(*this);
+			economy::update_total_government_stockpiles(*this);
 			break;
 		case 11:
 			province::update_nationalism(*this);
@@ -4548,6 +4562,7 @@ void state::single_game_tick() {
 			break;
 		case 19:
 			ai::update_budget(*this);
+			ai::update_stockpile_targets(*this);
 			break;
 		case 20:
 			nations::update_flashpoint_tags(*this);
@@ -4561,6 +4576,7 @@ void state::single_game_tick() {
 			ai::update_ai_embargoes(*this);
 			break;
 		case 22:
+			supply_routes::update_supply_routes_monthly(*this);
 			ai::take_reforms(*this);
 			break;
 		case 23:
@@ -4912,6 +4928,11 @@ void state::game_loop() {
 	game_speed[2] = int32_t(defines.alice_speed_2);
 	game_speed[3] = int32_t(defines.alice_speed_3);
 	game_speed[4] = int32_t(defines.alice_speed_4);
+	ankerl::unordered_dense::set<int> c;
+	for(int i = 0; i < 30; i++) {
+		c.insert(i);
+	}
+	auto& vals = c.values();
 
 	while(quit_signaled.load(std::memory_order::acquire) == false) {
 		if(network_mode == sys::network_mode_type::single_player) {

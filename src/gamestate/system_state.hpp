@@ -408,6 +408,7 @@ struct user_settings_s {
 struct global_scenario_data_s { // this struct holds miscellaneous global properties of the scenario
 };
 
+
 struct cheat_data_s {
 	bool disable_ai = false;
 	bool disable_economy = false;

@@ -126,7 +126,10 @@ enum class command_type : uint8_t {
 		toggle_production_directive = 114,
 		load_saved_game = 115,
 		change_naval_unit_type = 116,
-
+		set_army_supply_priority = 117,
+		set_army_reinforcement_priority = 118,
+		set_navy_supply_priority = 119,
+		set_navy_reinforcement_priority = 120,
 
 		// network
 		notify_player_timeout = 233,// Sent to every client in the lobby to notify a client has timed out. Is also sent to the timed-out client socket, incase they get can receive it.
@@ -286,6 +289,8 @@ struct budget_settings_data {
 	int8_t land_spending;
 	int8_t naval_spending;
 	int8_t construction_spending;
+	int8_t military_construction_spending;
+	int8_t stockpile_spending;
 	int8_t poor_tax;
 	int8_t middle_tax;
 	int8_t rich_tax;
@@ -294,6 +299,10 @@ struct budget_settings_data {
 	int8_t domestic_investment;
 	int8_t overseas;
 	int8_t subsidies;
+	int8_t land_reinforcement;
+	int8_t land_supply;
+	int8_t naval_reinforcement;
+	int8_t naval_supply;
 };
 
 struct war_target_data {
@@ -584,6 +593,21 @@ struct production_directive_data {
 	dcon::production_directive_id id;
 };
 
+struct set_army_priority_data {
+	military::unit_priority priority;
+	uint8_t padding;
+	dcon::army_id army;
+};
+static_assert(sizeof(set_army_priority_data) == sizeof(set_army_priority_data::priority) + sizeof(set_army_priority_data::padding) + sizeof(set_army_priority_data::army));
+
+struct set_navy_priority_data {
+	military::unit_priority priority;
+	uint8_t padding;
+	dcon::navy_id navy;
+};
+static_assert(sizeof(set_navy_priority_data) == sizeof(set_navy_priority_data::priority) + sizeof(set_navy_priority_data::padding) + sizeof(set_navy_priority_data::navy));
+
+
 
 
 
@@ -737,6 +761,10 @@ constexpr enum_array<command_type, command_handler> command_type_handlers = {
 	{ command_type::change_game_rule_setting, command_handler{ sizeof(command::change_gamerule_setting_data), sizeof(command::change_gamerule_setting_data), &command_handler::false_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	{ command_type::toggle_production_directive, command_handler{ sizeof(command::production_directive_data), sizeof(command::production_directive_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	{ command_type::load_saved_game, command_handler{sizeof(command::load_save_game_data), sizeof(command::load_save_game_data) + FILENAME_MAX, &command_handler::false_is_host_receive_command, &command_handler::false_is_host_broadcast_command } },
+	{ command_type::set_army_supply_priority,command_handler{ sizeof(command::set_army_priority_data), sizeof(command::set_army_priority_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
+	{ command_type::set_army_reinforcement_priority,command_handler{ sizeof(command::set_army_priority_data), sizeof(command::set_army_priority_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
+	{ command_type::set_navy_supply_priority,command_handler{ sizeof(command::set_navy_priority_data), sizeof(command::set_navy_priority_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
+	{ command_type::set_navy_reinforcement_priority,command_handler{ sizeof(command::set_navy_priority_data), sizeof(command::set_navy_priority_data), &command_handler::true_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
 	// network
 	{ command_type::notify_oos_gamestate, command_handler{ sizeof(command::notify_oos_gamestate_data), sizeof(command::notify_oos_gamestate_data) + max_mp_state_size, &notify_oos_gamestate_is_host_receive_command, &command_handler::false_is_host_broadcast_command   } },
 	{ command_type::notify_player_ban, command_handler{ sizeof(command::notify_player_ban_data), sizeof(command::notify_player_ban_data), &command_handler::false_is_host_receive_command, &command_handler::true_is_host_broadcast_command } },
@@ -844,6 +872,8 @@ inline budget_settings_data make_empty_budget_settings() {
 		.land_spending = int8_t(-127),
 		.naval_spending = int8_t(-127),
 		.construction_spending = int8_t(-127),
+		.military_construction_spending = int8_t(-127),
+		.stockpile_spending = int8_t(-127),
 		.poor_tax = int8_t(-127),
 		.middle_tax = int8_t(-127),
 		.rich_tax = int8_t(-127),
@@ -851,7 +881,11 @@ inline budget_settings_data make_empty_budget_settings() {
 		.tariffs_export = int8_t(-127),
 		.domestic_investment = int8_t(-127),
 		.overseas = int8_t(-127),
-		.subsidies = int8_t(-127)
+		.subsidies = int8_t(-127),
+		.land_reinforcement = int8_t(-127),
+		.land_supply = int8_t(-127),
+		.naval_reinforcement = int8_t(-127),
+		.naval_supply = int8_t(-127)
 	};
 }
 // when sending new budget settings, leaving any value as int8_t(-127) will cause it to be ignored, leaving the setting the same
@@ -1065,6 +1099,11 @@ void disband_undermanned_regiments(sys::state& state, dcon::nation_id source, dc
 bool can_disband_undermanned_regiments(sys::state& state, dcon::nation_id source, dcon::army_id a);
 
 void split_navy(sys::state& state, dcon::nation_id source, dcon::navy_id a, std::span<const dcon::ship_id> ships_to_split, fixed_bool_t select_both_armies = false);
+
+void set_army_supply_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+void set_army_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
+void set_navy_supply_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
+void set_navy_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
 
 void change_land_unit_type(sys::state& state, dcon::nation_id source, std::span<const dcon::regiment_id> regiments, dcon::unit_type_id new_type);
 bool can_change_land_unit_type(sys::state& state, dcon::nation_id source, command_data& command);

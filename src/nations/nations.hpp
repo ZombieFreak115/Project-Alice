@@ -174,6 +174,9 @@ void recalculate_markets_distance(sys::state& state);
 
 dcon::text_key name_from_tag(sys::state& state, dcon::national_identity_id tag);
 
+float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as);
+float land_supply_speed(const sys::state& state, dcon::nation_id nation_as);
+
 void update_administrative_efficiency(sys::state& state);
 void update_national_administrative_efficiency(sys::state& state);
 float admin_cost_of_province(sys::state& state, dcon::province_id pid);
@@ -237,7 +240,7 @@ bool has_units_inside_other_nation(sys::state& state, dcon::nation_id nation_a, 
 bool can_put_flashpoint_focus_in_state(sys::state& state, dcon::state_instance_id s, dcon::nation_id fp_nation);
 int64_t get_monthly_pop_increase_of_nation(sys::state& state, dcon::nation_id n);
 bool can_accumulate_influence_with(sys::state& state, dcon::nation_id gp, dcon::nation_id target, dcon::gp_relationship_id rel);
-bool are_allied(sys::state& state, dcon::nation_id a, dcon::nation_id b);
+bool are_allied(const sys::state& state, dcon::nation_id a, dcon::nation_id b);
 bool is_landlocked(sys::state& state, dcon::nation_id n);
 
 bool nation_is_in_war(sys::state& state, dcon::nation_id nation, dcon::war_id war);
@@ -252,6 +255,9 @@ void adjust_relationship(sys::state& state, dcon::nation_id a, dcon::nation_id b
 void create_nation_based_on_template(sys::state& state, dcon::nation_id n, dcon::nation_id base);
 // call after a nation loses its last province
 void cleanup_nation(sys::state& state, dcon::nation_id n);
+
+bool exists(sys::state& state, dcon::nation_id nation);
+ve::mask_vector exists(sys::state& state, ve::contiguous_tags<dcon::nation_id> nations);
 
 bool exists_or_is_utility_tag(sys::state& state, dcon::nation_id nation);
 ve::mask_vector exists_or_is_utility_tag(sys::state& state, ve::contiguous_tags<dcon::nation_id> nations);

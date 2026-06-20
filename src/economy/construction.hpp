@@ -22,11 +22,15 @@ economy::commodity_set calculate_factory_upgrade_goods_cost(
 
 float estimate_private_construction_spendings(sys::state& state, dcon::nation_id nid);
 void populate_construction_consumption(sys::state& state);
+void populate_military_construction_consumption(sys::state& state);
+float estimate_military_construction_stockpile_spending(const sys::state& state, dcon::nation_id nation, float budget);
+tagged_vector<float, dcon::commodity_id> estimate_military_construction_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation, float budget);
+
 
 
 struct unit_construction_data {
 	bool can_be_advanced;
-	float construction_time;
+	uint32_t construction_time;
 	float cost_multiplier;
 	dcon::nation_id owner;
 	dcon::market_id market;
@@ -63,8 +67,6 @@ struct construction_spending_explanation {
 	float estimated_spendings;
 	std::vector<province_construction_spending_entry> province_buildings;
 	std::vector<state_construction_spending_entry> factories;
-	std::vector<province_land_construction_spending_entry> land_units;
-	std::vector<province_naval_construction_spending_entry> naval_units;
 };
 struct construction_spending_explanation_light {
 	int32_t ongoing_projects;
@@ -72,8 +74,6 @@ struct construction_spending_explanation_light {
 	float estimated_spendings;
 	float province_buildings;
 	float factories;
-	float land_units;
-	float naval_units;
 };
 
 construction_spending_explanation explain_construction_spending(
@@ -81,10 +81,15 @@ construction_spending_explanation explain_construction_spending(
 	dcon::nation_id n,
 	float dedicated_budget
 );
-float build_cost_multiplier(sys::state& state, dcon::province_id location, bool is_pop_project);
+bool can_advance_construction(const sys::state& state, dcon::province_naval_construction_id con);
+bool can_advance_construction(const sys::state& state, dcon::province_land_construction_id con);
+
+float build_cost_multiplier(const sys::state& state, dcon::province_id location, bool is_pop_project);
 float global_factory_construction_time_modifier(sys::state& state);
 float factory_building_construction_time(sys::state& state, dcon::factory_type_id ftid, bool is_upgrade);
 float factory_build_cost_multiplier(sys::state& state, dcon::nation_id n, dcon::province_id location, bool is_pop_project);
+uint32_t land_unit_construction_time(const sys::state& state, dcon::unit_type_id utid, dcon::nation_id builder);
+uint32_t naval_unit_construction_time(const sys::state& state, dcon::unit_type_id utid, dcon::nation_id builder);
 void populate_private_construction_consumption(sys::state& state);
 void advance_construction(sys::state& state, dcon::nation_id n, float total_spent_on_construction);
 void emulate_construction_demand(sys::state& state, dcon::nation_id n);

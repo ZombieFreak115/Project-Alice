@@ -791,7 +791,7 @@ national_modifiers;National modifiers
 trade_fill;Fill
 trade_use;Draw upon
 trade_stockpile_target;Stockpile target amount:
-trade_stockpile_current;Current stockpile: 
+trade_stockpile_current;Amount in government stockpiles: 
 diplomacy_wx_1;Monthly war exhaustion: 
 influence_explain_1;We are currently banned and accumulate no influence with this nation
 influence_explain_2;We have a truce with this nation and accumulate no influence with it
@@ -1395,9 +1395,11 @@ alice_mw_controls_1;?YRight-click?W create ?Gall?W possible as generals
 alice_mw_controls_2;?YRight-click?W create ?Gall?W possible as admirals
 alice_daily_leadership_tt;$poptype$ provide ?G$value$?W leadership points (?Y$fraction$?W of the population, ?Y$optimal$?W is optimal). Extra leadership points will automatically be spent on creating new generals.
 unit_current_supply;This unit received ?Y$val$%?W of the supplies needed in the last day.\nThe amount we could get of our current supply consumption was:
-unit_current_supply_high;$what$: ?Y$val$?W/?Y$value$?! ?l(?W?G$total$%?W?l demand satisfaction)
-unit_current_supply_mid;$what$: ?Y$val$?!/?Y$value$?! ?l(?O$total$%?W?l demand satisfaction)
-unit_current_supply_low;$what$: ?Y$val$?!/?Y$value$?! ?l(?R$total$%?W?l demand satisfaction)
+unit_current_supply_high;: ?Y$val$?W/?Y$value$?! ?l(?W?G$total$%?W?l satisfaction) (?Y$x$?W loss from supply routes) (?Y$y$?W throughput)
+unit_current_supply_mid;: ?Y$val$?!/?Y$value$?! ?l(?O$total$%?W?l satisfaction) (?Y$x$?W loss from routes) (?Y$y$?W throughput)
+unit_current_supply_low;: ?Y$val$?!/?Y$value$?! ?l(?R$total$%?W?l satisfaction) (?Y$x$?W loss from routes) (?Y$y$?W throughput)
+unit_current_reinforcement_land;This unit received ?Y$val$%?W of the reinforcements needed in the last day.\nThe amount we could get of our current reinforcement consumption was:
+unit_current_reinforcement_naval;This unit received ?Y$val$%?W of the repairs needed in the last day.\nThe amount we could get of our current repair consumption was:
 alice_crisis_inactive;No current active crisis
 alice_crisis_finding_attacker;Finding an attacker for the current crisis
 alice_crisis_finding_defender;Finding a defender for the current crisis
@@ -1752,6 +1754,7 @@ province_market_demand;Demand: ?R$val$?!
 province_market_production;Production: ?G$val$?!
 province_market_consumption;Consumption: ?R$val$?!
 province_market_stockpiles;Stockpiles: ?Y$val$?!
+province_market_government_stockpiles;Government Stockpiles: ?Y$val$?!
 province_market_balance;Balance: ?Y$val$?!
 province_market_trade_in;Trade in: ?G$val$?!
 province_market_trade_out;Trade out: ?R$val$?!
@@ -2014,6 +2017,7 @@ rgo_bank_out;RGOs to pops ?Y$val$?W
 factory_bank;Factories balance ?Y$val$?W
 factory_bank_in;Factories from production ?Y$val$?W
 factory_bank_out;Factories to pops ?Y$val$?W
+government_stockpiles;Government stockpiles
 alice_unit_crossing_modifier;Unit receives a ?Y$x$?W modifier to its combat roll from adjacency modifiers
 alice_river_penalty_mod_tooltip;?Y$COUNT$?W units receives a modifier of ?Y$NUM$?W from river crossing
 alice_strait_penalty_mod_tooltip;?Y$COUNT$?W units receives a modifier of ?Y$NUM$?W from strait crossing or landing penalty
@@ -2024,6 +2028,31 @@ alice_num_units_targeting_dug_in_tooltip;?Y$COUNT$?W units are targeting dug in 
 alice_unit_dug_in;Unit has a dig-in lvl of ?Y$NUM$?W
 alice_unit_targeting_dug_in_modifier;Unit receives a ?Y$NUM$?W modifier to its combat roll targeting a dug-in unit
 add_wargoal_wargoal_count;Will add ?Y$COUNT$?W wargoal(s) when proceeding
+unit_supply_priority_low_tooltip_1;This unit currently has ?Rlow?W priority on receiving supplies
+unit_supply_priority_normal_tooltip_1;This unit currently has ?Ymedium?W priority on receiving supplies
+unit_supply_priority_high_tooltip_1;This unit currently has ?Ghigh?W priority on receiving supplies
+unit_reinforcement_priority_low_tooltip_1;This unit currently has ?Rlow?W priority on receiving reinforcements
+unit_reinforcement_priority_normal_tooltip_1;This unit currently has ?Ymedium?W priority on receiving reinforcements
+unit_reinforcement_priority_high_tooltip_1;This unit currently has ?Ghigh?W priority on receiving reinforcements
+unit_priority_tooltip_2;Increase priority with ?Yleft-click?W, and decrement with ?Yright-click?W
+selected_units_supply_priority_low_tooltip_1;All selected units currently has ?Rlow?W priority on receiving supplies
+selected_units_supply_priority_normal_tooltip_1;All selected units currently has ?Ymedium?W priority on receiving supplies
+selected_units_supply_priority_high_tooltip_1;All selected units currently has ?Ghigh?W priority on receiving supplies
+selected_units_supply_priority_unknown_tooltip_1;All selected units currently has ?Odiffering?W priority on receiving supplies
+selected_units_reinforcement_priority_low_tooltip_1;All selected units currently has ?Rlow?W priority on receiving reinforcements
+selected_units_reinforcement_priority_normal_tooltip_1;All selected units currently has ?Ymedium?W priority on receiving reinforcements
+selected_units_reinforcement_priority_high_tooltip_1;All selected units currently has ?Ghigh?W priority on receiving reinforcements
+selected_units_reinforcement_priority_high_tooltip_1;All selected units currently has ?Odiffering?W priority on receiving reinforcements
+selected_units_priority_tooltip_2;Increase priority for all units with ?Yleft-click?W, and decrement with ?Yright-click?W
+military_title;Military
+budget_military_satisfaction_label;Military satisfaction:
+land_reinforcement_consumption;Army reinforcements
+land_supply_consumption;Army supply
+naval_reinforcement_consumption;Navy reinforcements
+naval_supply_consumption;Navy supply
+budget_military_settings;Satisfaction
+government_stockpiles_target;Current target: $val$
+alice_budget_military_construction;Mil. Construction
 subsidies_label;Subsidies
 effective_output_tooltip;Effective output (output divided by base output)
 subsidies_explanation_tooltip;Total volume of subsidies is decided by national budget. Factories receive for subsidies proportionally to their effective output. You can set subsidies in updated production menu via directives.
