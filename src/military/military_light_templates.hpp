@@ -44,9 +44,6 @@ auto subunit_membership(const sys::state& state, subunit_type unit) {
 	}
 }
 
-
-
-
 template<concepts::military_unit unit_type>
 dcon::nation_id unit_controller(const sys::state& state, unit_type unit) {
 	if constexpr(std::is_same_v<unit_type, dcon::army_id>) {

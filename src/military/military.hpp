@@ -589,7 +589,7 @@ void set_navy_reinforcement_priority(sys::state& state, dcon::nation_id source, 
 
 
 
-
+template <bool VALIDATE>
 bool can_attack(sys::state& state, dcon::nation_id n);
 template <bool VALIDATE>
 bool can_attack_ai(sys::state& state, dcon::nation_id source, dcon::nation_id target);

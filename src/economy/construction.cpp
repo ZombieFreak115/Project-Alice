@@ -215,8 +215,8 @@ uint32_t land_unit_construction_time(
 	dcon::unit_type_id utid,
 	dcon::nation_id builder
 ) {
-	return global_land_construction_time_modifier(state)
-		* std::max(1, state.world.nation_get_unit_stats(builder, utid).build_time);
+	return uint32_t(global_land_construction_time_modifier(state)
+		* std::max(1, state.world.nation_get_unit_stats(builder, utid).build_time));
 }
 
 uint32_t naval_unit_construction_time(
@@ -224,8 +224,8 @@ uint32_t naval_unit_construction_time(
 	dcon::unit_type_id utid,
 	dcon::nation_id builder
 ) {
-	return global_naval_construction_time_modifier(state)
-		* std::max(1, state.world.nation_get_unit_stats(builder, utid).build_time);
+	return uint32_t(global_naval_construction_time_modifier(state)
+		* std::max(1, state.world.nation_get_unit_stats(builder, utid).build_time));
 }
 
 float province_building_construction_time(

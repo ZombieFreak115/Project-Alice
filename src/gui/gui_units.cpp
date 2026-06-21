@@ -2250,13 +2250,10 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 			text::add_unparsed_text_to_layout_box(state, contents, box, com_icon);
 			if(satisfaction == 1 || satisfaction >= 0.95) {
 				text::localised_format_box(state, contents, box, "unit_current_supply_high", sub);
-				//text::add_line(state, contents, "unit_current_supply_high", text::variable_type::what, state.world.commodity_get_name(com_id), text::variable_type::val, text::fp_three_places{ num_satisfied }, text::variable_type::value, text::fp_three_places{ num_required }, text::variable_type::total, display_satisfaction, text::variable_type::x, text::fp_percentage_two_places{ supply_route_loss });
 			} else if(satisfaction < 0.95 && satisfaction >= 0.5) {
 				text::localised_format_box(state, contents, box, "unit_current_supply_mid", sub);
-				//text::add_line(state, contents, "unit_current_supply_mid", text::variable_type::what, state.world.commodity_get_name(com_id), text::variable_type::val, text::fp_three_places{ num_satisfied }, text::variable_type::value, text::fp_three_places{ num_required }, text::variable_type::total, display_satisfaction, text::variable_type::x, text::fp_percentage_two_places{ supply_route_loss });
 			} else {
 				text::localised_format_box(state, contents, box, "unit_current_supply_low", sub);
-				//text::add_line(state, contents, "unit_current_supply_low", text::variable_type::what, state.world.commodity_get_name(com_id), text::variable_type::val, text::fp_three_places{ num_satisfied }, text::variable_type::value, text::fp_three_places{ num_required }, text::variable_type::total, display_satisfaction, text::variable_type::x, text::fp_percentage_two_places{ supply_route_loss });
 			}
 			text::close_layout_box(contents, box);
 		}
@@ -2270,26 +2267,36 @@ public:
 		auto army = retrieve<dcon::army_id>(state, parent);
 		auto navy = retrieve<dcon::navy_id>(state, parent);
 
-
-		float total_supply = 0.0f;
-		uint32_t unit_count = 1;
-		// grab avg supply for all regiments in the army
+		const auto& commodity_types = military::get_military_commodities_union<military::commodity_consumption_type::supply>(state);
+		float total_satisfied = 0.0f;
+		float total_required = 0.0f;
 		if(army) {
-			unit_count = uint32_t(state.world.army_get_army_membership(army).end() - state.world.army_get_army_membership(army).begin());
-			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
-			for(auto r : state.world.army_get_army_membership(army)) {
-				auto regiment = r.get_regiment();
-				total_supply += regiment.get_supply_satisfaction();
+			economy::huge_commodity_amount_array commodities_required = military::get_last_required_supply<military::unit_consumption_type::supply>(state, army);
+			economy::huge_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<military::unit_consumption_type::supply>(state, army);
+
+			for(uint32_t i = 0; i < commodity_types.size(); i++) {
+				dcon::commodity_id com_id = commodity_types[i];
+				assert(com_id);
+				total_satisfied += commodities_fufilled[i];
+				total_required += commodities_required[i];
 			}
+			
 		} else if(navy) {
-			unit_count = uint32_t(state.world.navy_get_navy_membership(navy).end() - state.world.navy_get_navy_membership(navy).begin());
-			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
-			for(auto r : state.world.navy_get_navy_membership(navy)) {
-				auto ship = r.get_ship();
-				total_supply += ship.get_supply_satisfaction();
+			economy::huge_commodity_amount_array commodities_required = military::get_last_required_supply<military::unit_consumption_type::supply>(state, navy);
+			economy::huge_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<military::unit_consumption_type::supply>(state, navy);
+			for(uint32_t i = 0; i < commodity_types.size(); i++) {
+				dcon::commodity_id com_id = commodity_types[i];
+				assert(com_id);
+				total_satisfied += commodities_fufilled[i];
+				total_required += commodities_required[i];
 			}
+			
 		}
-		progress = total_supply / unit_count;
+		if(total_required == 0.0f) {
+			progress = 1.0f;
+		} else {
+			progress = total_satisfied / total_required;
+		}
 	}
 
 	tooltip_behavior has_tooltip(sys::state& state) noexcept override {
@@ -2319,25 +2326,35 @@ public:
 		auto army = retrieve<dcon::army_id>(state, parent);
 		auto navy = retrieve<dcon::navy_id>(state, parent);
 
-		float total_reinf = 0.0f;
-		uint32_t unit_count = 1;
-		// grab avg supply for all regiments in the army
+		const auto& commodity_types = military::get_military_commodities_union<military::commodity_consumption_type::reinforcement>(state);
+		float total_satisfied = 0.0f;
+		float total_required = 0.0f;
 		if(army) {
-			unit_count = uint32_t(state.world.army_get_army_membership(army).end() - state.world.army_get_army_membership(army).begin());
-			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
-			for(auto r : state.world.army_get_army_membership(army)) {
-				auto regiment = r.get_regiment();
-				total_reinf += regiment.get_reinforcement_satisfaction();
+			economy::huge_commodity_amount_array commodities_required = military::get_last_required_supply<military::unit_consumption_type::reinforcement>(state, army);
+			economy::huge_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<military::unit_consumption_type::reinforcement>(state, army);
+			for(uint32_t i = 0; i < commodity_types.size(); i++) {
+				dcon::commodity_id com_id = commodity_types[i];
+				assert(com_id);
+				total_satisfied += commodities_fufilled[i];
+				total_required += commodities_required[i];
+				
 			}
 		} else if(navy) {
-			unit_count = uint32_t(state.world.navy_get_navy_membership(navy).end() - state.world.navy_get_navy_membership(navy).begin());
-			unit_count = (unit_count == 0 ? 1 : unit_count); // div by zero guard if no sub units
-			for(auto r : state.world.navy_get_navy_membership(navy)) {
-				auto ship = r.get_ship();
-				total_reinf += ship.get_reinforcement_satisfaction();
+			economy::huge_commodity_amount_array commodities_required = military::get_last_required_supply<military::unit_consumption_type::reinforcement>(state, navy);
+			economy::huge_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<military::unit_consumption_type::reinforcement>(state, navy);
+			for(uint32_t i = 0; i < commodity_types.size(); i++) {
+				dcon::commodity_id com_id = commodity_types[i];
+				assert(com_id);
+				total_satisfied += commodities_fufilled[i];
+				total_required += commodities_required[i];
 			}
+			
 		}
-		progress = total_reinf / unit_count;
+		if(total_required == 0.0f) {
+			progress = 1.0f;
+		} else {
+			progress = total_satisfied / total_required;
+		}
 	}
 
 	tooltip_behavior has_tooltip(sys::state& state) noexcept override {

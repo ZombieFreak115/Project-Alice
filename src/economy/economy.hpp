@@ -41,13 +41,13 @@ bool has_building(sys::state const& state, dcon::state_instance_id si, dcon::fac
 bool is_bankrupt_debtor_to(sys::state& state, dcon::nation_id debt_holder, dcon::nation_id debtor);
 
 void set_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount);
-void set_government_stockpile(sys::state& state, ve::contiguous_tags<dcon::nation_id> controller, ve::contiguous_tags<dcon::market_id> market, dcon::commodity_id commodity, float amount);
 
 template<price_estimation price_est>
 float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, const tagged_vector<float, dcon::commodity_id>& goods);
 
 template<price_estimation price_est>
 float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, const ve::vectorizable_buffer<float, dcon::commodity_id>& goods);
+
 template<price_estimation price_est>
 tagged_vector<float, dcon::commodity_id> get_estimated_stockpile_purchase_price_by_commodity(const sys::state& state, dcon::nation_id for_nation, const tagged_vector<float, dcon::commodity_id>& goods);
 

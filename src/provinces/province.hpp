@@ -6,6 +6,7 @@
 #include "container_types_dcon.hpp"
 #include "container_types.hpp"
 #include "system_state_forward.hpp"
+#include "concept_declarations.hpp"
 
 namespace province {
 
@@ -21,39 +22,15 @@ inline constexpr dcon::province_id from_map_id(uint16_t id) {
 		return dcon::province_id(id - 1);
 }
 
-inline bool is_sea(const sys::state& state, dcon::province_id prov) {
-	assert(prov);
-	return state.province_definitions.first_sea_province.index() <= prov.index();
-}
+bool is_sea(const sys::state& state, dcon::province_id prov);
 
-inline bool is_land(const sys::state& state, dcon::province_id prov) {
-	assert(prov);
-	return !is_sea(state, prov);
-}
+bool is_land(const sys::state& state, dcon::province_id prov);
 
-inline bool is_port(const sys::state& state, dcon::province_id prov) {
-	assert(prov);
-	return bool(state.world.province_get_port_to(prov));
-}
+bool is_port(const sys::state& state, dcon::province_id prov);
 
 // Get movement cost. Makes sure it cannot be zero, ever
-inline float movement_cost(const sys::state& state, dcon::province_id prov) {
-	return std::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
-	
-}
-// Get movement cost. Makes sure it cannot be zero, ever
-inline ve::fp_vector movement_cost(sys::state& state, ve::partial_contiguous_tags<dcon::province_id> prov) {
-	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
-}
-//// Get movement cost. Makes sure it cannot be zero, ever
-//inline ve::fp_vector movement_cost(sys::state& state, ve::unaligned_contiguous_tags< dcon::province_id> prov) {
-//	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
-//}
+float movement_cost(const sys::state& state, dcon::province_id prov);
 
-// Get movement cost. Makes sure it cannot be zero, ever
-inline ve::fp_vector movement_cost(sys::state& state, ve::contiguous_tags<dcon::province_id> prov) {
-	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
-}
 
 struct naval_range_data {
 	float distance;

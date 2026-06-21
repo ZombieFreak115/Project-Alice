@@ -13,7 +13,8 @@
 #include "money.hpp"
 #include "game_scene.hpp"
 #include "economy_government.hpp"
-#include <military_templates.hpp>
+#include "military_templates.hpp"
+#include "province.hpp"
 
 namespace ui {
 

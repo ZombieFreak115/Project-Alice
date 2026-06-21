@@ -5165,12 +5165,14 @@ void army_arrives_in_province(sys::state& state, dcon::army_id a, dcon::province
 		for(auto sup_route : state.world.army_get_army_supply_route(a)) {
 			sup_route.set_path_out_of_date(true);
 		}
-		auto prev_loc_controller = state.world.province_get_nation_from_province_control(prev_location);
-		auto new_loc_controller = state.world.province_get_nation_from_province_control(p);
-		auto army_owner = state.world.army_get_controller_from_army_control(a);
-		if(are_enemies(state, army_owner, new_loc_controller)) {
-			schedule_supply_paths_update(state, prev_location);
-			schedule_supply_paths_update(state, p);
+		if(prev_location) {
+			auto prev_loc_controller = state.world.province_get_nation_from_province_control(prev_location);
+			auto new_loc_controller = state.world.province_get_nation_from_province_control(p);
+			auto army_owner = state.world.army_get_controller_from_army_control(a);
+			if(are_enemies(state, army_owner, new_loc_controller)) {
+				schedule_supply_paths_update(state, prev_location);
+				schedule_supply_paths_update(state, p);
+			}
 		}
 	}
 
@@ -8701,11 +8703,13 @@ void navy_arrives_in_province(sys::state& state, dcon::navy_id n, dcon::province
 		for(auto sup_route : state.world.navy_get_navy_supply_route(n)) {
 			sup_route.set_path_out_of_date(true);
 		}
-		auto prev_loc_controller = state.world.province_get_nation_from_province_control(prev_location);
-		auto new_loc_controller = state.world.province_get_nation_from_province_control(p);
-		auto army_owner = state.world.navy_get_controller_from_navy_control(n);
-		schedule_supply_paths_update(state, prev_location);
-		schedule_supply_paths_update(state, p);
+		if(prev_location) {
+			auto prev_loc_controller = state.world.province_get_nation_from_province_control(prev_location);
+			auto new_loc_controller = state.world.province_get_nation_from_province_control(p);
+			auto army_owner = state.world.navy_get_controller_from_navy_control(n);
+			schedule_supply_paths_update(state, prev_location);
+			schedule_supply_paths_update(state, p);
+		}
 
 	}
 
@@ -9563,14 +9567,15 @@ template economy::huge_commodity_amount_array get_last_required_supply<unit_cons
 
 template<unit_consumption_type consumption_type, concepts::military_unit unit_type>
 economy::huge_commodity_amount_array get_last_fufilled_supply(const sys::state& state, unit_type u) {
-	economy::huge_commodity_amount_array fufilled(state.military_definitions.military_supply_goods.size());
+	const auto& commodity_types = military::get_military_commodities_union<military::to_consumption_type(consumption_type)>(state);
+	economy::huge_commodity_amount_array fufilled(commodity_types.size());
 	auto routes = unit_supply_routes(state, u);
 	for(auto route : routes) {
 		const economy::huge_commodity_amount_array& buffered_goods = supply_routes::military_route_buffered_goods<consumption_type>(state, route.id);
-		for(uint32_t i = 0; i < state.military_definitions.military_supply_goods.size(); i++) {
-			auto com_id = state.military_definitions.military_supply_goods[i];
+		for(uint32_t i = 0; i < commodity_types.size(); i++) {
+			auto com_id = commodity_types[i];
 			assert(com_id);
-			fufilled[i] += (buffered_goods[i] * route.get_route_attrition()); // take into account goods which will be lost to attrition
+			fufilled[i] += (buffered_goods[i] * route.get_route_attrition() * route.get_throughput()); // take into account goods which will be lost to attrition and throughput
 		}
 	}
 	return fufilled;
