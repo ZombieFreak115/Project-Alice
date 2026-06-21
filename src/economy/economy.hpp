@@ -32,6 +32,18 @@ enum class price_estimation : uint8_t {
 	capped_by_availability
 };
 
+
+dcon::province_id construction_get_location(const sys::state& state, dcon::province_land_construction_id con);
+dcon::province_id construction_get_location(const sys::state& state, dcon::province_naval_construction_id con);
+dcon::province_id construction_get_location(const sys::state& state, dcon::province_building_construction_id con);
+dcon::province_id construction_get_location(const sys::state& state, dcon::factory_construction_id con);
+
+
+dcon::nation_id construction_get_controller(const sys::state& state, dcon::province_land_construction_id con);
+dcon::nation_id construction_get_controller(const sys::state& state, dcon::province_naval_construction_id con);
+dcon::nation_id construction_get_controller(const sys::state& state, dcon::province_building_construction_id con);
+dcon::nation_id construction_get_controller(const sys::state& state, dcon::factory_construction_id con);
+
 void presimulate(sys::state& state);
 void sanity_check(sys::state& state);
 
@@ -41,6 +53,9 @@ bool has_building(sys::state const& state, dcon::state_instance_id si, dcon::fac
 bool is_bankrupt_debtor_to(sys::state& state, dcon::nation_id debt_holder, dcon::nation_id debtor);
 
 void set_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount);
+
+// Works just like set_government_stockpile, but assumes the market is controlled by rebels
+void set_rebel_stockpile(sys::state& state, dcon::market_id market, dcon::commodity_id com_id, float amount);
 
 template<price_estimation price_est>
 float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, const tagged_vector<float, dcon::commodity_id>& goods);

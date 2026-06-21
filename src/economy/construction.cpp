@@ -6,7 +6,6 @@
 #include "province.hpp"
 #include "economy.hpp"
 #include "economy_templates.hpp"
-#include "economy_light_templates.hpp"
 
 namespace economy {
 
@@ -667,7 +666,7 @@ void accumulate_military_construction_consumption(const sys::state& state, const
 	dcon::unit_type_id type = construction.get_type();
 	const auto& base_cost =
 		state.military_definitions.unit_base_definitions[type].build_cost;
-	auto builder = construction_controller(state, construction.id);
+	auto builder = construction_get_controller(state, construction.id);
 
 	const auto& currently_fufilled = construction.get_purchased_goods();
 
@@ -680,7 +679,7 @@ void accumulate_military_construction_consumption(const sys::state& state, const
 		}
 	}();
 
-	dcon::province_id build_location = construction_location(state, construction.id);
+	dcon::province_id build_location = construction_get_location(state, construction.id);
 
 	for(uint32_t i = 0; i < base_cost.set_size; i++) {
 		dcon::commodity_id cid = base_cost.commodity_type[i];
@@ -766,7 +765,7 @@ void populate_military_construction_consumption(sys::state& state) {
 		if(!can_advance_construction(state, lc)) {
 			continue;
 		}
-		dcon::nation_id conc_owner = construction_controller(state, lc.id);
+		dcon::nation_id conc_owner = construction_get_controller(state, lc.id);
 		accumulate_military_construction_consumption(state, lc.id, unit_commodity_demand_buffer[conc_owner]);
 	}
 	for(auto nc : state.world.in_province_naval_construction) {
@@ -775,7 +774,7 @@ void populate_military_construction_consumption(sys::state& state) {
 		if(!can_advance_construction(state, nc.id)) {
 			continue;
 		}
-		dcon::nation_id conc_owner = construction_controller(state, nc.id);
+		dcon::nation_id conc_owner = construction_get_controller(state, nc.id);
 		accumulate_military_construction_consumption(state, nc.id, unit_commodity_demand_buffer[conc_owner]);
 		
 	}

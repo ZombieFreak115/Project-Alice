@@ -4771,12 +4771,14 @@ uint32_t ef_variable_good_name(EFFECT_PARAMTERS) {
 	auto capital_prov = ws.world.nation_get_capital(nation);
 	auto capital_state = ws.world.province_get_state_membership(capital_prov);
 	auto capital_market = ws.world.state_instance_get_market_from_local_market(capital_state);
+	assert(capital_prov);
 	auto amount  = trigger::read_float_from_payload(tval + 2);
 	auto commodity = trigger::payload(tval[1]).com_id;
 	assert(std::isfinite(amount));
 	if(amount > 0.0f) {
 		// Add to capital stockpile
-		economy::set_government_stockpile(ws, nation, capital_market, commodity, amount);
+		float current = ws.world.market_get_government_stockpile(capital_market, commodity);
+		economy::set_government_stockpile(ws, nation, capital_market, commodity, amount + current);
 	}
 	else {
 		// Walk though state stockpiles starting from the capital and consume from them since the amount to be "gained" is negative. We dont care about the satisfaction rate and simply try to remove as much of the commodities as required
@@ -4794,27 +4796,24 @@ uint32_t ef_variable_good_name(EFFECT_PARAMTERS) {
 	return 0;
 }
 uint32_t ef_variable_good_name_province(EFFECT_PARAMTERS) {
-	if(auto owner = ws.world.province_get_nation_from_province_ownership(trigger::to_prov(primary_slot)); owner) {
-		auto capital_prov = ws.world.nation_get_capital(owner);
-		auto capital_state = ws.world.province_get_state_membership(capital_prov);
-		auto capital_market = ws.world.state_instance_get_market_from_local_market(capital_state);
+	auto prov = trigger::to_prov(primary_slot);
+	if(auto owner = ws.world.province_get_nation_from_province_ownership(prov); owner) {
+		auto prov_state = ws.world.province_get_state_membership(prov);
+		auto state_controller = ws.world.state_instance_get_nation_from_state_control(prov_state);
+		auto prov_market = ws.world.state_instance_get_market_from_local_market(prov_state);
 		auto amount = trigger::read_float_from_payload(tval + 2);
 		auto commodity = trigger::payload(tval[1]).com_id;
 		assert(std::isfinite(amount));
-		if(amount > 0.0f) {
-			// Add to capital stockpile
-			economy::set_government_stockpile(ws, owner, capital_market, commodity, amount);
-		} else {
-			// Walk though state stockpiles starting from the capital and consume from them since the amount to be "gained" is negative. We dont care about the satisfaction rate and simply try to remove as much of the commodities as required
-			static std::vector<dcon::state_instance_id> closest_stockpiles;
-			closest_stockpiles.clear();
-			economy::get_closest_available_market_states(ws, closest_stockpiles, owner, capital_prov);
-
-			economy::commodity_set to_consume{ };
-			to_consume.commodity_type[0] = commodity;
-			to_consume.commodity_amounts[0] = -amount;
-			economy::consume_from_government_stockpiles(ws, to_consume, closest_stockpiles, capital_prov, owner);
+		if(state_controller) {
+			// Add to market
+			float current = ws.world.market_get_government_stockpile(prov_market, commodity);
+			economy::set_government_stockpile(ws, state_controller, prov_market, commodity, std::max(amount + current, 0.0f));
 		}
+		else {
+			float current = ws.world.market_get_government_stockpile(prov_market, commodity);
+			economy::set_rebel_stockpile(ws, prov_market, commodity, std::max(amount + current, 0.0f));
+		}
+
 	}
 	return 0;
 }

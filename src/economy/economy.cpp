@@ -27,10 +27,41 @@
 #include "economy_pops_constants.hpp"
 #include "economy_templates.hpp"
 #include "military_templates.hpp"
-#include "military_light_templates.hpp"
 #include "economy_templates.hpp"
 
 namespace economy {
+
+
+
+dcon::province_id construction_get_location(const sys::state& state, dcon::province_land_construction_id con) {
+		return state.world.pop_get_province_from_pop_location( state.world.province_land_construction_get_pop(con));
+}
+dcon::province_id construction_get_location(const sys::state& state, dcon::province_naval_construction_id con) {
+	return state.world.province_naval_construction_get_province(con);
+}
+dcon::province_id construction_get_location(const sys::state& state, dcon::province_building_construction_id con) {
+	return state.world.province_building_construction_get_province(con);
+}
+dcon::province_id construction_get_location(const sys::state& state, dcon::factory_construction_id con) {
+	return state.world.factory_construction_get_province(con);
+}
+
+
+dcon::nation_id construction_get_controller(const sys::state& state, dcon::province_land_construction_id con) {
+	return state.world.province_land_construction_get_nation(con);
+}
+dcon::nation_id construction_get_controller(const sys::state& state, dcon::province_naval_construction_id con) {
+	return state.world.province_naval_construction_get_nation(con);
+}
+
+dcon::nation_id construction_get_controller(const sys::state& state, dcon::province_building_construction_id con) {
+	return state.world.province_building_construction_get_nation(con);
+}
+dcon::nation_id construction_get_controller(const sys::state& state, dcon::factory_construction_id con) {
+	return state.world.factory_construction_get_nation(con);
+}
+
+
 
 float pop_min_wage_factor(sys::state& state, dcon::nation_id n) {
 	return state.world.nation_get_modifier_values(n, sys::national_mod_offsets::minimum_wage);

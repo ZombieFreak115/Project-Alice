@@ -3,12 +3,8 @@
 #include "military.hpp"
 #include "economy.hpp"
 #include "province.hpp"
-#include "military_light_templates.hpp"
 #include "military_templates.hpp"
-#include "supply_route_light_templates.hpp"
 #include "construction.hpp"
-#include "economy_light_templates.hpp"
-#include "supply_route_light_templates.hpp"
 #include "supply_route_templates.hpp"
 
 namespace supply_routes {
@@ -33,6 +29,83 @@ struct unit {
 	}
 	constexpr unit() = default;
 };
+
+
+dcon::province_id supply_route_get_destination(const sys::state& state, dcon::army_supply_route_id route) {
+	return state.world.army_get_location_from_army_location(state.world.army_supply_route_get_army(route));
+}
+dcon::province_id supply_route_get_destination(const sys::state& state, dcon::navy_supply_route_id route) {
+	return state.world.navy_get_location_from_navy_location(state.world.navy_supply_route_get_navy(route));
+}
+dcon::province_id supply_route_get_destination(const sys::state& state, dcon::land_construction_supply_route_id route) {
+	dcon::province_land_construction_id construction = state.world.land_construction_supply_route_get_construction(route);
+	return state.world.pop_get_province_from_pop_location(state.world.province_land_construction_get_pop(construction));
+}
+dcon::province_id supply_route_get_destination(const sys::state& state, dcon::naval_construction_supply_route_id route) {
+	dcon::province_naval_construction_id construction = state.world.naval_construction_supply_route_get_construction(route);
+	return state.world.province_naval_construction_get_province(construction);
+}
+
+dcon::province_id supply_route_get_origin(const sys::state& state, dcon::army_supply_route_id route) {
+	auto origin = state.world.army_supply_route_get_origin(route);
+	auto state_origin = state.world.market_get_zone_from_local_market(origin);
+	return state.world.state_instance_get_capital(state_origin);
+}
+dcon::province_id supply_route_get_origin(const sys::state& state, dcon::navy_supply_route_id route) {
+	auto origin = state.world.navy_supply_route_get_origin(route);
+	auto state_origin = state.world.market_get_zone_from_local_market(origin);
+	return state.world.state_instance_get_capital(state_origin);
+}
+dcon::province_id supply_route_get_origin(const sys::state& state, dcon::land_construction_supply_route_id route) {
+	auto origin = state.world.land_construction_supply_route_get_origin(route);
+	auto state_origin = state.world.market_get_zone_from_local_market(origin);
+	return state.world.state_instance_get_capital(state_origin);
+}
+dcon::province_id supply_route_get_origin(const sys::state& state, dcon::naval_construction_supply_route_id route) {
+	auto origin = state.world.naval_construction_supply_route_get_origin(route);
+	auto state_origin = state.world.market_get_zone_from_local_market(origin);
+	return state.world.state_instance_get_capital(state_origin);
+}
+
+template<military::unit_consumption_type consumption_type, concepts::military_supply_route_type route_type>
+const economy::huge_commodity_amount_array& military_route_get_buffered_goods(const sys::state& state, route_type route) {
+	auto fat_route = fatten(state.world, route);
+	if constexpr(consumption_type == military::unit_consumption_type::supply) {
+		return fat_route.get_buffered_supply_goods();
+	} else if constexpr(consumption_type == military::unit_consumption_type::reinforcement) {
+		return fat_route.get_buffered_reinforcement_goods();
+	}
+}
+template const economy::huge_commodity_amount_array& military_route_get_buffered_goods<military::unit_consumption_type::supply>(const sys::state& state, dcon::army_supply_route_id route);
+template const economy::huge_commodity_amount_array& military_route_get_buffered_goods<military::unit_consumption_type::supply>(const sys::state& state, dcon::navy_supply_route_id route);
+template const economy::huge_commodity_amount_array& military_route_get_buffered_goods<military::unit_consumption_type::reinforcement>(const sys::state& state, dcon::army_supply_route_id route);
+template const economy::huge_commodity_amount_array& military_route_get_buffered_goods<military::unit_consumption_type::reinforcement>(const sys::state& state, dcon::navy_supply_route_id route);
+
+template<military::unit_consumption_type consumption_type, concepts::military_supply_route_type route_type>
+economy::huge_commodity_amount_array& military_route_get_buffered_goods(sys::state& state, route_type route) {
+	return const_cast<economy::huge_commodity_amount_array&>(military_route_get_buffered_goods<consumption_type>(static_cast<const sys::state&>(state), route));
+}
+template economy::huge_commodity_amount_array& military_route_get_buffered_goods<military::unit_consumption_type::supply>(sys::state& state, dcon::army_supply_route_id route);
+template economy::huge_commodity_amount_array& military_route_get_buffered_goods<military::unit_consumption_type::supply>(sys::state& state, dcon::navy_supply_route_id route);
+template economy::huge_commodity_amount_array& military_route_get_buffered_goods<military::unit_consumption_type::reinforcement>(sys::state& state, dcon::army_supply_route_id route);
+template economy::huge_commodity_amount_array& military_route_get_buffered_goods<military::unit_consumption_type::reinforcement>(sys::state& state, dcon::navy_supply_route_id route);
+
+
+dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::army_supply_route_id route) {
+	return state.world.army_get_controller_from_army_control(state.world.army_supply_route_get_army(route));
+}
+dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::navy_supply_route_id route) {
+	return state.world.navy_get_controller_from_navy_control(state.world.navy_supply_route_get_navy(route));
+}
+dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::land_construction_supply_route_id route) {
+	dcon::province_land_construction_id construction = state.world.land_construction_supply_route_get_construction(route);
+	return state.world.province_land_construction_get_nation(construction);
+}
+dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_construction_supply_route_id route) {
+	dcon::province_naval_construction_id construction = state.world.naval_construction_supply_route_get_construction(route);
+	return state.world.province_naval_construction_get_nation(construction);
+}
+
 
 float port_supply_throughput(const sys::state& state, dcon::province_id port_prov) {
 	constexpr float port_supply_throughput_per_naval_base = 10.0f;
@@ -191,8 +264,8 @@ template<concepts::supply_route_type route_type>
 void update_supply_route_throughput_attrition(sys::state& state, route_type r, dcon::nation_id controller) {
 
 	auto route = fatten(state.world, r);
-	auto origin_prov = supply_route_origin(state, r);
-	auto route_dest = supply_route_destination(state, r);
+	auto origin_prov = supply_route_get_origin(state, r);
+	auto route_dest = supply_route_get_destination(state, r);
 	auto path = route.get_path();
 	auto path_span = std::span<const dcon::province_id>(path.begin(), path.end());
 	auto route_attr = calculate_supply_route_attrition(state, path_span, origin_prov, route_dest, controller);
@@ -207,8 +280,8 @@ void update_supply_route_path(sys::state& state, route_type r) {
 	auto route = fatten(state.world, r);
 	auto market = route.get_origin();
 	auto state_inst = market.get_zone_from_local_market();
-	dcon::nation_id route_owner = supply_routes::supply_route_owner(state, r);
-	dcon::province_id destination_location = supply_routes::supply_route_destination(state, r);
+	dcon::nation_id route_owner = supply_routes::supply_route_get_owner(state, r);
+	dcon::province_id destination_location = supply_routes::supply_route_get_destination(state, r);
 	float volume = route.get_volume();
 	static thread_local std::vector<dcon::province_id> path;
 	path.clear();
@@ -249,8 +322,8 @@ pending_military_supply_route<unit_type> create_pending_supply_route(const sys::
 	path.clear();
 	auto state_inst = state.world.market_get_zone_from_local_market(origin);
 	auto capital = state.world.state_instance_get_capital(state_inst);
-	dcon::province_id unit_loc = military::unit_location(state, unit);
-	dcon::nation_id controller = military::unit_controller(state, unit);
+	dcon::province_id unit_loc = military::unit_get_location(state, unit);
+	dcon::nation_id controller = military::unit_get_controller(state, unit);
 	province::make_military_supply_path(state, state_inst, unit_loc, controller, expected_volume, path);
 	pending_military_supply_route<unit_type> pending_route{
 		.unit = unit,
@@ -275,8 +348,8 @@ pending_construction_supply_route<construction_type> create_pending_supply_route
 	path.clear();
 	auto state_inst = state.world.market_get_zone_from_local_market(origin);
 	auto capital = state.world.state_instance_get_capital(state_inst);
-	dcon::province_id con_loc = economy::construction_location(state, c);
-	dcon::nation_id controller = economy::construction_controller(state, c);
+	dcon::province_id con_loc = economy::construction_get_location(state, c);
+	dcon::nation_id controller = economy::construction_get_controller(state, c);
 	province::make_military_supply_path(state, state_inst, con_loc, controller, expected_volume, path);
 	pending_construction_supply_route<construction_type> pending_route{
 		.construction = construction,
@@ -1385,7 +1458,7 @@ void update_supply_routes_daily(sys::state& state) {
 	// Can be done in parallel
 	begin = std::chrono::steady_clock::now();
 	parallel_for_each_supply_route(state, [&](auto route) {
-		dcon::nation_id controller = supply_route_owner(state, route);
+		dcon::nation_id controller = supply_route_get_owner(state, route);
 		update_supply_route_throughput_attrition(state, route, controller);
 
 	});

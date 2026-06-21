@@ -143,6 +143,42 @@ struct ai_path_length {
 };
 
 
+dcon::province_id unit_get_location(const sys::state& state, dcon::army_id unit);
+dcon::province_id unit_get_location(const sys::state& state, dcon::navy_id unit);
+
+dcon::internal::const_iterator_army_foreach_army_supply_route_as_army_generator unit_get_supply_routes(const sys::state& state, dcon::army_id unit);
+dcon::internal::iterator_army_foreach_army_supply_route_as_army_generator unit_get_supply_routes(sys::state& state, dcon::army_id unit);
+dcon::internal::const_iterator_navy_foreach_navy_supply_route_as_navy_generator unit_get_supply_routes(const sys::state& state, dcon::navy_id unit);
+dcon::internal::iterator_navy_foreach_navy_supply_route_as_navy_generator unit_get_supply_routes(sys::state& state, dcon::navy_id unit);
+
+auto unit_get_membership(const sys::state& state, dcon::army_id unit);
+auto unit_get_membership(sys::state& state, dcon::army_id unit);
+auto unit_get_membership(const sys::state& state, dcon::navy_id unit);
+auto unit_get_membership(sys::state& state, dcon::navy_id unit);
+
+dcon::army_id subunit_get_membership(const sys::state& state, dcon::regiment_id unit);
+dcon::navy_id subunit_get_membership(const sys::state& state, dcon::ship_id unit);
+
+dcon::nation_id unit_get_controller(const sys::state& state, dcon::army_id unit);
+dcon::nation_id unit_get_controller(const sys::state& state, dcon::navy_id unit);
+
+template<unit_consumption_type consumption_type>
+const economy::commodity_set& unit_type_get_commodity_costs(const sys::state& state, dcon::unit_type_id type);
+
+template<unit_consumption_type consumption_type>
+economy::commodity_set& unit_type_get_commodity_costs(sys::state& state, dcon::unit_type_id type);
+
+// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
+template<commodity_consumption_type consumption_type>
+const economy::huge_commodity_id_array& get_military_commodities_union(const sys::state& state);
+
+// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
+template<commodity_consumption_type consumption_type>
+economy::huge_commodity_id_array& get_military_commodities_union(sys::state& state);
+
+
+
+
 void reset_unit_stats(sys::state& state);
 void apply_base_unit_stat_modifiers(sys::state& state);
 void restore_unsaved_values(sys::state& state); // must run after determining connectivity

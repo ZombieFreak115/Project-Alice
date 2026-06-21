@@ -22,12 +22,99 @@
 #include "economy.hpp"
 #include "economy_templates.hpp"
 #include "construction.hpp"
-#include "concept_declarations.hpp"
-#include "military_light_templates.hpp"
-#include "supply_route_light_templates.hpp"
+#include "supply_route.hpp"
 #include "validation.hpp"
 
 namespace military {
+
+dcon::province_id unit_get_location(const sys::state& state, dcon::army_id unit) {
+	return state.world.army_get_location_from_army_location(unit);
+}
+dcon::province_id unit_get_location(const sys::state& state, dcon::navy_id unit) {
+	return state.world.navy_get_location_from_navy_location(unit);
+}
+
+dcon::internal::const_iterator_army_foreach_army_supply_route_as_army_generator unit_get_supply_routes(const sys::state& state, dcon::army_id unit) {
+	return state.world.army_get_army_supply_route(unit);
+}
+dcon::internal::iterator_army_foreach_army_supply_route_as_army_generator  unit_get_supply_routes(sys::state& state, dcon::army_id unit) {
+	return state.world.army_get_army_supply_route(unit);
+}
+dcon::internal::const_iterator_navy_foreach_navy_supply_route_as_navy_generator unit_get_supply_routes(const sys::state& state, dcon::navy_id unit) {
+	return state.world.navy_get_navy_supply_route(unit);
+}
+dcon::internal::iterator_navy_foreach_navy_supply_route_as_navy_generator unit_get_supply_routes(sys::state& state, dcon::navy_id unit) {
+	return state.world.navy_get_navy_supply_route(unit);
+}
+
+auto unit_get_membership(const sys::state& state, dcon::army_id unit) {
+	return state.world.army_get_army_membership(unit);
+}
+auto unit_get_membership(sys::state& state, dcon::army_id unit) {
+	return state.world.army_get_army_membership(unit);
+}
+auto unit_get_membership(const sys::state& state, dcon::navy_id unit) {
+	return state.world.navy_get_navy_membership(unit);
+}
+auto unit_get_membership(sys::state& state, dcon::navy_id unit) {
+	return state.world.navy_get_navy_membership(unit);
+}
+
+dcon::army_id subunit_get_membership(const sys::state& state, dcon::regiment_id unit) {
+	return state.world.regiment_get_army_from_army_membership(unit);
+}
+dcon::navy_id subunit_get_membership(const sys::state& state, dcon::ship_id unit) {
+	return state.world.ship_get_navy_from_navy_membership(unit);
+}
+
+dcon::nation_id unit_get_controller(const sys::state& state, dcon::army_id unit) {
+	return state.world.army_get_controller_from_army_control(unit);
+}
+dcon::nation_id unit_get_controller(const sys::state& state, dcon::navy_id unit) {
+	return state.world.navy_get_controller_from_navy_control(unit);
+}
+
+
+
+
+template<unit_consumption_type consumption_type>
+const economy::commodity_set& unit_type_get_commodity_costs(const sys::state& state, dcon::unit_type_id type) {
+	if constexpr(consumption_type == unit_consumption_type::supply) {
+		return state.military_definitions.unit_base_definitions[type].supply_cost;
+	} else if constexpr(consumption_type == unit_consumption_type::reinforcement) {
+		return state.military_definitions.unit_base_definitions[type].build_cost;
+	}
+}
+
+template<unit_consumption_type consumption_type>
+economy::commodity_set& unit_type_get_commodity_costs(sys::state& state, dcon::unit_type_id type) {
+	return const_cast<economy::commodity_set&>( unit_type_commodity_costs<consumption_type>(static_cast<const sys::state&>(state), type));
+}
+
+
+template<commodity_consumption_type consumption_type>
+const economy::huge_commodity_id_array& get_military_commodities_union(const sys::state& state) {
+
+	if constexpr(consumption_type == commodity_consumption_type::supply) {
+		return state.military_definitions.military_supply_goods;
+	} else if constexpr(consumption_type == commodity_consumption_type::reinforcement) {
+		return state.military_definitions.military_build_goods;
+	} else if constexpr(consumption_type == commodity_consumption_type::both) {
+		return state.military_definitions.military_supply_build_goods;
+	}
+}
+template const economy::huge_commodity_id_array& get_military_commodities_union< commodity_consumption_type::both>(const sys::state& state);
+template const economy::huge_commodity_id_array& get_military_commodities_union< commodity_consumption_type::supply>(const sys::state& state);
+template const economy::huge_commodity_id_array& get_military_commodities_union< commodity_consumption_type::reinforcement>(const sys::state& state);
+
+template<commodity_consumption_type consumption_type>
+economy::huge_commodity_id_array& get_military_commodities_union(sys::state& state) {
+	return const_cast<economy::huge_commodity_id_array&>(get_military_commodities_union<consumption_type>(static_cast<const sys::state&>(state)));
+}
+template economy::huge_commodity_id_array& get_military_commodities_union< commodity_consumption_type::both>(sys::state& state);
+template economy::huge_commodity_id_array& get_military_commodities_union< commodity_consumption_type::supply>(sys::state& state);
+template economy::huge_commodity_id_array& get_military_commodities_union< commodity_consumption_type::reinforcement>(sys::state& state);
+
 
 
 // this function should be used
@@ -9517,7 +9604,7 @@ economy::huge_commodity_amount_array get_last_required_supply(const sys::state& 
 	}();
 	economy::huge_commodity_amount_array commodities(commodity_types.size());
 
-	const auto membership = unit_membership(state, unit);
+	const auto membership = unit_get_membership(state, unit);
 	for(auto s : membership) {
 		auto subunit = [&]() {
 			if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
@@ -9537,7 +9624,7 @@ economy::huge_commodity_amount_array get_last_required_supply(const sys::state& 
 				return subunit.get_last_potential_reinforcement();
 			}
 		}();
-		const economy::commodity_set& goods_cost = unit_type_commodity_costs<consumption_type>(state, type);
+		const economy::commodity_set& goods_cost = unit_type_get_commodity_costs<consumption_type>(state, type);
 		for(uint32_t i = 0; i < goods_cost.set_size; ++i) {
 			auto com_type = goods_cost.commodity_type[i];
 			if(com_type) {
@@ -9569,9 +9656,9 @@ template<unit_consumption_type consumption_type, concepts::military_unit unit_ty
 economy::huge_commodity_amount_array get_last_fufilled_supply(const sys::state& state, unit_type u) {
 	const auto& commodity_types = military::get_military_commodities_union<military::to_consumption_type(consumption_type)>(state);
 	economy::huge_commodity_amount_array fufilled(commodity_types.size());
-	auto routes = unit_supply_routes(state, u);
+	auto routes = unit_get_supply_routes(state, u);
 	for(auto route : routes) {
-		const economy::huge_commodity_amount_array& buffered_goods = supply_routes::military_route_buffered_goods<consumption_type>(state, route.id);
+		const economy::huge_commodity_amount_array& buffered_goods = supply_routes::military_route_get_buffered_goods<consumption_type>(state, route.id);
 		for(uint32_t i = 0; i < commodity_types.size(); i++) {
 			auto com_id = commodity_types[i];
 			assert(com_id);

@@ -22,8 +22,7 @@
 #include "commands.hpp"
 #include "economy_templates.hpp"
 #include "concept_declarations.hpp"
-#include "supply_route_light_templates.hpp"
-#include "military_light_templates.hpp"
+#include "supply_route.hpp"
 
 namespace ui {
 
@@ -2215,10 +2214,10 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 	// We get the last requires supplies instead of the future required supplies because all the route data is current
 	commodities_required = military::get_last_required_supply<supply_type>(state, unit);
 
-	auto routes = military::unit_supply_routes(state, unit);
+	auto routes = military::unit_get_supply_routes(state, unit);
 
 	for(auto route : routes) {
-		const economy::huge_commodity_amount_array& buffered_goods = supply_routes::military_route_buffered_goods<supply_type>(state, route.id);
+		const economy::huge_commodity_amount_array& buffered_goods = supply_routes::military_route_get_buffered_goods<supply_type>(state, route.id);
 		for(uint32_t i = 0; i < commodity_types.size(); i++) {
 			dcon::commodity_id com_id = commodity_types[i];
 			assert(com_id);
