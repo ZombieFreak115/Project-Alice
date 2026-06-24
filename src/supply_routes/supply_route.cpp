@@ -6,6 +6,7 @@
 #include "military_templates.hpp"
 #include "construction.hpp"
 #include "supply_route_templates.hpp"
+#include "supply_route.hpp"
 
 namespace supply_routes {
 
@@ -107,7 +108,7 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_cons
 }
 
 
-float port_supply_throughput(const sys::state& state, dcon::province_id port_prov) {
+float port_supply_capacity_modifier(const sys::state& state, dcon::province_id port_prov) {
 	constexpr float port_supply_throughput_per_naval_base = 10.0f;
 	constexpr float base_port_supply_throughput = 0.1f;
 	assert(state.world.province_get_port_to(port_prov)); // Should always be a port prov
@@ -119,34 +120,92 @@ float port_supply_throughput(const sys::state& state, dcon::province_id port_pro
 
 
 
-constexpr float infinite_supply_thoughput = 999999999999999.0f;
-constexpr float base_naval_supply_throughput_per_km_speed = infinite_supply_thoughput;
-constexpr float base_supply_throughput_per_km_speed = 10.0f; // Supply throughput per 1 km/h speed. Eg if set to 100 and a nation has a speed of 4 km/h, then the base is 400
-constexpr float supply_throughput_infrastructure = 6.0f; // Extra supply throughput per 1% of infrastructure
-constexpr float base_land_supply_attrition = 0.0000001f;
-constexpr float base_sea_supply_attrition = 0.0f;
 
-constexpr float control_level_supply_attrition = 0.0001f; // the supply loss % per km of travel if province control is 0%. Scales back to 0 at 100% control.
-constexpr float militancy_supply_attrition = 0.00005f; // the supply loss % per km of travel per average militancy in the province.
-constexpr float hostile_army_supply_attrition = 0.008f; // the supply loss % per km of travel per POP_SIZE_PER_REGIMENT enemy strength present in the land province
-constexpr float hostile_navy_supply_attrition = 0.008f; // the supply loss % per km of travel per 100% enemy ship strength present in the sea province
+
+float get_enemy_blockade_power(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
+	assert(province::is_sea(state, prov) && !province::province_is_deep_waters(state, prov));
+	// TODO: actually compute blockade power
+	return military::navy_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, prov, nation_as) * 1.0f;
+}
+
+
+float supply_throughput_speed_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
+	bool is_sea = province::is_sea(state, province);
+	float movement_cost = province::movement_cost(state, province);
+	float speed = (is_sea ? nations::naval_supply_speed(state, nation_as) : nations::land_supply_speed(state, nation_as));
+	return (is_sea ? supply_throughput_per_km_naval_speed : supply_throughput_per_km_land_speed) * (speed / movement_cost);
+}
+
+float supply_throughput_infrastructure_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
+	float infrastructure = province::get_infrastructure(state, province) * 100.0f;
+	return supply_throughput_infrastructure * infrastructure;
+}
+
 
 // Draft values
-float max_supply_throughput(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
+float supply_throughput_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 	auto is_sea = province::is_sea(state, province);
-	float speed;
-	float movement_cost = province::movement_cost(state, province);
-	if(is_sea) {
-		speed = nations::naval_supply_speed(state, nation_as);
-		return base_naval_supply_throughput_per_km_speed * (speed / movement_cost);
-	}
-	bool has_access = province::has_supply_access_to_province(state, nation_as, province);
-	float infrastructure = province::get_infrastructure(state, province) * 100.0f;
-	float siege_progress = state.world.province_get_siege_progress(province);
-	speed = nations::land_supply_speed(state, nation_as);
-	return std::max((base_supply_throughput_per_km_speed * (speed / movement_cost) + supply_throughput_infrastructure * infrastructure) * (has_access ? 1.0f - siege_progress : 0.0f), 0.0f);
+	float from_base = (is_sea ? sea_base_supply_thoughput : land_base_supply_thoughput);
+	float from_speed = supply_throughput_speed_modifier(state, province, nation_as);
+	float from_infra = is_sea ? 1.0f : supply_throughput_infrastructure_modifier(state,  province, nation_as);
+	return std::max(from_speed + from_infra, 0.0f);
 }
-float province_supply_attrition(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
+
+float supply_throughput_percentage_access_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
+	bool has_access = province::has_supply_access_to_province(state, nation_as, province);
+	float siege_progress = state.world.province_get_siege_progress(province);
+	return has_access ? 1.0f - siege_progress : 0.0f;
+}
+
+float supply_throughput_percentage_blockade_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
+	// prev_prov may be invalid to signifiy no previous province
+	assert(prov);
+	assert(nation_as);
+
+	if(province::is_sea(state, prov)) {
+		if(province::province_is_deep_waters(state, prov)) {
+			return 1.0f; // Can't blockade deep waters (for balance)
+		}
+		else {
+			float blockade_power = military::navy_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, prov, nation_as);
+			float province_size_km2 = state.map_state.map_data.province_area_km2[province::to_map_id(prov)];
+			float blockade_mod = blockade_power * province_size_km2 / 1000.0f;
+			return navy_supply_throughput_coastal_sea_blockade_threshold > 0.0f ? std::max((navy_supply_throughput_coastal_sea_blockade_threshold - blockade_mod) / navy_supply_throughput_coastal_sea_blockade_threshold, 0.f) : 1.0f;
+		}
+	} else {
+		float enemy_strength_present = military::army_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, prov, nation_as);
+		return army_supply_throughput_blockade_threshold > 0.0f ? std::max((army_supply_throughput_blockade_threshold - enemy_strength_present) / army_supply_throughput_blockade_threshold, 0.f) : 1.0f;
+	}
+}
+
+float supply_throughput_percentage_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
+	// prev_prov may be invalid to signifiy no previous province
+	assert(prov);
+	assert(nation_as);
+
+	float from_access = supply_throughput_percentage_access_modifier(state, prov, nation_as);
+	float from_blockade = supply_throughput_percentage_blockade_modifier(state, prov, nation_as);
+	float result =  std::max(1.0f - ((1.0f - from_access) + (1.0f - from_blockade)), 0.0f);
+	assert(result >= 0.0f && result <= 1.0f);
+	return result;
+
+}
+float combined_supply_throughput_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
+	return supply_throughput_modifier(state, prov, nation_as) * supply_throughput_percentage_modifier(state, prov, nation_as);
+}
+
+float supply_throughput_efficiency(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
+	// prev_prov may be invalid to signifiy no previous province
+	assert(prov);
+	assert(nation_as);
+	float used_supply_throughput = state.world.province_get_used_supply_throughput(prov);
+	float percentage_mod = supply_throughput_percentage_modifier(state, prov, nation_as);
+	float throughput = supply_throughput_modifier(state, prov, nation_as) * percentage_mod;
+	float effective_throughput_rate = std::min(throughput / (used_supply_throughput == 0.0f ? 1.0f : used_supply_throughput), 1.0f);
+	return effective_throughput_rate;
+
+}
+float province_supply_attrition_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 	bool province_is_sea = province::is_sea(state, province);
 	if(province_is_sea) {
 		auto enemy_strength_present = military::navy_strength_present<military::battle_allowed::no, military::retreat_allowed::no, military::participants_included::enemies>(state, province, nation_as);
@@ -162,21 +221,21 @@ float province_supply_attrition(const sys::state& state, dcon::province_id provi
 	return std::clamp(1.0f - (base_land_supply_attrition + control_level_supply_attrition * (1.0f - control_level) + militancy_supply_attrition * avg_militancy + hostile_army_supply_attrition * enemy_strength_present), 0.1f, 1.0f);
 }
 
-float avg_adjacency_supply_attrition(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as) {
+float avg_adjacency_supply_attrition_modifier(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as) {
 	assert(state.world.get_province_adjacency_by_province_pair(prov_1, prov_2));
-	auto avg_supply_attr = (province_supply_attrition(state, prov_1, nation_as) + province_supply_attrition(state, prov_2, nation_as)) / 2.0f;
+	auto avg_supply_attr = (province_supply_attrition_modifier(state, prov_1, nation_as) + province_supply_attrition_modifier(state, prov_2, nation_as)) / 2.0f;
 	return avg_supply_attr;
 }
-float avg_adjacency_supply_attrition(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as) {
+float avg_adjacency_supply_attrition_modifier(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as) {
 	auto prov_1 = state.world.province_adjacency_get_connected_provinces(province_adj, 0);
 	auto prov_2 = state.world.province_adjacency_get_connected_provinces(province_adj, 1);
-	return avg_adjacency_supply_attrition(state, prov_1, prov_2, nation_as);
+	return avg_adjacency_supply_attrition_modifier(state, prov_1, prov_2, nation_as);
 }
 
-float adjacency_supply_attrition(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as) {
+float adjacency_supply_attrition_modifier(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as) {
 	auto prov_1 = state.world.province_adjacency_get_connected_provinces(province_adj, 0);
 	auto prov_2 = state.world.province_adjacency_get_connected_provinces(province_adj, 1);
-	auto avg_supply_attr = avg_adjacency_supply_attrition(state, province_adj, nation_as);
+	auto avg_supply_attr = avg_adjacency_supply_attrition_modifier(state, province_adj, nation_as);
 	auto distance = state.world.province_adjacency_get_distance_km(province_adj) * military::get_avg_movement_cost_modifier(state, nation_as, prov_1, prov_2);
 	assert(std::isfinite(distance * avg_supply_attr));
 	return std::powf(avg_supply_attr, distance);
@@ -192,9 +251,8 @@ float calculate_supply_route_throughput(const sys::state& state, std::span<const
 	float smallest_supply_throughput = 1.0f;
 	for(uint32_t i = 0; i < path.size(); i++) {
 		auto prov = path[i];
-		float used_supply_throughput = state.world.province_get_used_supply_throughput(prov);
-		float local_supply_throughput = std::min(max_supply_throughput(state, prov, controller) / (used_supply_throughput == 0.0f ? 1.0f : used_supply_throughput), 1.0f);
-		smallest_supply_throughput = std::min(smallest_supply_throughput, local_supply_throughput);
+		float province_throughput = supply_throughput_efficiency(state, prov, controller);
+		smallest_supply_throughput = std::min(smallest_supply_throughput, province_throughput);
 	}
 	return smallest_supply_throughput;
 }
@@ -213,11 +271,11 @@ float calculate_supply_route_attrition(const sys::state& state, std::span<const 
 			auto next_prov = path[i + 1];
 			auto adj = state.world.get_province_adjacency_by_province_pair(prov, next_prov);
 			assert(adj);
-			total_attrition_mod *= adjacency_supply_attrition(state, adj, controller);
+			total_attrition_mod *= adjacency_supply_attrition_modifier(state, adj, controller);
 			assert(std::isfinite(total_attrition_mod));
 		}
 	}
-	return total_attrition_mod;
+	return std::max(total_attrition_mod, 0.5f); // capped at 50% loss
 }
 
 template<concepts::military_unit unit_type>

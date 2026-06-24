@@ -5,6 +5,7 @@
 #include "labour_details.hpp"
 #include "economy_production.hpp"
 #include "construction.hpp"
+#include "supply_route.hpp"
 
 namespace ui {
 
@@ -385,5 +386,7 @@ void province_owner_rgo_commodity_tooltip(sys::state& state, text::columnar_layo
 		}
 	}
 };
+
+
 
 }

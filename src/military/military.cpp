@@ -992,7 +992,7 @@ uint32_t state_railroad_level(sys::state const& state, dcon::state_instance_id s
 }
 // wrapper for are_at_war which also returns true if one of the tags is rebel, and the other is not
 bool are_enemies(sys::state const& state, dcon::nation_id a, dcon::nation_id b) {
-	if((!a && a) || (b && !a)) {
+	if((!b && a) || (b && !a)) {
 		return true;
 	} else {
 		return are_at_war(state, a, b);

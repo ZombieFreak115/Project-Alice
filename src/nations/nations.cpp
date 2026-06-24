@@ -175,7 +175,8 @@ void restore_unsaved_values(sys::state& state) {
 }
 
 float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
-	float fastest_speed = 0.01f;
+	constexpr float min_land_speed = 1.0f;
+	float fastest_speed = 1.0f;
 	for(uint32_t i = 0; i < state.military_definitions.unit_base_definitions.size(); ++i) {
 		dcon::unit_type_id type{ dcon::unit_type_id::value_base_t(i) };
 		auto unit_type = state.military_definitions.unit_base_definitions[type].type;
@@ -190,7 +191,8 @@ float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
 
 
 float land_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
-	float fastest_speed = 0.01f;
+	constexpr float min_land_speed = 1.0f;
+	float fastest_speed = min_land_speed;
 	for(uint32_t i = 0; i < state.military_definitions.unit_base_definitions.size(); ++i) {
 		dcon::unit_type_id type{ dcon::unit_type_id::value_base_t(i) };
 		auto unit_type = state.military_definitions.unit_base_definitions[type].type;

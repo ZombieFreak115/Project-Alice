@@ -37,7 +37,7 @@ struct naval_range_data {
 	bool is_reachable;
 };
 
-bool province_is_deep_waters(sys::state& state, dcon::province_id prov);
+bool province_is_deep_waters(const sys::state& state, dcon::province_id prov);
 bool sea_province_is_adjacent_to_accessible_coast(sys::state& state, dcon::province_id prov, dcon::nation_id nation);
 
 bool nations_are_adjacent(sys::state& state, dcon::nation_id a, dcon::nation_id b);

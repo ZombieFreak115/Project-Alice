@@ -59,7 +59,7 @@ bool provinces_are_adjacent(sys::state& state, dcon::province_id a, dcon::provin
 	return bool(adj);
 }
 
-bool province_is_deep_waters(sys::state& state, dcon::province_id prov) {
+bool province_is_deep_waters(const sys::state& state, dcon::province_id prov) {
 	assert(prov.index() >= state.province_definitions.first_sea_province.index());
 	
 	for(auto adj : state.world.province_get_province_adjacency(prov)) {
@@ -2282,6 +2282,7 @@ dcon::province_id state_get_coastal_capital(sys::state const& state, dcon::state
 	return result;
 }
 
+
 bool state_is_coastal(sys::state& state, dcon::state_instance_id s) {
 	auto d = state.world.state_instance_get_definition(s);
 	auto o = state.world.state_instance_get_nation_from_state_ownership(s);
@@ -2529,6 +2530,11 @@ bool has_safe_access_to_province(sys::state& state, dcon::nation_id nation_as, d
 
 bool has_supply_access_to_province(const sys::state& state, dcon::nation_id nation_as, dcon::province_id prov) {
 	assert(nation_as);
+
+	if(province::is_sea(state, prov)) {
+		return true; // Sea provinces are always accessible. Blockades are resolved elsewhere
+	}
+
 	auto controller = state.world.province_get_nation_from_province_control(prov);
 
 	if(!controller)
@@ -3011,36 +3017,40 @@ std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& st
 
 // Creates a military supply path, but will actively try to find the path with good supply thoughput and supply attrition. Path is inserted into the passed-in buffer. Buffer must be cleared first
 void make_military_supply_path(const sys::state& state, dcon::state_instance_id origin, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result) {
+	struct iteration_data {
+		float supply_throughput{};
+		float supply_attrition{};
+	};
+
 	auto start = state.world.state_instance_get_capital(origin);
 
-	auto adjacency_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj) {
-		// Cannot go though this adjacency if there is a port_to province on either end, and its blockaded
-		dcon::province_id to_port_to = state.world.province_get_port_to(to);
-		dcon::province_id from_port_to = state.world.province_get_port_to(from);
-		if((to_port_to && to_port_to == from && military::province_has_fleet<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, from, nation_as)) ||
-		   (from_port_to && from_port_to == to && military::province_has_fleet<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, to, nation_as))) {
-			return false;
-		}
+	auto adjacency_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, iteration_data data) {
+		// Most of the checks were done in the province func already
 		return !is_adjacency_impassable(state, nation_as, adj);
 	};
-	auto province_func = [&](dcon::province_id to) {
-		if(province::is_land(state, to)) { // is land;
-			return has_supply_access_to_province(state, nation_as, to);
-		} else {
-			return true; // Can pass though enemy ships on the seas, but ports being blockaded are handled in the adjacency check
-		}
+	auto province_func = [&](dcon::province_id to, iteration_data data) {
+		return data.supply_throughput > 0.0; // No point if the throughput is zero anyway
 
 	};
-	auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance) {
-		// Take into account the expected supply thoughput comsumption (max_supply_thoughput + expected_volume) and multiply with supply attrition to get a heuristic of the cost
-		float used_supply_thoughput = state.world.province_get_used_supply_throughput(to);
-		float thoughput_factor = (used_supply_thoughput != 0.0f ? std::min((supply_routes::max_supply_throughput(state, to, nation_as) + expected_volume) / used_supply_thoughput, 1.0f) : 1.0f);
-		return (distance / supply_routes::avg_adjacency_supply_attrition(state, to, from, nation_as)) * thoughput_factor;
+	auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data data) {
+		// Take into account the expected supply throughput, and supply attrition
+		assert(data.supply_throughput > 0.0f);
+		assert(data.supply_attrition > 0.0f);
+		return (distance / data.supply_attrition) / data.supply_throughput;
+		
+
+	};
+	auto province_init_func = [&](dcon::province_id to, iteration_data& data) {
+		data.supply_throughput = supply_routes::supply_throughput_efficiency(state, to, nation_as);
+
+	};
+	auto adj_init_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data& data) {
+		data.supply_attrition = supply_routes::avg_adjacency_supply_attrition_modifier(state, to, from, nation_as);
 
 	};
 	// We are passing "start" province as end, and "end" as start. This is because creating the path in reverse has some desired effects. For example it means the province the army is on will not be path of the path (so that you wont lose supply instantly when adjacen to a friendly province)
 	// And will enable faster early-exists if units are deep in enemy territory
-	make_path_to_prov<1.0f>(state, end, start, path_result, adjacency_func, province_func, modifier_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
+	make_path_to_prov<1.0f, iteration_data>(state, end, start, path_result, adjacency_func, province_func, modifier_func, province_init_func, adj_init_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
 
 }
 
