@@ -1816,10 +1816,32 @@ void populate_navy_consumption(sys::state& state) {
 
 void set_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount) {
 	assert(controller);
+	assert(amount >= 0.0f);
 	float current_local = state.world.market_get_government_stockpile(market, commodity);
 	float diff =  amount - current_local;
 	state.world.market_set_government_stockpile(market, commodity, amount);
 	state.world.nation_set_total_stockpiles(controller, commodity, std::max(state.world.nation_get_total_stockpiles(controller, commodity) + diff, 0.0f)); // Clamp to prevent negatives as fp rounding may cause it to go negative
+	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
+	assert(state.world.nation_get_total_stockpiles(controller, commodity) >= 0.0f);
+}
+
+void add_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount) {
+	assert(amount >= 0.0f);
+	assert(controller);
+	float current_local = state.world.market_get_government_stockpile(market, commodity);
+	state.world.market_set_government_stockpile(market, commodity, current_local + amount);
+	float current_national = state.world.nation_get_total_stockpiles(controller, commodity);
+	state.world.nation_set_total_stockpiles(controller, commodity, current_national + amount);
+	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
+	assert(state.world.nation_get_total_stockpiles(controller, commodity) >= 0.0f);
+}
+void subtract_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount) {
+	assert(amount >= 0.0f);
+	assert(controller);
+	float current_local = state.world.market_get_government_stockpile(market, commodity);
+	state.world.market_set_government_stockpile(market, commodity, std::max(current_local - amount, 0.0f));
+	float current_national = state.world.nation_get_total_stockpiles(controller, commodity);
+	state.world.nation_set_total_stockpiles(controller, commodity, std::max(current_national - amount, 0.0f));
 	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
 	assert(state.world.nation_get_total_stockpiles(controller, commodity) >= 0.0f);
 }
@@ -1834,8 +1856,25 @@ void set_government_stockpile(sys::state& state, nation_type controller, market_
 	assert(state.world.nation_get_total_stockpiles(controller, commodity) >= 0.0f);
 }
 void set_rebel_stockpile(sys::state& state, dcon::market_id market, dcon::commodity_id com_id, float amount) {
+	assert(amount >= 0.0f);
+	assert(market);
 	state.world.market_set_government_stockpile(market, com_id, amount);
 	assert(state.world.market_get_government_stockpile(market, com_id) >= 0.0f);
+}
+
+void add_rebel_stockpile(sys::state& state, dcon::market_id market, dcon::commodity_id commodity, float amount) {
+	assert(amount >= 0.0f);
+	assert(market);
+	float current_local = state.world.market_get_government_stockpile(market, commodity);
+	state.world.market_set_government_stockpile(market, commodity, current_local + amount);
+	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
+}
+void subtract_rebel_stockpile(sys::state& state, dcon::market_id market, dcon::commodity_id commodity, float amount) {
+	assert(amount >= 0.0f);
+	assert(market);
+	float current_local = state.world.market_get_government_stockpile(market, commodity);
+	state.world.market_set_government_stockpile(market, commodity, std::max(current_local - amount, 0.0f));
+	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
 }
 
 

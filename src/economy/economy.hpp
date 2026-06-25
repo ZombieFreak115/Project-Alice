@@ -52,10 +52,19 @@ float subsistence_max_pseudoemployment(sys::state& state, dcon::province_id p);
 bool has_building(sys::state const& state, dcon::state_instance_id si, dcon::factory_type_id fac);
 bool is_bankrupt_debtor_to(sys::state& state, dcon::nation_id debt_holder, dcon::nation_id debtor);
 
+// Sets the government stockpile in the market controlled by the controller to the specific amount
 void set_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount);
+// Adds the given amount to the government stockpile in the market controlled by the controller
+void add_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount);
+// Subtracts the given amount to the government stockpile in the market controlled by the controller (expects a positive number)
+void subtract_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount);
 
 // Works just like set_government_stockpile, but assumes the market is controlled by rebels
 void set_rebel_stockpile(sys::state& state, dcon::market_id market, dcon::commodity_id com_id, float amount);
+// Works just like add_government_stockpile, but assumes the market is controlled by rebels
+void add_rebel_stockpile(sys::state& state, dcon::market_id market, dcon::commodity_id commodity, float amount);
+// Works just like subtract_government_stockpile, but assumes the market is controlled by rebels
+void subtract_rebel_stockpile(sys::state& state, dcon::market_id market, dcon::commodity_id commodity, float amount);
 
 template<price_estimation price_est>
 float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, const tagged_vector<float, dcon::commodity_id>& goods);

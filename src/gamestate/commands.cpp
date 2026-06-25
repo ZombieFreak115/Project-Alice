@@ -982,7 +982,7 @@ void execute_cancel_naval_unit_construction(sys::state& state, dcon::nation_id s
 			c = lc.id;
 		}
 	}
-	state.world.delete_province_naval_construction(c);
+	economy::delete_unit_construction<economy::construction_completed::no>(state, c);
 }
 
 void cancel_land_unit_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::culture_id soldier_culture, dcon::unit_type_id type) {
@@ -1012,7 +1012,7 @@ void execute_cancel_land_unit_construction(sys::state& state, dcon::nation_id so
 			}
 		}
 	}
-	state.world.delete_province_land_construction(c);
+	economy::delete_unit_construction<economy::construction_completed::no>(state, c);
 }
 
 void delete_factory(sys::state& state, dcon::nation_id source, dcon::factory_id f) {

@@ -16,6 +16,7 @@
 #include "economy.hpp"
 #include "military_templates.hpp"
 #include "supply_route.hpp"
+#include "construction.hpp"
 
 namespace province {
 
@@ -593,6 +594,19 @@ void set_province_controller(sys::state& state, dcon::province_id p, dcon::natio
 		// Schedule supply route update for routes which pass through this province
 		military::schedule_supply_paths_update(state, p);
 		state.military_definitions.pending_blackflag_update = true;
+		// Delete unit constructions in the occupied province
+		for(auto pop_loc : state.world.province_get_pop_location(p)) {
+			auto land_cons = pop_loc.get_pop().get_province_land_construction();
+			while(land_cons.begin() != land_cons.end()) {
+				auto con = *(land_cons.begin());
+				economy::delete_unit_construction<economy::construction_completed::no>(state, con.id);
+			}
+		}
+		auto naval_cons = state.world.province_get_province_naval_construction(p);
+		while(naval_cons.begin() != naval_cons.end()) {
+			auto con = *(naval_cons.begin());
+			economy::delete_unit_construction<economy::construction_completed::no>(state, con.id);
+		}
 	}
 }
 
@@ -1454,7 +1468,8 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 			}
 			auto lc = p.get_pop().get_province_land_construction();
 			while(lc.begin() != lc.end()) {
-				state.world.delete_province_land_construction(*(lc.begin()));
+				auto con = *(lc.begin());
+				economy::delete_unit_construction<economy::construction_completed::no>(state, con.id);
 			}
 		}
 		//  safely delete the regiment instead of transferring it to the new owner
@@ -1568,7 +1583,8 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 	{
 		auto rng = state.world.province_get_province_naval_construction(id);
 		while(rng.begin() != rng.end()) {
-			state.world.delete_province_naval_construction(*(rng.begin()));
+			auto con = *(rng.begin());
+			economy::delete_unit_construction<economy::construction_completed::no>(state, con.id);
 		}
 	}
 

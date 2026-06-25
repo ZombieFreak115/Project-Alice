@@ -864,8 +864,23 @@ void supply_loss_map_tt_box(sys::state& state, text::columnar_layout& contents, 
 void supply_throughput_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {
 	if(prov) {
 		auto fat = dcon::fatten(state.world, prov);
-		float supply_throughput = supply_routes::supply_throughput_modifier(state, prov, state.local_player_nation);
-		text::add_line(state, contents, "mapmode_tooltip_46", text::variable_type::val, text::fp_one_place{ supply_throughput });
+		float from_base = province::is_sea(state, prov) ? supply_routes::sea_base_supply_thoughput : supply_routes::land_base_supply_thoughput;
+		float from_speed = supply_routes::supply_throughput_speed_modifier(state, prov, state.local_player_nation);
+		float from_infra = supply_routes::supply_throughput_infrastructure_modifier(state, prov, state.local_player_nation);
+		float supply_throughput = supply_routes::combined_supply_throughput_modifier(state, prov, state.local_player_nation);
+		float blockade_mod = supply_routes::supply_throughput_percentage_blockade_modifier(state, prov, state.local_player_nation);
+		float access_mod = supply_routes::supply_throughput_percentage_access_modifier(state, prov, state.local_player_nation);
+		text::add_line(state, contents, "supply_throughput_total_tooltip", text::variable_type::value, text::fp_one_place{ supply_throughput }, 0);
+
+		text::add_line(state, contents, "supply_throughput_base_tooltip", text::variable_type::value, text::fp_one_place{ from_base }, 20);
+		text::add_line(state, contents, "supply_throughput_speed_tooltip", text::variable_type::value, text::fp_one_place{ from_speed }, 20);
+		text::add_line(state, contents, "supply_throughput_infrastructure_tooltip", text::variable_type::value, text::fp_one_place{ from_infra }, 20);
+		if(access_mod != 1.0f) {
+			text::add_line(state, contents, "supply_throughput_percentage_access_tooltip", text::variable_type::value, text::fp_percentage_two_places{ access_mod }, 20);
+		}
+		if(blockade_mod != 1.0f) {
+			text::add_line(state, contents, "supply_throughput_percentage_blockade_tooltip", text::variable_type::value, text::fp_percentage_two_places{ blockade_mod }, 20);
+		}
 	}
 }
 
@@ -898,10 +913,7 @@ void supply_route_efficiency_map_tt_box(sys::state& state, text::columnar_layout
 		if(province::is_sea(state, prov) && province::province_is_deep_waters(state, prov)) {
 			text::add_line(state, contents, "cant_blockade_ocean_tooltip", 0);
 		}
-		
-
 	}
-
 }
 
 

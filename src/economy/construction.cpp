@@ -9,6 +9,64 @@
 
 namespace economy {
 
+template<construction_completed completed, concepts::military_construction_type mil_construction_type>
+void delete_unit_construction(sys::state& state, mil_construction_type c) {
+	auto construction = fatten(state.world, c);
+	dcon::province_id location = construction_get_location(state, construction.id);
+	dcon::nation_id location_controller = construction_get_controller(state, construction.id);
+	auto state_inst = state.world.province_get_state_membership(location);
+	auto market = state_inst.get_market_from_local_market();
+	dcon::unit_type_id type = construction.get_type();
+	const auto& fufilled_goods = construction.get_purchased_goods();
+	const auto& base_build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
+	// Give back all of the purchased goods to the local stockpile if the construction was not completed. If it was completed, only give back the extra goods above what was needed
+	if(location_controller) {
+		for(uint32_t i = 0; i < base_build_cost.set_size; i++) {
+			dcon::commodity_id com_id = base_build_cost.commodity_type[i];
+			assert(base_build_cost.commodity_type[i] == fufilled_goods.commodity_type[i]);
+			if(com_id) {
+				float fufilled_amount = fufilled_goods.commodity_amounts[i];
+				if constexpr(completed == construction_completed::no) {
+					add_government_stockpile(state, location_controller, market, com_id, fufilled_amount);
+				} else if constexpr(completed == construction_completed::yes) {
+					float cost_amount = base_build_cost.commodity_amounts[i] * build_cost_multiplier(state, location, false);
+					add_government_stockpile(state, location_controller, market, com_id, std::max(fufilled_amount - cost_amount, 0.0f));
+				}
+			}
+			else {
+				break;
+			}
+		}
+	}
+	else {
+		for(uint32_t i = 0; i < base_build_cost.set_size; i++) {
+			dcon::commodity_id com_id = base_build_cost.commodity_type[i];
+			assert(base_build_cost.commodity_type[i] == fufilled_goods.commodity_type[i]);
+			if(com_id) {
+				float fufilled_amount = fufilled_goods.commodity_amounts[i];
+				if constexpr(completed == construction_completed::no) {
+					add_rebel_stockpile(state, market, com_id, fufilled_amount);
+				} else if constexpr(completed == construction_completed::yes) {
+					float cost_amount = base_build_cost.commodity_amounts[i] * build_cost_multiplier(state, location, false);
+					add_rebel_stockpile(state, market, com_id, std::max(fufilled_amount - cost_amount, 0.0f));
+				}
+			} else {
+				break;
+			}
+		}
+	}
+	if constexpr(std::is_same_v<mil_construction_type, dcon::province_land_construction_id>) {
+		state.world.delete_province_land_construction(construction.id);
+	}
+	else if constexpr(std::is_same_v<mil_construction_type, dcon::province_naval_construction_id>) {
+		state.world.delete_province_naval_construction(construction.id);
+	}
+}
+template void delete_unit_construction<construction_completed::no>(sys::state& state, dcon::province_land_construction_id c);
+template void delete_unit_construction<construction_completed::no>(sys::state& state, dcon::province_naval_construction_id c);
+template void delete_unit_construction<construction_completed::yes>(sys::state& state, dcon::province_land_construction_id c);
+template void delete_unit_construction<construction_completed::yes>(sys::state& state, dcon::province_naval_construction_id c);
+
 void build_land_unit_construction_tooltip(
 	sys::state& state,
 	text::columnar_layout& contents,
@@ -299,7 +357,7 @@ bool can_advance_construction(const sys::state& state, dcon::province_naval_cons
 	auto location = construction.get_province();
 	auto all_constructions = location.get_province_naval_construction();
 	// Only the first naval construction in a province can be advanced at a time
-	return owner && owner == location.get_nation_from_province_control() && (*all_constructions.begin()).get_province() == location;
+	return owner && owner == location.get_nation_from_province_control() && (*all_constructions.begin()) == con;
 }
 
 unit_construction_data explain_land_unit_construction(
@@ -669,16 +727,6 @@ void accumulate_military_construction_consumption(const sys::state& state, const
 	auto builder = construction_get_controller(state, construction.id);
 
 	const auto& currently_fufilled = construction.get_purchased_goods();
-
-	uint32_t construction_time = [&]() {
-		if constexpr(std::is_same_v<construction_type, dcon::province_land_construction_id>) {
-			return land_unit_construction_time(state, type, builder);
-		}
-		else if constexpr(std::is_same_v<construction_type, dcon::province_naval_construction_id>) {
-			return naval_unit_construction_time(state, type, builder);
-		}
-	}();
-
 	dcon::province_id build_location = construction_get_location(state, construction.id);
 
 	for(uint32_t i = 0; i < base_cost.set_size; i++) {
@@ -688,7 +736,7 @@ void accumulate_military_construction_consumption(const sys::state& state, const
 			float total_required = base_amount * build_cost_multiplier(state, build_location, false);
 			float fufilled_amount = currently_fufilled.commodity_amounts[i];
 			float goods_left = std::max(total_required - fufilled_amount, 0.0f);
-			float required = std::min(total_required / construction_time, goods_left);
+			float required = std::min(total_required, goods_left);
 			buffer_out[cid] += required;
 		} else {
 			break;

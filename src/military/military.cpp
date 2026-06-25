@@ -88,7 +88,7 @@ const economy::commodity_set& unit_type_get_commodity_costs(const sys::state& st
 
 template<unit_consumption_type consumption_type>
 economy::commodity_set& unit_type_get_commodity_costs(sys::state& state, dcon::unit_type_id type) {
-	return const_cast<economy::commodity_set&>( unit_type_commodity_costs<consumption_type>(static_cast<const sys::state&>(state), type));
+	return const_cast<economy::commodity_set&>( unit_type_get_commodity_costs<consumption_type>(static_cast<const sys::state&>(state), type));
 }
 
 
@@ -3634,7 +3634,8 @@ void implement_war_goal(sys::state& state, dcon::war_id war, dcon::cb_type_id wa
 			}
 			auto nc = po.get_province().get_province_naval_construction();
 			while(nc.begin() != nc.end()) {
-				state.world.delete_province_naval_construction(*(nc.begin()));
+				auto con = *(nc.begin());
+				economy::delete_unit_construction<economy::construction_completed::no>(state, con.id);
 			}
 		}
 
@@ -3655,7 +3656,8 @@ void implement_war_goal(sys::state& state, dcon::war_id war, dcon::cb_type_id wa
 
 		auto uc = state.world.nation_get_province_land_construction(target);
 		while(uc.begin() != uc.end()) {
-			state.world.delete_province_land_construction(*(uc.begin()));
+			auto con = *(uc.begin());
+			economy::delete_unit_construction<economy::construction_completed::no>(state, con.id);
 		}
 		// Destroy units (fraction is disarmament hit)
 		if(state.defines.disarmament_army_hit > 0.f) {
@@ -10297,8 +10299,7 @@ void resolve_unit_constructions(sys::state& state) {
 					dcon::province_id{ }
 				});
 			}
-
-			state.world.delete_province_land_construction(c);
+			economy::delete_unit_construction<economy::construction_completed::yes>(state, c.id);
 		}
 	}
 
@@ -10356,7 +10357,7 @@ void resolve_unit_constructions(sys::state& state) {
 					});
 				}
 
-				state.world.delete_province_naval_construction(c);
+				economy::delete_unit_construction<economy::construction_completed::yes>(state, c.id);
 			}
 		}
 	});

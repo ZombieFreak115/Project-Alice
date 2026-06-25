@@ -1,6 +1,7 @@
 #pragma once
 #include "dcon_generated_ids.hpp"
 #include "container_types_dcon.hpp"
+#include "concept_declarations.hpp"
 
 namespace sys {
 struct state;
@@ -10,7 +11,14 @@ namespace economy {
 
 float factory_construction_progress(sys::state& state, dcon::factory_construction_id construction);
 
+enum class construction_completed : uint8_t {
+	no,
+	yes
+};
 
+// Deletes a military unit construction, and performs any auxillary actions required
+template<construction_completed completed, concepts::military_construction_type mil_construction_type>
+void delete_unit_construction(sys::state& state, mil_construction_type c);
 
 economy::commodity_set calculate_factory_upgrade_goods_cost(
 	sys::state& state,
