@@ -3057,7 +3057,7 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 
 	};
 	auto province_init_func = [&](dcon::province_id to, iteration_data& data) {
-		data.supply_throughput = supply_routes::supply_throughput_efficiency(state, to, nation_as);
+		data.supply_throughput = supply_routes::supply_throughput_efficiency_with_extra_weight(state, to, nation_as, expected_volume);
 
 	};
 	auto adj_init_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data& data) {

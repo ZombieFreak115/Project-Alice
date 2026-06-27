@@ -58,6 +58,9 @@ float combined_supply_throughput_modifier(const sys::state& state, dcon::provinc
 // Gets the current effective efficency percentage in moving supplies for a nation in the specified provincce (0.0-1.0)
 float supply_throughput_efficiency(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
 
+// Gets the current effective efficency percentage in moving supplies for a nation in the specified provincce WITH some extra used throughput added (0.0-1.0)
+float supply_throughput_efficiency_with_extra_weight(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as, float extra_used_throughput);
+
 float province_supply_attrition_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 float adjacency_supply_attrition_modifier(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
 float avg_adjacency_supply_attrition_modifier(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as);

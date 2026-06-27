@@ -718,7 +718,7 @@ void accumulate_subunit_consumption(const sys::state& state, dcon::nation_id own
 		if constexpr(std::is_same_v<subunit_type, dcon::ship_id>) {
 			return state.world.nation_get_naval_spending(owner) / 100.0f;
 		}
-		}();
+	}();
 	auto supply_mod = military::get_supply_cost_modifiers(state, subunit);
 
 	const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
@@ -740,7 +740,7 @@ void accumulate_subunit_consumption(const sys::state& state, dcon::nation_id own
 	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
 	auto reinforcement = military::estimate_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, false>(state, subunit);
 	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		auto com_id = supply_cost.commodity_type[i];
+		auto com_id = build_cost.commodity_type[i];
 		if(com_id) {
 			int16_t index = state.world.commodity_get_unit_supply_build_goods_index(com_id);
 			assert(index >= 0);
