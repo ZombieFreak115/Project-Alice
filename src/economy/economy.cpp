@@ -587,13 +587,10 @@ template float get_estimated_stockpile_total_purchase_price<price_estimation::ca
 template float get_estimated_stockpile_total_purchase_price<price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const ve::vectorizable_buffer<float, dcon::commodity_id>& goods);
 
 
-
-
-
-
-template<military::commodity_consumption_type consumption_type, price_estimation price_est>
-float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods) {
-	const economy::huge_commodity_id_array& commodity_ids = military::get_military_commodities_union<consumption_type>(state);
+template<price_estimation price_est, concepts::commodity_amount_military_union_array_type commodity_amounts_type>
+float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, const commodity_amounts_type& goods) {
+	using commodity_ids_type = concepts::military_commodity_amount_to_id_union<commodity_amounts_type>::type;
+	const commodity_ids_type& commodity_ids = military::get_military_commodities_union<commodity_ids_type>(state);
 	float total_expected_price = 0.0f;
 	for(uint32_t i = 0; i < commodity_ids.size(); i++) {
 		dcon::commodity_id com_id = commodity_ids[i];
@@ -606,18 +603,19 @@ float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon
 	}
 	return total_expected_price;
 }
-template float get_estimated_stockpile_total_purchase_price<military::commodity_consumption_type::both, price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
-template float get_estimated_stockpile_total_purchase_price<military::commodity_consumption_type::reinforcement, price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
-template float get_estimated_stockpile_total_purchase_price<military::commodity_consumption_type::supply, price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
-template float get_estimated_stockpile_total_purchase_price<military::commodity_consumption_type::both, price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
-template float get_estimated_stockpile_total_purchase_price<military::commodity_consumption_type::reinforcement, price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
-template float get_estimated_stockpile_total_purchase_price<military::commodity_consumption_type::supply, price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
+template float get_estimated_stockpile_total_purchase_price<price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::build_cost_union_commodity_amount_array& goods);
+template float get_estimated_stockpile_total_purchase_price<price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::supply_cost_union_commodity_amount_array& goods);
+template float get_estimated_stockpile_total_purchase_price<price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::supply_and_build_cost_union_commodity_amount_array& goods);
+template float get_estimated_stockpile_total_purchase_price<price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::build_cost_union_commodity_amount_array& goods);
+template float get_estimated_stockpile_total_purchase_price<price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::supply_cost_union_commodity_amount_array& goods);
+template float get_estimated_stockpile_total_purchase_price<price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::supply_and_build_cost_union_commodity_amount_array& goods);
 
-template<military::commodity_consumption_type consumption_type, price_estimation price_est>
-economy::huge_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods) {
-	economy::huge_commodity_amount_array prices{ };
+template< price_estimation price_est, concepts::commodity_amount_military_union_array_type commodity_amounts_type>
+commodity_amounts_type get_estimated_stockpile_purchase_price_by_commodity(const sys::state& state, dcon::nation_id for_nation, const commodity_amounts_type& goods) {
+	commodity_amounts_type prices{ };
 	prices.resize(goods.size());
-	const economy::huge_commodity_id_array& commodity_ids = military::get_military_commodities_union<consumption_type>(state);
+	using commodity_ids_type = concepts::military_commodity_amount_to_id_union<commodity_amounts_type>::type;
+	const commodity_ids_type& commodity_ids = military::get_military_commodities_union<commodity_ids_type>(state);
 	for(uint32_t i = 0; i < commodity_ids.size(); i++) {
 		dcon::commodity_id com_id = commodity_ids[i];
 		assert(com_id);
@@ -629,12 +627,12 @@ economy::huge_commodity_amount_array get_estimated_stockpile_purchase_price_by_c
 	}
 	return prices;
 }
-template economy::huge_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<military::commodity_consumption_type::both, price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
-template economy::huge_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<military::commodity_consumption_type::reinforcement, price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
-template economy::huge_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<military::commodity_consumption_type::supply, price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
-template economy::huge_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<military::commodity_consumption_type::both, price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
-template economy::huge_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<military::commodity_consumption_type::reinforcement, price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
-template economy::huge_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<military::commodity_consumption_type::supply, price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::huge_commodity_amount_array& goods);
+template economy::supply_cost_union_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::supply_cost_union_commodity_amount_array& goods);
+template economy::build_cost_union_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::build_cost_union_commodity_amount_array& goods);
+template economy::supply_and_build_cost_union_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<price_estimation::capped_by_availability>(const sys::state& state, dcon::nation_id for_nation, const economy::supply_and_build_cost_union_commodity_amount_array& goods);
+template economy::supply_cost_union_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::supply_cost_union_commodity_amount_array& goods);
+template economy::build_cost_union_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::build_cost_union_commodity_amount_array& goods);
+template economy::supply_and_build_cost_union_commodity_amount_array get_estimated_stockpile_purchase_price_by_commodity<price_estimation::theoretical_max>(const sys::state& state, dcon::nation_id for_nation, const economy::supply_and_build_cost_union_commodity_amount_array& goods);
 
 
 template<price_estimation price_est>
@@ -706,7 +704,7 @@ tagged_vector<float, dcon::commodity_id> estimate_government_stockpile_filling_s
 
 
 template<concepts::military_subunit subunit_type>
-void accumulate_subunit_consumption(const sys::state& state, dcon::nation_id owner, subunit_type u, economy::huge_commodity_amount_array& commodity_demand_buffer) {
+void accumulate_subunit_consumption(const sys::state& state, dcon::nation_id owner, subunit_type u, economy::supply_and_build_cost_union_commodity_amount_array& commodity_demand_buffer) {
 	assert(owner);
 	auto subunit = fatten(state.world, u);
 	dcon::unit_type_id type = subunit.get_type();
@@ -755,9 +753,9 @@ void accumulate_subunit_consumption(const sys::state& state, dcon::nation_id own
 	}
 
 }
-economy::huge_commodity_amount_array estimate_nation_army_and_navy_consumption(const sys::state& state, dcon::nation_id nation) {
-	const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
-	economy::huge_commodity_amount_array consumption(commodity_ids.size());
+economy::supply_and_build_cost_union_commodity_amount_array estimate_nation_army_and_navy_consumption(const sys::state& state, dcon::nation_id nation) {
+	const auto& commodity_ids = military::get_military_commodities_union<economy::supply_and_build_cost_union_commodity_id_array>(state);
+	economy::supply_and_build_cost_union_commodity_amount_array consumption(commodity_ids.size());
 	for(auto a : state.world.nation_get_army_control(nation)) {
 		for(auto r : a.get_army().get_army_membership()) {
 			accumulate_subunit_consumption(state, nation, r.get_regiment().id, consumption);
@@ -771,9 +769,9 @@ economy::huge_commodity_amount_array estimate_nation_army_and_navy_consumption(c
 	return consumption;
 }
 
-economy::huge_commodity_amount_array estimate_nation_army_consumption(const sys::state& state, dcon::nation_id nation) {
-	const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
-	economy::huge_commodity_amount_array consumption(commodity_ids.size());
+economy::supply_and_build_cost_union_commodity_amount_array estimate_nation_army_consumption(const sys::state& state, dcon::nation_id nation) {
+	const auto& commodity_ids = military::get_military_commodities_union<economy::supply_and_build_cost_union_commodity_id_array>(state);
+	economy::supply_and_build_cost_union_commodity_amount_array consumption(commodity_ids.size());
 	for(auto a : state.world.nation_get_army_control(nation)) {
 		for(auto r : a.get_army().get_army_membership()) {
 			accumulate_subunit_consumption(state, nation, r.get_regiment().id, consumption);
@@ -782,9 +780,9 @@ economy::huge_commodity_amount_array estimate_nation_army_consumption(const sys:
 	return consumption;
 }
 
-economy::huge_commodity_amount_array estimate_nation_navy_consumption(const sys::state& state, dcon::nation_id nation) {
-	const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
-	economy::huge_commodity_amount_array consumption(commodity_ids.size());
+economy::supply_and_build_cost_union_commodity_amount_array estimate_nation_navy_consumption(const sys::state& state, dcon::nation_id nation) {
+	const auto& commodity_ids = military::get_military_commodities_union<economy::supply_and_build_cost_union_commodity_id_array>(state);
+	economy::supply_and_build_cost_union_commodity_amount_array consumption(commodity_ids.size());
 	for(auto a : state.world.nation_get_navy_control(nation)) {
 		for(auto r : a.get_navy().get_navy_membership()) {
 			accumulate_subunit_consumption(state, nation, r.get_ship().id, consumption);
@@ -793,8 +791,8 @@ economy::huge_commodity_amount_array estimate_nation_navy_consumption(const sys:
 	return consumption;
 }
 float estimate_navy_stockpile_spending(const sys::state& state, dcon::nation_id nation) {
-	const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
-	economy::huge_commodity_amount_array goods_consumption = estimate_nation_navy_consumption(state, nation);
+	const auto& commodity_ids = military::get_military_commodities_union<economy::supply_and_build_cost_union_commodity_id_array>(state);
+	auto goods_consumption = estimate_nation_navy_consumption(state, nation);
 	//for(uint32_t i = 0; i < commodity_ids.size(); i++) {
 	//	dcon::commodity_id com_id = commodity_ids[i];
 	//	float& amount = goods_consumption[i];
@@ -802,12 +800,12 @@ float estimate_navy_stockpile_spending(const sys::state& state, dcon::nation_id 
 	//	amount = std::clamp(amount + stockpile_target_balance, 0.0f, amount); // We dont buy more than we need to reach the target. It is allowed to go above the target temporarily to buy the needed goods as they are expected to be consumed immediately.
 	//}
 	// We are using both here since the id's we are iterating over is the union of BOTH supply and reinforcement(build) goods
-	auto total_expected_price = get_estimated_stockpile_total_purchase_price<military::commodity_consumption_type::both, price_estimation::capped_by_availability>(state, nation, goods_consumption);
+	auto total_expected_price = get_estimated_stockpile_total_purchase_price<price_estimation::capped_by_availability>(state, nation, goods_consumption);
 	return total_expected_price;
 }
-economy::huge_commodity_amount_array estimate_navy_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation) {
-	const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
-	economy::huge_commodity_amount_array goods_consumption = estimate_nation_navy_consumption(state, nation);
+economy::supply_and_build_cost_union_commodity_amount_array estimate_navy_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation) {
+	const auto& commodity_ids = military::get_military_commodities_union<economy::supply_and_build_cost_union_commodity_id_array>(state);
+	economy::supply_and_build_cost_union_commodity_amount_array goods_consumption = estimate_nation_navy_consumption(state, nation);
 	//for(uint32_t i = 0; i < commodity_ids.size(); i++) {
 	//	dcon::commodity_id com_id = commodity_ids[i];
 	//	float& amount = goods_consumption[i];
@@ -815,13 +813,13 @@ economy::huge_commodity_amount_array estimate_navy_stockpile_spending_by_commodi
 	//	amount = std::clamp(amount + stockpile_target_balance, 0.0f, amount); // We dont buy more than we need to reach the target. It is allowed to go above the target temporarily to buy the needed goods as they are expected to be consumed immediately.
 	//}
 	// We are using both here since the id's we are iterating over is the union of BOTH supply and reinforcement(build) goods
-	auto total_expected_prices_pr_commodity = get_estimated_stockpile_purchase_price_by_commodity<military::commodity_consumption_type::both, price_estimation::capped_by_availability>(state, nation, goods_consumption);
+	auto total_expected_prices_pr_commodity = get_estimated_stockpile_purchase_price_by_commodity<price_estimation::capped_by_availability>(state, nation, goods_consumption);
 	return total_expected_prices_pr_commodity;
 }
 
 float estimate_army_stockpile_spending(const sys::state& state, dcon::nation_id nation) {
 	const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
-	economy::huge_commodity_amount_array goods_consumption = estimate_nation_army_consumption(state, nation);
+	auto goods_consumption = estimate_nation_army_consumption(state, nation);
 	//for(uint32_t i = 0; i < commodity_ids.size(); i++) {
 	//	dcon::commodity_id com_id = commodity_ids[i];
 	//	float& amount = goods_consumption[i];
@@ -829,12 +827,12 @@ float estimate_army_stockpile_spending(const sys::state& state, dcon::nation_id 
 	//	amount = std::clamp(amount + stockpile_target_balance, 0.0f, amount); // We dont buy more than we need to reach the target. It is allowed to go above the target temporarily to buy the needed goods as they are expected to be consumed immediately.
 	//}
 	// We are using both here since the id's we are iterating over is the union of BOTH supply and reinforcement(build) goods
-	auto total_expected_price = get_estimated_stockpile_total_purchase_price<military::commodity_consumption_type::both, price_estimation::capped_by_availability>(state, nation, goods_consumption);
+	auto total_expected_price = get_estimated_stockpile_total_purchase_price<price_estimation::capped_by_availability>(state, nation, goods_consumption);
 	return total_expected_price;
 }
-economy::huge_commodity_amount_array estimate_army_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation) {
-	const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
-	economy::huge_commodity_amount_array goods_consumption = estimate_nation_army_consumption(state, nation);
+economy::supply_and_build_cost_union_commodity_amount_array estimate_army_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation) {
+	const auto& commodity_ids = military::get_military_commodities_union<economy::supply_and_build_cost_union_commodity_id_array>(state);
+	auto goods_consumption = estimate_nation_army_consumption(state, nation);
 	//for(uint32_t i = 0; i < commodity_ids.size(); i++) {
 	//	dcon::commodity_id com_id = commodity_ids[i];
 	//	float& amount = goods_consumption[i];
@@ -842,7 +840,7 @@ economy::huge_commodity_amount_array estimate_army_stockpile_spending_by_commodi
 	//	amount = std::clamp(amount + stockpile_target_balance, 0.0f, amount); // We dont buy more than we need to reach the target. It is allowed to go above the target temporarily to buy the needed goods as they are expected to be consumed immediately.
 	//}
 	// We are using both here since the id's we are iterating over is the union of BOTH supply and reinforcement(build) goods
-	auto total_expected_prices_pr_commodity = get_estimated_stockpile_purchase_price_by_commodity<military::commodity_consumption_type::both, price_estimation::capped_by_availability>(state, nation, goods_consumption);
+	auto total_expected_prices_pr_commodity = get_estimated_stockpile_purchase_price_by_commodity<price_estimation::capped_by_availability>(state, nation, goods_consumption);
 	return total_expected_prices_pr_commodity;
 }
 
@@ -1724,7 +1722,7 @@ void populate_army_consumption(sys::state& state) {
 	}
 	const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
 	// Buffers all the commodites per nation, to be applied later
-	static tagged_vector<economy::huge_commodity_amount_array, dcon::nation_id> commodity_demand_buffer;
+	static tagged_vector<economy::supply_and_build_cost_union_commodity_amount_array, dcon::nation_id> commodity_demand_buffer;
 	commodity_demand_buffer.resize(state.world.nation_size());
 	for(auto& array : commodity_demand_buffer) {
 		array.resize(commodity_ids.size());
@@ -1774,7 +1772,7 @@ void populate_navy_consumption(sys::state& state) {
 
 	const auto commodity_ids = state.military_definitions.military_supply_build_goods;
 	// Buffers all the commodites per nation, to be applied later
-	static tagged_vector<economy::huge_commodity_amount_array, dcon::nation_id> commodity_demand_buffer;
+	static tagged_vector<economy::supply_and_build_cost_union_commodity_amount_array, dcon::nation_id> commodity_demand_buffer;
 	commodity_demand_buffer.resize(state.world.nation_size());
 	for(auto& array : commodity_demand_buffer) {
 		array.resize(commodity_ids.size());

@@ -21,8 +21,8 @@ struct total_stockpile_spendings {
 	float stockpile_filling_spendings = 0.0f;
 };
 struct total_stockpile_spendings_by_commodity {
-	economy::huge_commodity_amount_array army_stockpile_spendings{ };
-	economy::huge_commodity_amount_array navy_stockpile_spendings{ };
+	economy::supply_and_build_cost_union_commodity_amount_array army_stockpile_spendings{ };
+	economy::supply_and_build_cost_union_commodity_amount_array navy_stockpile_spendings{ };
 	tagged_vector<float, dcon::commodity_id> military_construction_spendings{ };
 	tagged_vector<float, dcon::commodity_id> stockpile_filling_spendings{ };
 };
@@ -78,9 +78,9 @@ tagged_vector<float, dcon::commodity_id> get_estimated_stockpile_purchase_price_
 total_stockpile_spendings estimate_total_stockpile_spendings(const sys::state& state, dcon::nation_id nation_as, float military_construction_budget, float stockpile_filling_budget);
 total_stockpile_spendings_by_commodity estimate_total_stockpile_spendings_by_commodity(const sys::state& state, dcon::nation_id nation_as, float military_construction_budget, float stockpile_filling_budget);
 
-economy::huge_commodity_amount_array estimate_nation_army_consumption(const sys::state& state, dcon::nation_id nation);
-economy::huge_commodity_amount_array estimate_nation_navy_consumption(const sys::state& state, dcon::nation_id nation);
-economy::huge_commodity_amount_array estimate_nation_army_and_navy_consumption(const sys::state& state, dcon::nation_id nation);
+economy::supply_and_build_cost_union_commodity_amount_array estimate_nation_army_consumption(const sys::state& state, dcon::nation_id nation);
+economy::supply_and_build_cost_union_commodity_amount_array estimate_nation_navy_consumption(const sys::state& state, dcon::nation_id nation);
+economy::supply_and_build_cost_union_commodity_amount_array estimate_nation_army_and_navy_consumption(const sys::state& state, dcon::nation_id nation);
 
 // How many goods do we need (or have in excess) in order to be at exactly the stockpile target? If return is negative, that means we excess commodities over the target. Positive means we need more commodities to reach the target
 float government_stockpile_target_balance(const sys::state& state, dcon::nation_id nation, dcon::commodity_id com_id);

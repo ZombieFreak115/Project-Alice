@@ -2193,31 +2193,28 @@ public:
 	}
 };
 
-template<military::unit_consumption_type supply_type, concepts::military_unit unit_type>
+template<military::unit_consumption_type consumption_type, concepts::military_unit unit_type>
 void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_layout& contents) {
-	economy::huge_commodity_amount_array commodities_required;
-	economy::huge_commodity_amount_array commodities_satisfied_before_loss;
-	economy::huge_commodity_amount_array commodities_satisfied;
-	economy::huge_commodity_amount_array commodities_satisfied_w_throughput;
+	using commodity_amounts_type = concepts::unit_consumption_to_amount_union<consumption_type>::type;
+	using commodity_ids_type = concepts::unit_consumption_to_id_union<consumption_type>::type;
+	commodity_amounts_type commodities_required;
+	commodity_amounts_type commodities_satisfied_before_loss;
+	commodity_amounts_type commodities_satisfied;
+	commodity_amounts_type commodities_satisfied_w_throughput;
 
-	const economy::huge_commodity_id_array& commodity_types = [&]() {
-		if constexpr(supply_type == military::unit_consumption_type::supply) {
-			return state.military_definitions.military_supply_goods;
-		} else if constexpr(supply_type == military::unit_consumption_type::reinforcement) {
-			return state.military_definitions.military_build_goods;
-		}
-	}();
+	const auto& commodity_types = military::get_military_commodities_union<commodity_ids_type>(state);
+
 	commodities_satisfied_before_loss.resize(commodity_types.size());
 	commodities_satisfied.resize(commodity_types.size());
 	commodities_satisfied_w_throughput.resize(commodity_types.size());
 
-	// We get the last requires supplies instead of the future required supplies because all the route data is current
-	commodities_required = military::get_last_required_supply<supply_type>(state, unit);
+	// We get the last required supplies instead of the future required supplies because all the route data is current
+	commodities_required = military::get_last_required_supply<commodity_amounts_type>(state, unit);
 
 	auto routes = military::unit_get_supply_routes(state, unit);
 
 	for(auto route : routes) {
-		const economy::huge_commodity_amount_array& buffered_goods = supply_routes::military_route_get_buffered_goods<supply_type>(state, route.id);
+		const commodity_amounts_type& buffered_goods = supply_routes::military_route_get_buffered_goods<commodity_amounts_type>(state, route.id);
 		for(uint32_t i = 0; i < commodity_types.size(); i++) {
 			dcon::commodity_id com_id = commodity_types[i];
 			assert(com_id);
@@ -2266,12 +2263,12 @@ public:
 		auto army = retrieve<dcon::army_id>(state, parent);
 		auto navy = retrieve<dcon::navy_id>(state, parent);
 
-		const auto& commodity_types = military::get_military_commodities_union<military::commodity_consumption_type::supply>(state);
+		const auto& commodity_types = military::get_military_commodities_union<economy::supply_cost_union_commodity_id_array>(state);
 		float total_satisfied = 0.0f;
 		float total_required = 0.0f;
 		if(army) {
-			economy::huge_commodity_amount_array commodities_required = military::get_last_required_supply<military::unit_consumption_type::supply>(state, army);
-			economy::huge_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<military::unit_consumption_type::supply>(state, army);
+			economy::supply_cost_union_commodity_amount_array commodities_required = military::get_last_required_supply<economy::supply_cost_union_commodity_amount_array>(state, army);
+			economy::supply_cost_union_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<economy::supply_cost_union_commodity_amount_array>(state, army);
 
 			for(uint32_t i = 0; i < commodity_types.size(); i++) {
 				dcon::commodity_id com_id = commodity_types[i];
@@ -2281,8 +2278,8 @@ public:
 			}
 			
 		} else if(navy) {
-			economy::huge_commodity_amount_array commodities_required = military::get_last_required_supply<military::unit_consumption_type::supply>(state, navy);
-			economy::huge_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<military::unit_consumption_type::supply>(state, navy);
+			economy::build_cost_union_commodity_amount_array commodities_required = military::get_last_required_supply<economy::build_cost_union_commodity_amount_array>(state, navy);
+			economy::build_cost_union_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<economy::build_cost_union_commodity_amount_array>(state, navy);
 			for(uint32_t i = 0; i < commodity_types.size(); i++) {
 				dcon::commodity_id com_id = commodity_types[i];
 				assert(com_id);
@@ -2325,12 +2322,12 @@ public:
 		auto army = retrieve<dcon::army_id>(state, parent);
 		auto navy = retrieve<dcon::navy_id>(state, parent);
 
-		const auto& commodity_types = military::get_military_commodities_union<military::commodity_consumption_type::reinforcement>(state);
+		const auto& commodity_types = military::get_military_commodities_union<economy::build_cost_union_commodity_id_array>(state);
 		float total_satisfied = 0.0f;
 		float total_required = 0.0f;
 		if(army) {
-			economy::huge_commodity_amount_array commodities_required = military::get_last_required_supply<military::unit_consumption_type::reinforcement>(state, army);
-			economy::huge_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<military::unit_consumption_type::reinforcement>(state, army);
+			economy::build_cost_union_commodity_amount_array commodities_required = military::get_last_required_supply<economy::build_cost_union_commodity_amount_array>(state, army);
+			economy::build_cost_union_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<economy::build_cost_union_commodity_amount_array>(state, army);
 			for(uint32_t i = 0; i < commodity_types.size(); i++) {
 				dcon::commodity_id com_id = commodity_types[i];
 				assert(com_id);
@@ -2339,8 +2336,8 @@ public:
 				
 			}
 		} else if(navy) {
-			economy::huge_commodity_amount_array commodities_required = military::get_last_required_supply<military::unit_consumption_type::reinforcement>(state, navy);
-			economy::huge_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<military::unit_consumption_type::reinforcement>(state, navy);
+			economy::build_cost_union_commodity_amount_array commodities_required = military::get_last_required_supply<economy::build_cost_union_commodity_amount_array>(state, navy);
+			economy::build_cost_union_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<economy::build_cost_union_commodity_amount_array>(state, navy);
 			for(uint32_t i = 0; i < commodity_types.size(); i++) {
 				dcon::commodity_id com_id = commodity_types[i];
 				assert(com_id);

@@ -297,10 +297,10 @@ static_assert(sizeof(player_password_raw) == sizeof(player_password_raw::data));
 
 
 
-
-
+struct default_tag {};
 // A fixed-size array wrapper which implements a vector-like interface for keeping track of size.
-template<typename data_type, uint32_t capacity>
+// The "custom_tag" template does nothing on its own, but allows strong-typing of diffrent specializations of the fixed size vector, despite having the same capacity and data type
+template<typename data_type, uint32_t capacity, typename custom_tag = default_tag>
 class fixed_size_vector {
 private:
 	uint32_t storage_size = 0;
@@ -494,7 +494,6 @@ public:
 
 };
 
-
 }
 
 
@@ -592,22 +591,26 @@ constexpr uint32_t small_set_size = 6;
 constexpr uint32_t set_size = 8;
 constexpr uint32_t huge_set_size = 32;
 
+struct unit_build_cost_tag { };
+struct unit_supply_cost_tag {};
+struct build_cost_union_tag { };
+struct supply_cost_union_tag {};
+struct supply_and_build_cost_union_tag { };
 
-using huge_commodity_amount_array = sys::fixed_size_vector<float, huge_set_size>;
+using unit_build_cost_commodity_amount_array = sys::fixed_size_vector<float, set_size, unit_build_cost_tag>;
+using unit_build_cost_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, set_size, unit_build_cost_tag>;
 
-static_assert(sizeof(huge_commodity_amount_array) == huge_set_size * sizeof(float) + sizeof(uint32_t));
+using unit_supply_cost_commodity_amount_array = sys::fixed_size_vector<float, set_size, unit_supply_cost_tag>;
+using unit_supply_cost_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, set_size, unit_supply_cost_tag>;
 
-using huge_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, huge_set_size>;
+using build_cost_union_commodity_amount_array = sys::fixed_size_vector<float, huge_set_size, build_cost_union_tag>;
+using build_cost_union_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, huge_set_size, build_cost_union_tag>;
 
-static_assert(sizeof(huge_commodity_id_array) == huge_set_size * sizeof(dcon::commodity_id) + sizeof(uint32_t));
+using supply_cost_union_commodity_amount_array = sys::fixed_size_vector<float, huge_set_size, supply_cost_union_tag>;
+using supply_cost_union_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, huge_set_size, supply_cost_union_tag>;
 
-using commodity_amount_array = sys::fixed_size_vector<float, set_size>;
-
-static_assert(sizeof(commodity_amount_array) == set_size * sizeof(float) + sizeof(uint32_t));
-
-using commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, set_size>;
-
-static_assert(sizeof(commodity_id_array) == set_size * sizeof(dcon::commodity_id) + sizeof(uint32_t));
+using supply_and_build_cost_union_commodity_amount_array = sys::fixed_size_vector<float, huge_set_size, supply_and_build_cost_union_tag>;
+using supply_and_build_cost_union_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, huge_set_size, supply_and_build_cost_union_tag>;
 
 using huge_commodity_set = commodity_set_base<huge_set_size>;
 static_assert(sizeof(huge_commodity_set) ==
