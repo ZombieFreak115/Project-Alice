@@ -1124,11 +1124,11 @@ inline void commodity_tooltip(sys::state& state, text::columnar_layout& contents
 			outputamount = fid.get_output_amount();
 
 		auto inputamount = 0.f;
-		auto& inputs = fid.get_inputs();
+		const auto& inputs = fid.get_inputs();
 
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-			if(inputs.commodity_type[i] == c) {
-				inputamount = inputs.commodity_amounts[i];
+		for(uint32_t i = 0; i < inputs.size(); ++i) {
+			if(inputs.types(i) == c) {
+				inputamount = inputs.amounts(i);
 				break;
 			}
 		}

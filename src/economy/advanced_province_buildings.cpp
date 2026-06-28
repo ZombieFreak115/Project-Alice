@@ -180,8 +180,8 @@ void update_consumption(sys::state& state) {
 
 	{
 		auto id = list::local_cities_and_towns;
-		auto& def = definitions[id];
-		auto& costs = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].cost;
+		const auto& def = definitions[id];
+		const auto& costs = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].cost;
 		auto build_time = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].time;
 
 		province::for_each_market_province_parallel_over_market(state, [&](dcon::market_id mid, dcon::state_instance_id sid, dcon::province_id pid) {
@@ -192,12 +192,9 @@ void update_consumption(sys::state& state) {
 				* economy::labor_constants::labor_per_construction_unit;
 
 			auto material_cost_per_constructed_unit = 0.f;
-			for(size_t i = 0; i < economy::commodity_set::set_size; i++) {
-				auto cid = costs.commodity_type[i];
-				if(!cid) {
-					break;
-				}
-				auto amount = costs.commodity_amounts[i] / build_time;
+			for(size_t i = 0; i < costs.size(); i++) {
+				auto cid = costs.types(i);
+				auto amount = costs.amounts(i) / build_time;
 				material_cost_per_constructed_unit += amount * economy::price(state, mid, cid);
 			}
 			
@@ -235,12 +232,9 @@ void update_consumption(sys::state& state) {
 			/*
 			Register demand both on construction materials and construction labor
 			*/
-			for(size_t i = 0; i < economy::commodity_set::set_size; i++) {
-				auto cid = costs.commodity_type[i];
-				if(!cid) {
-					break;
-				}
-				auto amount =  costs.commodity_amounts[i] / build_time;
+			for(size_t i = 0; i < costs.size(); i++) {
+				auto cid = costs.types(i);
+				auto amount =  costs.amounts(i) / build_time;
 				economy::register_demand(state, mid, cid, amount * demand_scale);
 			}
 			auto labor_demand = state.world.province_get_labor_demand(pid, economy::labor_constants::construction_labor);
@@ -257,8 +251,8 @@ void update_consumption(sys::state& state) {
 	//private construction demand of ports
 	{
 		auto id = list::civilian_ports;
-		auto& def = definitions[id];
-		auto& costs = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].cost;
+		const auto& def = definitions[id];
+		const auto& costs = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].cost;
 		auto build_time = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].time;
 
 		province::for_each_market_province_parallel_over_market(state, [&](dcon::market_id mid, dcon::state_instance_id sid, dcon::province_id pid) {
@@ -271,24 +265,18 @@ void update_consumption(sys::state& state) {
 			if(expected_profit_per_size > 0.f && size > 0.8f * max_size) {
 				// calculate costs:
 				auto cost = 0.f;
-				for(size_t i = 0; i < economy::commodity_set::set_size; i++) {
-					auto cid = costs.commodity_type[i];
-					if(!cid) {
-						break;
-					}
-					auto amount = max_port_expansion_speed * costs.commodity_amounts[i] / build_time;
+				for(size_t i = 0; i < costs.size(); i++) {
+					auto cid = costs.types(i);
+					auto amount = max_port_expansion_speed * costs.amounts(i) / build_time;
 					cost += amount * economy::price(state, mid, cid);
 				}
 				assert(cost != 0.f);
 				auto scale = std::min(1.f, expected_profit_per_size * 0.1f / cost);
 
 				// if ports are profitable and size is close to max size, register demand on commodities
-				for(size_t i = 0; i < economy::commodity_set::set_size; i++) {
-					auto cid = costs.commodity_type[i];
-					if(!cid) {
-						break;
-					}
-					auto amount = max_port_expansion_speed * costs.commodity_amounts[i] / build_time;
+				for(size_t i = 0; i < costs.size(); i++) {
+					auto cid = costs.types(i);
+					auto amount = max_port_expansion_speed * costs.amounts(i) / build_time;
 					economy::register_demand(state, mid, cid, amount * scale);
 				}
 			}
@@ -343,8 +331,8 @@ void update_profit_and_refund(sys::state& state) {
 		// expand ports
 		if(state.world.province_get_is_coast(pid)) {
 			auto id = list::civilian_ports;
-			auto& def = definitions[id];
-			auto& costs = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].cost;
+			const auto& def = definitions[id];
+			const auto& costs = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].cost;
 			auto build_time = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].time;
 			auto output_cost = state.world.province_get_service_price(pid, def.output);
 			auto input_cost = state.world.province_get_labor_price(pid, def.throughput_labour_type);
@@ -355,12 +343,9 @@ void update_profit_and_refund(sys::state& state) {
 			if(expected_profit_per_size > 0.f && size > 0.8f * max_size) {
 				// calculate costs:
 				auto total_cost = 0.f;
-				for(size_t i = 0; i < economy::commodity_set::set_size; i++) {
-					auto cid = costs.commodity_type[i];
-					if(!cid) {
-						break;
-					}
-					auto amount = max_port_expansion_speed * costs.commodity_amounts[i] / build_time;
+				for(size_t i = 0; i < costs.size(); i++) {
+					auto cid = costs.types(i);
+					auto amount = max_port_expansion_speed * costs.amounts(i) / build_time;
 					total_cost += amount * economy::price(state, mid, cid);
 				}
 				assert(total_cost != 0.f);
@@ -369,15 +354,12 @@ void update_profit_and_refund(sys::state& state) {
 				auto expansion_scale = 1.f;
 				auto cost = 0.f;
 				// figure out how much we were able to buy
-				for(size_t i = 0; i < economy::commodity_set::set_size; i++) {
-					auto cid = costs.commodity_type[i];
-					if(!cid) {
-						break;
-					}
+				for(size_t i = 0; i < costs.size(); i++) {
+					auto cid = costs.types(i);
 					auto probability = state.world.market_get_actual_probability_to_buy(mid, cid);
 					// we promised to buy - we spend money and throw away excess items
 					// otherwise we generated demand and then haven't fulfilled our promise
-					cost += max_port_expansion_speed * costs.commodity_amounts[i] / build_time * scale * economy::price(state, mid, cid) * probability;
+					cost += max_port_expansion_speed * costs.amounts(i) / build_time * scale * economy::price(state, mid, cid) * probability;
 					if(probability < expansion_scale) {
 						expansion_scale = probability;
 					}
@@ -401,8 +383,8 @@ void update_profit_and_refund(sys::state& state) {
 		// expand or shrink cities
 		{
 			auto id = list::local_cities_and_towns;
-			auto& def = definitions[id];
-			auto& costs = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].cost;
+			const auto& def = definitions[id];
+			const auto& costs = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].cost;
 			auto build_time = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].time;
 
 			auto output_cost = state.world.province_get_service_price(pid, def.output);
@@ -412,12 +394,9 @@ void update_profit_and_refund(sys::state& state) {
 				* economy::labor_constants::labor_per_construction_unit;
 
 			auto material_cost_per_constructed_unit = 0.f;
-			for(size_t i = 0; i < economy::commodity_set::set_size; i++) {
-				auto cid = costs.commodity_type[i];
-				if(!cid) {
-					break;
-				}
-				auto amount = costs.commodity_amounts[i] / build_time;
+			for(size_t i = 0; i < costs.size(); i++) {
+				auto cid = costs.types(i);
+				auto amount = costs.amounts(i) / build_time;
 				material_cost_per_constructed_unit += amount * economy::price(state, mid, cid);
 			}
 			
@@ -457,14 +436,11 @@ void update_profit_and_refund(sys::state& state) {
 			*/
 			float actually_bought = labor_sat;
 			float spendings = 0.f;
-			for(size_t i = 0; i < economy::commodity_set::set_size; i++) {
-				auto cid = costs.commodity_type[i];
-				if(!cid) {
-					break;
-				}
+			for(size_t i = 0; i < costs.size(); i++) {
+				auto cid = costs.types(i);
 				auto sat = state.world.market_get_actual_probability_to_buy(mid, cid);
 				actually_bought = std::min(actually_bought, sat);
-				auto amount =  costs.commodity_amounts[i] / build_time;
+				auto amount =  costs.amounts(i) / build_time;
 				spendings += amount * economy::price(state, mid, cid) * demand_scale * sat;
 			}
 			auto sat = state.world.province_get_labor_demand_satisfaction(pid, economy::labor_constants::construction_labor);
@@ -551,20 +527,17 @@ void update_private_size(sys::state& state) {
 
 	{
 		auto bid = list::local_cities_and_towns;
-		auto& def = definitions[bid];
-		auto& costs = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].cost;
+		const auto& def = definitions[bid];
+		const auto& costs = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].cost;
 		auto build_time = state.economy_definitions.building_definitions[(size_t)(def.associated_building)].time;
 
 		province::for_each_market_province_parallel_over_market(state, [&](dcon::market_id mid, dcon::state_instance_id sid, dcon::province_id pid) {
 			auto owner = state.world.province_get_nation_from_province_ownership(pid);
 			auto cost_of_labor = state.world.province_get_labor_price(pid, def.throughput_labour_type);
 			auto material_cost_per_constructed_unit = 0.f;
-			for(size_t i = 0; i < economy::commodity_set::set_size; i++) {
-				auto cid = costs.commodity_type[i];
-				if(!cid) {
-					break;
-				}
-				auto amount = costs.commodity_amounts[i] / build_time;
+			for(size_t i = 0; i < costs.size(); i++) {
+				auto cid = costs.types(i);
+				auto amount = costs.amounts(i) / build_time;
 				material_cost_per_constructed_unit += amount * economy::price(state, mid, cid);
 			}
 			auto maintenance_cost_per_unit = def.maintenance_rate * (

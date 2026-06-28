@@ -89,17 +89,14 @@ void building_file::result(std::string_view name, building_definition&& res, err
 			dcon::commodity_id cid = dcon::commodity_id(dcon::commodity_id::value_base_t(i));
 			context.state.world.factory_type_set_construction_costs(factory_id, cid, res.goods_cost.data[cid]);
 		}*/
-		uint32_t added = 0;
 		auto& cc = context.state.world.factory_type_get_construction_costs(factory_id);
 		context.state.world.for_each_commodity([&](dcon::commodity_id id) {
 			auto amount = res.goods_cost.data.safe_get(id);
 			if(amount > 0) {
-				if(added >= economy::commodity_set::set_size) {
+				if(cc.size() == cc.set_size) {
 					err.accumulated_errors += "Too many factory cost goods in " + std::string(name) + " (" + err.file_name + ")\n";
 				} else {
-					cc.commodity_type[added] = id;
-					cc.commodity_amounts[added] = amount;
-					++added;
+					cc.push_back(id, amount);
 				}
 			}
 		});
@@ -121,16 +118,14 @@ void building_file::result(std::string_view name, building_definition&& res, err
 			context.state.economy_definitions.building_definitions[int32_t(t)].colonial_points[i] = res.colonial_points.data[i];
 		context.state.economy_definitions.building_definitions[int32_t(t)].colonial_range = res.colonial_range;
 
-		uint32_t added = 0;
+		auto& building_costs = context.state.economy_definitions.building_definitions[int32_t(t)].cost;
 		context.state.world.for_each_commodity([&](dcon::commodity_id id) {
 			auto amount = res.goods_cost.data.safe_get(id);
 			if(amount > 0) {
-				if(added >= economy::commodity_set::set_size) {
+				if(building_costs.is_at_capacity()) {
 					err.accumulated_warnings += "Too many special building cost goods in " + std::string(name) + " (" + err.file_name + ")\n";
 				} else {
-					context.state.economy_definitions.building_definitions[int32_t(t)].cost.commodity_type[added] = id;
-					context.state.economy_definitions.building_definitions[int32_t(t)].cost.commodity_amounts[added] = amount;
-					++added;
+					building_costs.push_back(id, amount);
 				}
 			}
 		});
@@ -182,16 +177,13 @@ void make_production_type(std::string_view name, token_generator& gen, error_han
 		context.outer_context.state.world.commodity_set_rgo_amount(pt.output_goods_, pt.value);
 		context.outer_context.state.world.commodity_set_rgo_workforce(pt.output_goods_, pt.workforce);
 		economy::commodity_set sm_cset;
-		uint32_t sm_added = 0;
 		context.outer_context.state.world.for_each_commodity([&](dcon::commodity_id id) {
 			auto amount = pt.efficiency.data.safe_get(id);
 			if(amount > 0) {
-				if(sm_added >= economy::commodity_set::set_size) {
+				if(sm_cset.size() == sm_cset.set_size) {
 					err.accumulated_errors += "Too many RGO efficiency goods in " + std::string(name) + " (" + err.file_name + ")\n";
 				} else {
-					sm_cset.commodity_type[sm_added] = id;
-					sm_cset.commodity_amounts[sm_added] = amount;
-					++sm_added;
+					sm_cset.push_back(id, amount);
 				}
 			}
 		});
@@ -199,16 +191,13 @@ void make_production_type(std::string_view name, token_generator& gen, error_han
 		context.outer_context.state.world.commodity_set_rgo_efficiency_inputs_are_defined_in_content(pt.output_goods_, pt.efficiency.defined);
 	} else if(pt.type_ == production_type_enum::artisan) {
 		economy::commodity_set cset;
-		uint32_t added = 0;
 		context.outer_context.state.world.for_each_commodity([&](dcon::commodity_id id) {
 			auto amount = pt.input_goods.data.safe_get(id);
 			if(amount > 0) {
-				if(added >= economy::commodity_set::set_size) {
+				if(cset.is_at_capacity()) {
 					err.accumulated_errors += "Too many artisan input goods in" + std::string(name) + " (" + err.file_name + ")\n";
 				} else {
-					cset.commodity_type[added] = id;
-					cset.commodity_amounts[added] = amount;
-					++added;
+					cset.push_back(id, amount);
 				}
 			}
 		});
@@ -220,31 +209,25 @@ void make_production_type(std::string_view name, token_generator& gen, error_han
 			auto factory_handle = fatten(context.outer_context.state.world, it->second);
 
 			economy::commodity_set cset;
-			uint32_t added = 0;
 			context.outer_context.state.world.for_each_commodity([&](dcon::commodity_id id) {
 				auto amount = pt.input_goods.data.safe_get(id);
 				if(amount > 0) {
-					if(added >= economy::commodity_set::set_size) {
+					if(cset.is_at_capacity()) {
 						err.accumulated_errors += "Too many factory input goods in " + std::string(name) + " (" + err.file_name + ")\n";
 					} else {
-						cset.commodity_type[added] = id;
-						cset.commodity_amounts[added] = amount;
-						++added;
+						cset.push_back(id, amount);
 					}
 				}
 			});
 
 			economy::small_commodity_set sm_cset;
-			uint32_t sm_added = 0;
 			context.outer_context.state.world.for_each_commodity([&](dcon::commodity_id id) {
 				auto amount = pt.efficiency.data.safe_get(id);
 				if(amount > 0) {
-					if(sm_added >= economy::small_commodity_set::set_size) {
+					if(sm_cset.is_at_capacity()) {
 						err.accumulated_errors += "Too many factory efficiency goods in " + std::string(name) + " (" + err.file_name + ")\n";
 					} else {
-						sm_cset.commodity_type[sm_added] = id;
-						sm_cset.commodity_amounts[sm_added] = amount;
-						++sm_added;
+						sm_cset.push_back(id, amount);
 					}
 				}
 			});

@@ -183,9 +183,9 @@ public:
 			case trade_flow_data::value_type::used_by:
 			{
 				auto& inputs = state.world.factory_type_get_inputs(ftid);
-				for(uint32_t i = 0; i < inputs.set_size; ++i)
-					if(inputs.commodity_type[i] == commodity_id)
-						amount += inputs.commodity_amounts[i];
+				for(uint32_t i = 0; i < inputs.size(); ++i)
+					if(inputs.types(i) == commodity_id)
+						amount += inputs.amounts(i);
 				output_icon->frame = state.world.commodity_get_icon(state.world.factory_type_get_output(ftid));
 			} break;
 			case trade_flow_data::value_type::may_be_used_by:
@@ -289,10 +289,10 @@ public:
 				state,
 				[&](dcon::factory_id fid) -> bool {
 					auto ftid = state.world.factory_get_building_type(fid);
-					auto& inputs = state.world.factory_type_get_inputs(ftid);
-					for(uint32_t i = 0; i < inputs.set_size; ++i)
-						if(inputs.commodity_type[i] == commodity_id)
-							return inputs.commodity_amounts[i] > 0.f; // Some inputs taken
+					const auto& inputs = state.world.factory_type_get_inputs(ftid);
+					for(uint32_t i = 0; i < inputs.size(); ++i)
+						if(inputs.types(i) == commodity_id)
+							return inputs.amounts(i) > 0.f; // Some inputs taken
 					return false;
 				},
 				trade_flow_data::value_type::used_by);
@@ -309,10 +309,10 @@ public:
 				state,
 				[&](dcon::factory_id fid) -> bool {
 					auto ftid = state.world.factory_get_building_type(fid);
-					auto& inputs = state.world.factory_type_get_inputs(ftid);
-					for(uint32_t i = 0; i < inputs.set_size; ++i)
-						if(inputs.commodity_type[i] == commodity_id)
-							return inputs.commodity_amounts[i] == 0.f; // No inputs intaken
+					const auto& inputs = state.world.factory_type_get_inputs(ftid);
+					for(uint32_t i = 0; i < inputs.size(); ++i)
+						if(inputs.types(i) == commodity_id)
+							return inputs.amounts(i) == 0.f; // No inputs intaken
 					return false;
 				},
 				trade_flow_data::value_type::may_be_used_by);

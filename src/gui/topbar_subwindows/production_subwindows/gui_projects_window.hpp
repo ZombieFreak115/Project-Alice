@@ -102,10 +102,9 @@ class production_project_info : public listbox_row_element_base<production_proje
 	float get_cost(sys::state& state, economy::commodity_set const& cset) {
 		float total = 0.f;
 		auto s = get_state_instance_id(state);
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-			dcon::commodity_id cid = cset.commodity_type[i];
-			if(bool(cid))
-				total += economy::price(state, s, cid) * cset.commodity_amounts[i];
+		for(uint32_t i = 0; i < cset.size(); ++i) {
+			dcon::commodity_id cid = cset.types(i);
+			total += economy::price(state, s, cid) * cset.amounts(i);
 		}
 		return total;
 	}
@@ -171,30 +170,28 @@ public:
 			float factory_mod = economy::factory_build_cost_multiplier(state, state.local_player_nation, fat_id.get_province(), fat_id.get_is_pop_project());
 			float refit_discount = (fat_id.get_refit_target()) ? state.defines.alice_factory_refit_cost_modifier : 1.0f;
 
-			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-				needed_commodities.commodity_amounts[i] *= factory_mod * refit_discount;
+			for(uint32_t i = 0; i < needed_commodities.size(); ++i) {
+				needed_commodities.amounts(i) *= factory_mod * refit_discount;
 			}
 		}
 
 		if(input_listbox) {
 			input_listbox->row_contents.clear();
-			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i)
-				if(bool(needed_commodities.commodity_type[i]))
-					input_listbox->row_contents.push_back(production_project_input_data{
-							needed_commodities.commodity_type[i],				// cid
-							satisfied_commodities.commodity_amounts[i], // satisfied
-							needed_commodities.commodity_amounts[i]			// needed
-					});
+			for(uint32_t i = 0; i < needed_commodities.size(); ++i)
+				input_listbox->row_contents.push_back(production_project_input_data{
+						needed_commodities.types(i),				// cid
+						satisfied_commodities.amounts(i), // satisfied
+						needed_commodities.amounts(i)			// needed
+				});
 			input_listbox->update(state);
 		}
 
 		auto s = get_state_instance_id(state);
 
 		float purchased_cost = 0.0f;
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-			dcon::commodity_id cid = needed_commodities.commodity_type[i];
-			if(bool(cid))
-				purchased_cost += economy::price(state, s, cid) * satisfied_commodities.commodity_amounts[i];
+		for(uint32_t i = 0; i < needed_commodities.size(); ++i) {
+			dcon::commodity_id cid = needed_commodities.types(i);
+			purchased_cost += economy::price(state, s, cid) * satisfied_commodities.amounts(i);
 		}
 		float total_cost = get_cost(state, needed_commodities);
 		cost_text->set_text(state, text::format_money(purchased_cost) + "/" + text::format_money(total_cost));

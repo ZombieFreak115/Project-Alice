@@ -91,18 +91,17 @@ class factory_build_cost_text : public simple_text_element_base {
 public:
 	std::string get_text(sys::state& state, dcon::factory_type_id ftid) noexcept {
 		auto fat = dcon::fatten(state.world, ftid);
-		auto& name = fat.get_construction_costs();
+		const auto& name = fat.get_construction_costs();
 
 		auto s = retrieve<dcon::state_instance_id>(state, parent);
 		auto pid = retrieve<dcon::province_id>(state, parent);
 		float factor = economy::factory_build_cost_multiplier(state, state.local_player_nation, pid, false);
 
 		auto total = 0.0f;
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
-			auto cid = name.commodity_type[i];
-			if(bool(cid)) {
-				total += economy::price(state, s, cid) * name.commodity_amounts[i] * factor;
-			}
+		for(uint32_t i = 0; i < name.size(); i++) {
+			auto cid = name.types(i);
+			total += economy::price(state, s, cid) * name.amounts(i) * factor;
+			
 		} // Credit to leaf for this code :3
 		return text::format_money(total);
 	}
@@ -126,19 +125,16 @@ public:
 
 		auto constr_cost = state.world.factory_type_get_construction_costs(type);
 
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
+		for(uint32_t i = 0; i < constr_cost.size(); ++i) {
 			auto box = text::open_layout_box(contents, 0);
-			auto cid = constr_cost.commodity_type[i];
+			auto cid = constr_cost.types(i);
 
-			if(!cid) {
-				break;
-			}
 			std::string padding = cid.index() < 10 ? "0" : "";
 			std::string description = "@$" + padding + std::to_string(cid.index());
 			text::add_unparsed_text_to_layout_box(state, contents, box, description);
-			text::add_to_layout_box(state, contents, box, state.world.commodity_get_name(constr_cost.commodity_type[i]));
+			text::add_to_layout_box(state, contents, box, state.world.commodity_get_name(constr_cost.types(i)));
 			text::add_to_layout_box(state, contents, box, std::string_view{ ": " });
-			text::add_to_layout_box(state, contents, box, text::fp_one_place{ constr_cost.commodity_amounts[i] * factor });
+			text::add_to_layout_box(state, contents, box, text::fp_one_place{ constr_cost.amounts(i) * factor });
 			text::close_layout_box(contents, box);
 		}
 	}
@@ -201,10 +197,10 @@ public:
 		auto s = retrieve<dcon::state_instance_id>(state, parent);
 
 		auto const& iset = state.world.factory_type_get_inputs(content);
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
-			if(iset.commodity_type[i] && iset.commodity_amounts[i] > 0.0f) {
-				auto amount = iset.commodity_amounts[i];
-				auto cid = iset.commodity_type[i];
+		for(uint32_t i = 0; i < iset.size(); i++) {
+			if(iset.amounts(i) > 0.0f) {
+				auto amount = iset.amounts(i);
+				auto cid = iset.types(i);
 				auto price = economy::price(state, s, cid);
 
 				auto box = text::open_layout_box(contents, 0);
@@ -229,10 +225,10 @@ public:
 		// List factory type construction costs
 		text::add_line(state, contents, "alice_construction_cost");
 		auto const& cset = state.world.factory_type_get_construction_costs(content);
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
-			if(cset.commodity_type[i] && cset.commodity_amounts[i] > 0.0f) {
-				auto amount = cset.commodity_amounts[i];
-				auto cid = cset.commodity_type[i];
+		for(uint32_t i = 0; i < cset.size(); i++) {
+			if(cset.amounts(i) > 0.0f) {
+				auto amount = cset.amounts(i);
+				auto cid = cset.types(i);
 				auto price = economy::price(state, s, cid);
 
 				// Commodity icon
@@ -535,9 +531,9 @@ public:
 			set_text(state, "");
 			return;
 		}
-		auto& inputs = state.world.factory_type_get_inputs(type);
-		if(n < int32_t(economy::commodity_set::set_size)) {
-			auto amount = inputs.commodity_amounts[n];
+		const auto& inputs = state.world.factory_type_get_inputs(type);
+		if(n < int32_t(inputs.size())) {
+			auto amount = inputs.amounts(n);
 			if(amount > 0) {
 				set_text(state, text::format_float(amount, 2));
 			} else {
@@ -558,9 +554,9 @@ public:
 			c = dcon::commodity_id{};
 			return;
 		}
-		auto& inputs = state.world.factory_type_get_inputs(type);
-		if(n < int32_t(economy::commodity_set::set_size)) {
-			c = inputs.commodity_type[n];
+		const auto& inputs = state.world.factory_type_get_inputs(type);
+		if(n < int32_t(inputs.size())) {
+			c = inputs.types(n);
 			frame = int32_t(state.world.commodity_get_icon(c));
 		}
 	}

@@ -890,19 +890,17 @@ public:
 
 		for(auto pb_con : state.world.province_get_province_building_construction(prov)) {
 			if(pb_con.get_type() == uint8_t(Value)) {
-				auto& goods = state.economy_definitions.building_definitions[int32_t(Value)].cost;
-				auto& cgoods = pb_con.get_purchased_goods();
+				const auto& goods = state.economy_definitions.building_definitions[int32_t(Value)].cost;
+				const auto& cgoods = pb_con.get_purchased_goods();
 
 				float factor = economy::build_cost_multiplier(state, prov, pb_con.get_is_pop_project());
 
-				for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-					auto cid = goods.commodity_type[i];
-					if(!cid) break;
-
+				for(uint32_t i = 0; i < goods.size(); ++i) {
+					auto cid = goods.types(i);
 					auto box = text::open_layout_box(contents, 0);
 
-					auto required = goods.commodity_amounts[i];
-					auto current = cgoods.commodity_amounts[i];
+					auto required = goods.amounts(i);
+					auto current = cgoods.amounts(i);
 
 					std::string padding = cid.index() < 10 ? "0" : "";
 					std::string description = "@$" + padding + std::to_string(cid.index());
@@ -1751,15 +1749,12 @@ public:
 				auto lcs = pop.get_pop().get_province_land_construction();
 				for(const auto lc : lcs) {
 					auto details = economy::explain_land_unit_construction(state, lc);
-					auto& base_cost = state.military_definitions.unit_base_definitions[lc.get_type()].build_cost;
-					auto& current_purchased = lc.get_purchased_goods();
-					for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-						if(base_cost.commodity_type[i]) {
-							amount += current_purchased.commodity_amounts[i];
-							total += base_cost.commodity_amounts[i] * details.cost_multiplier;
-						} else {
-							break;
-						}
+					const auto& base_cost = state.military_definitions.unit_base_definitions[lc.get_type()].build_cost;
+					const auto& current_purchased = lc.get_purchased_goods();
+					for(uint32_t i = 0; i < base_cost.size(); ++i) {
+						amount += current_purchased.amounts(i);
+						total += base_cost.amounts(i) * details.cost_multiplier;
+						
 					}
 				}
 			}
@@ -1794,16 +1789,13 @@ public:
 		auto p = retrieve<dcon::province_id>(state, parent);
 		auto ncs = state.world.province_get_province_naval_construction(p);
 		for(auto nc : ncs) {
-			auto& base_cost = state.military_definitions.unit_base_definitions[nc.get_type()].build_cost;
-			auto& current_purchased = nc.get_purchased_goods();
-			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
+			const auto& base_cost = state.military_definitions.unit_base_definitions[nc.get_type()].build_cost;
+			const auto& current_purchased = nc.get_purchased_goods();
+			for(uint32_t i = 0; i < base_cost.size(); ++i) {
 				auto details = economy::explain_naval_unit_construction(state, nc);
-				if(base_cost.commodity_type[i]) {
-					amount += current_purchased.commodity_amounts[i];
-					total += base_cost.commodity_amounts[i] * details.cost_multiplier;
-				} else {
-					break;
-				}
+				amount += current_purchased.amounts(i);
+				total += base_cost.amounts(i) * details.cost_multiplier;
+				
 			}
 		}
 		if(total > 0.f) {
@@ -1830,15 +1822,11 @@ public:
 			if(pop.get_pop().get_poptype() == state.culture_definitions.soldiers) {
 				auto lcs = pop.get_pop().get_province_land_construction();
 				for(const auto lc : lcs) {
-					auto& base_cost = state.military_definitions.unit_base_definitions[lc.get_type()].build_cost;
-					auto& current_purchased = lc.get_purchased_goods();
-					for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-						if(base_cost.commodity_type[i]) {
-							amount += current_purchased.commodity_amounts[i];
-							total += base_cost.commodity_amounts[i];
-						} else {
-							break;
-						}
+					const auto& base_cost = state.military_definitions.unit_base_definitions[lc.get_type()].build_cost;
+					const auto& current_purchased = lc.get_purchased_goods();
+					for(uint32_t i = 0; i < base_cost.size(); ++i) {
+						amount += current_purchased.amounts(i);
+						total += base_cost.amounts(i);
 					}
 				}
 			}
@@ -1854,15 +1842,12 @@ public:
 		auto p = retrieve<dcon::province_id>(state, parent);
 		auto ncs = state.world.province_get_province_naval_construction(p);
 		for(auto nc : ncs) {
-			auto& base_cost = state.military_definitions.unit_base_definitions[nc.get_type()].build_cost;
-			auto& current_purchased = nc.get_purchased_goods();
-			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-				if(base_cost.commodity_type[i]) {
-					amount += current_purchased.commodity_amounts[i];
-					total += base_cost.commodity_amounts[i];
-				} else {
-					break;
-				}
+			const auto& base_cost = state.military_definitions.unit_base_definitions[nc.get_type()].build_cost;
+			const auto& current_purchased = nc.get_purchased_goods();
+			for(uint32_t i = 0; i < base_cost.size(); ++i) {
+				amount += current_purchased.amounts(i);
+				total += base_cost.amounts(i);
+				
 			}
 		}
 		set_text(state, text::format_percentage(total > 0.f ? amount / total : 0.f));

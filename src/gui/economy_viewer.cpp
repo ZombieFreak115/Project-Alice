@@ -122,8 +122,8 @@ void update(sys::state& state) {
 	auto magma = true;
 
 	if(state.selected_factory_type && state.iui_state.tab == iui::iui_tab::factory_types) {
-		auto& inputs = state.world.factory_type_get_inputs(state.selected_factory_type);
-		auto& e_inputs = state.world.factory_type_get_efficiency_inputs(state.selected_factory_type);
+		const auto& inputs = state.world.factory_type_get_inputs(state.selected_factory_type);
+		const auto& e_inputs = state.world.factory_type_get_efficiency_inputs(state.selected_factory_type);
 		auto ftid = state.selected_factory_type;
 
 		state.world.for_each_market([&](dcon::market_id market) {
@@ -137,17 +137,15 @@ void update(sys::state& state) {
 			auto output_mult = economy::nation_factory_output_multiplier(state, ftid, nid);
 
 			float total = 0.f;
-			for(unsigned i = 0; i < inputs.set_size; i++) {
-				if(inputs.commodity_type[i]) {
-					auto cid = inputs.commodity_type[i];
-					total -= inputs.commodity_amounts[i] * input_mult * state.world.market_get_price(mid, cid);
-				}
+			for(unsigned i = 0; i < inputs.size(); i++) {
+				auto cid = inputs.types(i);
+				total -= inputs.amounts(i) * input_mult * state.world.market_get_price(mid, cid);
+				
 			}
-			for(unsigned i = 0; i < e_inputs.set_size; i++) {
-				if(e_inputs.commodity_type[i]) {
-					auto cid = e_inputs.commodity_type[i];
-					total -= e_inputs.commodity_amounts[i] * input_mult * e_input_mult * state.world.market_get_price(mid, cid);
-				}
+			for(unsigned i = 0; i < e_inputs.size(); i++) {
+				auto cid = e_inputs.types(i);
+				total -= e_inputs.amounts(i) * input_mult * e_input_mult * state.world.market_get_price(mid, cid);
+				
 			}
 
 			auto cid = state.world.factory_type_get_output(ftid).id;
@@ -1507,20 +1505,10 @@ void render(sys::state& state) {
 			}
 
 			//retrieve data
-			auto& inputs = state.world.factory_type_get_inputs(ftid);
-			int inputs_size = 0;
-			for(unsigned i = 0; i < inputs.set_size; i++) {
-				if(inputs.commodity_type[i]) {
-					inputs_size++;
-				}
-			}
-			auto& e_inputs = state.world.factory_type_get_efficiency_inputs(ftid);
-			int e_inputs_size = 0;
-			for(unsigned i = 0; i < e_inputs.set_size; i++) {
-				if(e_inputs.commodity_type[i]) {
-					e_inputs_size++;
-				}
-			}
+			const auto& inputs = state.world.factory_type_get_inputs(ftid);
+			int inputs_size = inputs.size();
+			const auto& e_inputs = state.world.factory_type_get_efficiency_inputs(ftid);
+			int e_inputs_size = e_inputs.size();
 
 			float grid_margin = 5.f;
 			int items_per_row = 3;
@@ -1538,62 +1526,61 @@ void render(sys::state& state) {
 
 				float current_y = view_panel.y + 50.f;
 
-				for(unsigned i = 0; i < inputs.set_size; i++) {
-					if(inputs.commodity_type[i]) {
-						auto cid = inputs.commodity_type[i];
+				for(unsigned i = 0; i < inputs.size(); i++) {
+					auto cid = inputs.types(i);
 
-						int row = i / items_per_row;
-						int column = i - row * items_per_row;
-						commodity_rect.x = view_panel.x + grid_margin + column * (grid_margin + commodity_rect.w);
-						commodity_rect.y = current_y + grid_margin + row * (grid_margin + commodity_rect.h);
+					int row = i / items_per_row;
+					int column = i - row * items_per_row;
+					commodity_rect.x = view_panel.x + grid_margin + column * (grid_margin + commodity_rect.w);
+					commodity_rect.y = current_y + grid_margin + row * (grid_margin + commodity_rect.h);
 
-						commodity_labels.x = commodity_rect.x;
-						commodity_labels.y = commodity_rect.y;
+					commodity_labels.x = commodity_rect.x;
+					commodity_labels.y = commodity_rect.y;
 
-						state.iui_state.panel_textured(state, commodity_rect, state.iui_state.commodity_bg.texture_handle);
-						commodity_panel(
-							state,
-							(int32_t)static_elements::commodities_inputs_amount + cid.index(),
-							(int32_t)static_elements::commodities_inputs_cost + cid.index(),
-							cid,
-							inputs.commodity_amounts[i] * input_mult,
-							state.world.market_get_price(mid, cid),
-							commodity_labels
-						);
+					state.iui_state.panel_textured(state, commodity_rect, state.iui_state.commodity_bg.texture_handle);
+					commodity_panel(
+						state,
+						(int32_t)static_elements::commodities_inputs_amount + cid.index(),
+						(int32_t)static_elements::commodities_inputs_cost + cid.index(),
+						cid,
+						inputs.amounts(i) * input_mult,
+						state.world.market_get_price(mid, cid),
+						commodity_labels
+					);
 
-						total -= inputs.commodity_amounts[i] * input_mult * state.world.market_get_price(mid, cid);
-					}
+					total -= inputs.amounts(i) * input_mult * state.world.market_get_price(mid, cid);
+					
 				}
 
 				current_y += grid_margin + rows_input * (grid_margin + commodity_rect.h) + 10.f;
 
 				// maintenance
 
-				for(unsigned i = 0; i < e_inputs.set_size; i++) {
-					if(e_inputs.commodity_type[i]) {
-						auto cid = e_inputs.commodity_type[i];
+				for(unsigned i = 0; i < e_inputs.size(); i++) {
 
-						int row = i / items_per_row;
-						int column = i - row * items_per_row;
-						commodity_rect.x = view_panel.x + grid_margin + column * (grid_margin + commodity_rect.w);
-						commodity_rect.y = current_y + grid_margin + row * (grid_margin + commodity_rect.h);
+					auto cid = e_inputs.types(i);
 
-						commodity_labels.x = commodity_rect.x;
-						commodity_labels.y = commodity_rect.y;
+					int row = i / items_per_row;
+					int column = i - row * items_per_row;
+					commodity_rect.x = view_panel.x + grid_margin + column * (grid_margin + commodity_rect.w);
+					commodity_rect.y = current_y + grid_margin + row * (grid_margin + commodity_rect.h);
 
-						state.iui_state.panel_textured(state, commodity_rect, state.iui_state.commodity_bg.texture_handle);
-						commodity_panel(
-							state,
-							(int32_t)static_elements::commodities_inputs_amount + cid.index(),
-							(int32_t)static_elements::commodities_inputs_cost + cid.index(),
-							cid,
-							e_inputs.commodity_amounts[i] * input_mult * e_input_mult,
-							state.world.market_get_price(mid, cid),
-							commodity_labels
-						);
+					commodity_labels.x = commodity_rect.x;
+					commodity_labels.y = commodity_rect.y;
 
-						total -= e_inputs.commodity_amounts[i] * input_mult * e_input_mult * state.world.market_get_price(mid, cid);
-					}
+					state.iui_state.panel_textured(state, commodity_rect, state.iui_state.commodity_bg.texture_handle);
+					commodity_panel(
+						state,
+						(int32_t)static_elements::commodities_inputs_amount + cid.index(),
+						(int32_t)static_elements::commodities_inputs_cost + cid.index(),
+						cid,
+						e_inputs.amounts(i) * input_mult * e_input_mult,
+						state.world.market_get_price(mid, cid),
+						commodity_labels
+					);
+
+					total -= e_inputs.amounts(i) * input_mult * e_input_mult * state.world.market_get_price(mid, cid);
+					
 				}
 
 				current_y += grid_margin + rows_e_input * (grid_margin + commodity_rect.h) + 10.f;

@@ -1626,13 +1626,13 @@ void  production_main_main_list_t::update(sys::state& state, layout_window_eleme
 
 						pseudo_commodity_set seen_commodities;
 
-						auto& cset = ft.get_inputs();
-						for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-							seen_commodities.add(cset.commodity_type[i], cset.commodity_amounts[i]);
+						const auto& cset = ft.get_inputs();
+						for(uint32_t i = 0; i < cset.size(); ++i) {
+							seen_commodities.add(cset.types(i), cset.amounts(i));
 						}
-						auto& csetb = ft.get_efficiency_inputs();
-						for(uint32_t i = 0; i < economy::small_commodity_set::set_size; ++i) {
-							seen_commodities.add(csetb.commodity_type[i], csetb.commodity_amounts[i]);
+						const auto& csetb = ft.get_efficiency_inputs();
+						for(uint32_t i = 0; i < csetb.size(); ++i) {
+							seen_commodities.add(csetb.types(i), csetb.amounts(i));
 						}
 						seen_commodities.sort();
 						bool first = true;
@@ -1657,9 +1657,9 @@ void  production_main_main_list_t::update(sys::state& state, layout_window_eleme
 
 				pseudo_commodity_set seen_commodities;
 
-				auto& cset = c.get_artisan_inputs();
-				for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-					seen_commodities.add(cset.commodity_type[i], cset.commodity_amounts[i]);
+				const auto& cset = c.get_artisan_inputs();
+				for(uint32_t i = 0; i < cset.size(); ++i) {
+					seen_commodities.add(cset.types(i), cset.amounts(i));
 				}
 
 				seen_commodities.sort();
@@ -3240,16 +3240,16 @@ void production_sub_item_row_amount_t::on_update(sys::state& state) noexcept {
 			float total = 0.0f;
 			for(auto ft : state.world.in_factory_type) {
 				if(ft.get_output() == sub_item_row.main_commodity) {
-					auto& cset = ft.get_inputs();
-					for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-						if(cset.commodity_type[i] == dcon::commodity_id{ dcon::commodity_id::value_base_t(sub_item_row.secondary_type) }) {
-							total += cset.commodity_amounts[i];
+					const auto& cset = ft.get_inputs();
+					for(uint32_t i = 0; i < cset.size(); ++i) {
+						if(cset.types(i) == dcon::commodity_id{ dcon::commodity_id::value_base_t(sub_item_row.secondary_type) }) {
+							total += cset.amounts(i);
 						}
 					}
-					auto& csetb = ft.get_efficiency_inputs();
-					for(uint32_t i = 0; i < economy::small_commodity_set::set_size; ++i) {
-						if(csetb.commodity_type[i] == dcon::commodity_id{ dcon::commodity_id::value_base_t(sub_item_row.secondary_type) }) {
-							total += csetb.commodity_amounts[i];
+					const auto& csetb = ft.get_efficiency_inputs();
+					for(uint32_t i = 0; i < csetb.size(); ++i) {
+						if(csetb.types(i) == dcon::commodity_id{ dcon::commodity_id::value_base_t(sub_item_row.secondary_type) }) {
+							total += csetb.amounts(i);
 						}
 					}
 				}
@@ -3259,10 +3259,10 @@ void production_sub_item_row_amount_t::on_update(sys::state& state) noexcept {
 		case prod_source::artisan:
 		{
 			float amount = 0;
-			auto& cset = state.world.commodity_get_artisan_inputs(sub_item_row.main_commodity);
-			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-				if(cset.commodity_type[i] == dcon::commodity_id{ dcon::commodity_id::value_base_t(sub_item_row.secondary_type) }) {
-					amount = cset.commodity_amounts[i];
+			const auto& cset = state.world.commodity_get_artisan_inputs(sub_item_row.main_commodity);
+			for(uint32_t i = 0; i < cset.size(); ++i) {
+				if(cset.types(i) == dcon::commodity_id{ dcon::commodity_id::value_base_t(sub_item_row.secondary_type) }) {
+					amount = cset.amounts(i);
 				}
 			}
 			set_text(state, text::format_float(amount, 2));

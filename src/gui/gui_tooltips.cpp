@@ -293,21 +293,18 @@ void province_building_construction_tooltip(sys::state& state, text::columnar_la
 
 	// Construction cost goods breakdown
 	float factor = economy::build_cost_multiplier(state, p, false);
-	auto constr_cost = state.economy_definitions.building_definitions[uint8_t(bt)].cost;
+	const auto& constr_cost = state.economy_definitions.building_definitions[uint8_t(bt)].cost;
 
-	for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
+	for(uint32_t i = 0; i < constr_cost.size(); ++i) {
 		auto box = text::open_layout_box(contents, 0);
-		auto cid = constr_cost.commodity_type[i];
+		auto cid = constr_cost.types(i);
 
-		if(!cid) {
-			break;
-		}
 		std::string padding = cid.index() < 10 ? "0" : "";
 		std::string description = "@$" + padding + std::to_string(cid.index());
 		text::add_unparsed_text_to_layout_box(state, contents, box, description);
-		text::add_to_layout_box(state, contents, box, state.world.commodity_get_name(constr_cost.commodity_type[i]));
+		text::add_to_layout_box(state, contents, box, state.world.commodity_get_name(constr_cost.types(i)));
 		text::add_to_layout_box(state, contents, box, std::string_view{ ": " });
-		text::add_to_layout_box(state, contents, box, text::fp_one_place{ constr_cost.commodity_amounts[i] * factor });
+		text::add_to_layout_box(state, contents, box, text::fp_one_place{ constr_cost.amounts(i) * factor });
 		text::close_layout_box(contents, box);
 	}
 };
@@ -374,16 +371,13 @@ void province_owner_rgo_commodity_tooltip(sys::state& state, text::columnar_layo
 	}
 
 	auto inputs = economy::rgo_calculate_actual_efficiency_inputs(state, nat_id, market, prov_id, c, mobilization_impact);
-	for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-		if(inputs.commodity_type[i]) {
-			if(i == 0) {
-				text::add_line(state, contents, "province_rgo_efficiency_inputs");
-			}
-			auto input_c = dcon::fatten(state.world, inputs.commodity_type[i]);
-			text::add_line(state, contents, "province_rgo_efficiency_input", text::variable_type::good, input_c.get_name(), text::variable_type::value, text::fp_two_places{ inputs.commodity_amounts[i] });
-		} else {
-			break;
+	for(uint32_t i = 0; i < inputs.size(); ++i) {
+		if(i == 0) {
+			text::add_line(state, contents, "province_rgo_efficiency_inputs");
 		}
+		auto input_c = dcon::fatten(state.world, inputs.types(i));
+		text::add_line(state, contents, "province_rgo_efficiency_input", text::variable_type::good, input_c.get_name(), text::variable_type::value, text::fp_two_places{ inputs.amounts(i) });
+		
 	}
 };
 

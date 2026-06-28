@@ -420,15 +420,14 @@ json format_factory_link(sys::state& state, dcon::factory_id fid) {
 
 json format_commodity_set(sys::state& state, economy::commodity_set set) {
 	json jlist = json::array();
-	for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-		if(set.commodity_type[i]) {
-			json j = json::object();
+	for(uint32_t i = 0; i < set.size(); ++i) {
+		json j = json::object();
 
-			j["commodity"] = format_commodity_link(state, set.commodity_type[i]);
-			j["amount"] = set.commodity_amounts[i];
+		j["commodity"] = format_commodity_link(state, set.types(i));
+		j["amount"] = set.amounts(i);
 
-			jlist.push_back(j);
-		}
+		jlist.push_back(j);
+		
 	}
 	return jlist;
 }

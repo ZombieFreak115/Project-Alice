@@ -325,14 +325,11 @@ bool will_have_shortages_building_unit(sys::state& state, dcon::nation_id n, dco
 	bool lacking_input = false;
 	auto m = state.world.nation_get_capital(n).get_state_membership().get_market_from_local_market();
 
-	for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-		if(def.build_cost.commodity_type[i]) {
-			auto cid = def.build_cost.commodity_type[i];
-			auto amount = def.build_cost.commodity_amounts[i];
-			lacking_input = economy::estimate_probability_to_buy_after_demand_increase(state, m, cid, amount / build_time) < 0.1f;
-		} else {
-			break;
-		}
+	for(uint32_t i = 0; i < def.build_cost.size(); ++i) {
+		auto cid = def.build_cost.types(i);
+		auto amount = def.build_cost.amounts(i);
+		lacking_input = economy::estimate_probability_to_buy_after_demand_increase(state, m, cid, amount / build_time) < 0.1f;
+
 	}
 
 	return lacking_input;
@@ -9626,29 +9623,22 @@ commodity_array_type get_last_required_supply(const sys::state& state, unit_type
 		if constexpr(std::is_same_v< commodity_array_type, economy::supply_cost_union_commodity_amount_array>) {
 			const economy::commodity_set& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
 			float last_supply_cost_mod = subunit.get_last_supply_cost_modifier();
-			for(uint32_t i = 0; i < supply_cost.set_size; ++i) {
-				auto com_type = supply_cost.commodity_type[i];
-				if(com_type) {
-					int16_t index = get_union_index(com_type);
-					assert(index >= 0);
-					commodities[index] += supply_cost.commodity_amounts[i] * last_supply_cost_mod;
-				} else {
-					break;
-				}
+			for(uint32_t i = 0; i < supply_cost.size(); ++i) {
+				auto com_type = supply_cost.types(i);
+				int16_t index = get_union_index(com_type);
+				assert(index >= 0);
+				commodities[index] += supply_cost.amounts(i) * last_supply_cost_mod;
+
 			}
 		}
 		if constexpr(std::is_same_v< commodity_array_type, economy::build_cost_union_commodity_amount_array>) {
 			const economy::commodity_set& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
-			for(uint32_t i = 0; i < build_cost.set_size; ++i) {
+			for(uint32_t i = 0; i < build_cost.size(); ++i) {
 				float last_reinf = subunit.get_last_potential_reinforcement();
-				auto com_type = build_cost.commodity_type[i];
-				if(com_type) {
-					int16_t index = get_union_index(com_type);
-					assert(index >= 0);
-					commodities[index] += build_cost.commodity_amounts[i] * last_reinf;
-				} else {
-					break;
-				}
+				auto com_type = build_cost.types(i);
+				int16_t index = get_union_index(com_type);
+				assert(index >= 0);
+				commodities[index] += build_cost.amounts(i) * last_reinf;
 			}
 		}
 	};
@@ -10266,14 +10256,11 @@ void resolve_unit_constructions(sys::state& state) {
 		// US1AC4. All goods costs must be built
 		bool ready_for_deployment = true;
 		if(!(c.get_nation().get_is_player_controlled() && state.cheat_data.instant_army)) {
-			for(uint32_t j = 0; j < economy::commodity_set::set_size && ready_for_deployment; ++j) {
-				if(base_cost.commodity_type[j]) {
-					if(current_purchased.commodity_amounts[j] < base_cost.commodity_amounts[j] * cost_factor) {
-						ready_for_deployment = false;
-					}
-				} else {
-					break;
+			for(uint32_t j = 0; j < base_cost.size() && ready_for_deployment; ++j) {
+				if(current_purchased.amounts(j) < base_cost.amounts(j) * cost_factor) {
+					ready_for_deployment = false;
 				}
+			
 			}
 		}
 
@@ -10327,14 +10314,11 @@ void resolve_unit_constructions(sys::state& state) {
 			// US2AC4.
 			bool ready_for_deployment = true;
 			if(!(c.get_nation().get_is_player_controlled() && state.cheat_data.instant_navy)) {
-				for(uint32_t i = 0; i < economy::commodity_set::set_size && ready_for_deployment; ++i) {
-					if(base_cost.commodity_type[i]) {
-						if(current_purchased.commodity_amounts[i] < base_cost.commodity_amounts[i] * cost_factor) {
-							ready_for_deployment = false;
-						}
-					} else {
-						break;
+				for(uint32_t i = 0; i < base_cost.size() && ready_for_deployment; ++i) {
+					if(current_purchased.amounts(i) < base_cost.amounts(i) * cost_factor) {
+						ready_for_deployment = false;
 					}
+					
 				}
 			}
 

@@ -1561,7 +1561,6 @@ struct inventions_file {
 void register_invention(std::string_view name, token_generator& gen, error_handler& err, tech_group_context& context); // but not at the patent office
 
 struct commodity_set : public economy::commodity_set {
-	int32_t num_added = 0;
 	void any_value(std::string_view name, association_type, float value, error_handler& err, int32_t line,
 			scenario_building_context& context);
 

@@ -552,13 +552,10 @@ void execute_begin_province_building_construction(sys::state& state, dcon::natio
 
 	if(type != economy::province_building_type::fort && type != economy::province_building_type::naval_base && source != state.world.province_get_nation_from_province_ownership(p)) {
 		float amount = 0.0f;
-		auto& base_cost = state.economy_definitions.building_definitions[int32_t(type)].cost;
-		for(uint32_t j = 0; j < economy::commodity_set::set_size; ++j) {
-			if(base_cost.commodity_type[j]) {
-				amount += base_cost.commodity_amounts[j] * state.world.commodity_get_cost(base_cost.commodity_type[j]); //base cost
-			} else {
-				break;
-			}
+		const auto& base_cost = state.economy_definitions.building_definitions[int32_t(type)].cost;
+		for(uint32_t j = 0; j < base_cost.size(); ++j) {
+			amount += base_cost.amounts(j) * state.world.commodity_get_cost(base_cost.types(j)); //base cost
+			
 		}
 		nations::adjust_foreign_investment(state, source, state.world.province_get_nation_from_province_ownership(p), amount);
 	}
@@ -730,17 +727,7 @@ bool can_begin_factory_building_construction(sys::state& state, dcon::nation_id 
 				auto output_2 = state.world.factory_type_get_output(refit_target);
 				auto inputs_1 = state.world.factory_type_get_inputs(type);
 				auto inputs_2 = state.world.factory_type_get_inputs(refit_target);
-				auto inputs_match = true;
-
-				for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-					auto input_1 = inputs_1.commodity_type[i];
-					auto input_2 = inputs_2.commodity_type[i];
-
-					if(input_1 != input_2) {
-						inputs_match = false;
-						break;
-					}
-				}
+				auto inputs_match = (inputs_1 == inputs_2);
 				if(output_1 != output_2 && !inputs_match) {
 					return false;
 				}
@@ -811,13 +798,10 @@ void execute_begin_factory_building_construction(sys::state& state, dcon::nation
 
 	if(source != state.world.province_get_nation_from_province_ownership(location)) {
 		float amount = 0.0f;
-		auto& base_cost = state.world.factory_type_get_construction_costs(type);
-		for(uint32_t j = 0; j < economy::commodity_set::set_size; ++j) {
-			if(base_cost.commodity_type[j]) {
-				amount += base_cost.commodity_amounts[j] * state.world.commodity_get_cost(base_cost.commodity_type[j]); //base cost
-			} else {
-				break;
-			}
+		const auto& base_cost = state.world.factory_type_get_construction_costs(type);
+		for(uint32_t j = 0; j < base_cost.size(); ++j) {
+			amount += base_cost.amounts(j) * state.world.commodity_get_cost(base_cost.types(j)); //base cost
+			
 		}
 		nations::adjust_foreign_investment(state, source, state.world.province_get_nation_from_province_ownership(location), amount);
 	}
@@ -883,10 +867,8 @@ void execute_start_naval_unit_construction(sys::state& state, dcon::nation_id so
 	auto& fufilled_goods = c.get_purchased_goods();
 	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
 	// Initialize the commodity types in the fufilled goods buffer to have identical types as build cost
-	for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
-		fufilled_goods.commodity_type[i] = build_cost.commodity_type[i];
-		fufilled_goods.commodity_amounts[i] = 0.0f;
-
+	for(uint32_t i = 0; i < build_cost.size(); i++) {
+		fufilled_goods.push_back(build_cost.types(i), 0.0f);
 	}
 	c.set_type(type);
 	c.set_start_date(state.current_date);
@@ -948,10 +930,8 @@ void execute_start_land_unit_construction(sys::state& state, dcon::nation_id sou
 	auto& fufilled_goods = c.get_purchased_goods();
 	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
 	// Initialize the commodity types in the fufilled goods buffer to have identical types as build cost
-	for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
-		fufilled_goods.commodity_type[i] = build_cost.commodity_type[i];
-		fufilled_goods.commodity_amounts[i] = 0.0f;
-
+	for(uint32_t i = 0; i < build_cost.size(); i++) {
+		fufilled_goods.push_back(build_cost.types(i), 0.0f);
 	}
 	c.set_start_date(state.current_date);
 	c.set_type(type);

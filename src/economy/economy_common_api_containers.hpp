@@ -44,8 +44,8 @@ struct building_information {
 	uint8_t padding[3] = { 0 };
 };
 
-static_assert(sizeof(building_information) == 104);
-static_assert(sizeof(building_information::cost) == 40);
+static_assert(sizeof(building_information) == 108);
+static_assert(sizeof(building_information::cost) == 44);
 static_assert(sizeof(building_information::colonial_points) == 32);
 static_assert(sizeof(building_information::province_modifier) == 2);
 static_assert(sizeof(building_information::name) == 4);
@@ -56,7 +56,7 @@ static_assert(sizeof(building_information::cost)
 	+ sizeof(building_information::max_level)
 	+ sizeof(building_information::time)
 	+ sizeof(building_information::infrastructure)
-	== 92);
+	== 96);
 static_assert(sizeof(building_information) ==
 	sizeof(building_information::cost)
 	+ sizeof(building_information::naval_capacity)

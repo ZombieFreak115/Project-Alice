@@ -19,11 +19,11 @@ void for_each_new_factory(sys::state& state, dcon::province_id s, F&& func) {
 
 			float total = 0.0f;
 			float purchased = 0.0f;
-			auto& goods = state.world.factory_type_get_construction_costs(st_con.get_type());
+			const auto& goods = state.world.factory_type_get_construction_costs(st_con.get_type());
 
-			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-				total += goods.commodity_amounts[i] * admin_cost_factor;
-				purchased += st_con.get_purchased_goods().commodity_amounts[i];
+			for(uint32_t i = 0; i < goods.size(); ++i) {
+				total += goods.amounts(i) * admin_cost_factor;
+				purchased += st_con.get_purchased_goods().amounts(i);
 			}
 
 			func(new_factory{total > 0.0f ? purchased / total : 0.0f, st_con.get_type().id});
@@ -43,11 +43,11 @@ void for_each_upgraded_factory(sys::state& state, dcon::province_id s, F&& func)
 
 			float total = 0.0f;
 			float purchased = 0.0f;
-			auto& goods = state.world.factory_type_get_construction_costs(st_con.get_type());
+			const auto& goods = state.world.factory_type_get_construction_costs(st_con.get_type());
 
-			for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-				total += goods.commodity_amounts[i] * admin_cost_factor * refit_discount;
-				purchased += st_con.get_purchased_goods().commodity_amounts[i];
+			for(uint32_t i = 0; i < goods.size(); ++i) {
+				total += goods.amounts(i) * admin_cost_factor * refit_discount;
+				purchased += st_con.get_purchased_goods().amounts(i);
 			}
 
 			func(upgraded_factory{total > 0.0f ? purchased / total : 0.0f, st_con.get_type().id, st_con.get_refit_target().id});

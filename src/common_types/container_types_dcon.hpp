@@ -503,66 +503,83 @@ namespace economy {
 
 template<uint32_t sz>
 struct commodity_set_base {
+private:
+	uint16_t size_used;
+	std::array<dcon::commodity_id, sz> commodity_type;
+	std::array<float, sz> commodity_amounts;
+public:
 	static constexpr uint32_t set_size = sz;
 
-	float commodity_amounts[set_size];
-	dcon::commodity_id commodity_type[set_size];
-
 	bool operator==(const commodity_set_base& other) const {
-		return std::memcmp(this->commodity_amounts, other.commodity_amounts, sizeof(commodity_amounts)) == 0 && std::memcmp(this->commodity_type, other.commodity_type, sizeof(commodity_type)) == 0;
+		return std::memcmp(this, &other, sizeof(*this)) == 0;
 	}
 	bool operator!=(const commodity_set_base& other) const {
 		return !(other == *this);
 	}
 	constexpr commodity_set_base() {
-		std::memset(this, 0, sizeof(commodity_set_base)); // Clears any potential padding, too
+		std::memset(this, 0, sizeof(*this));
 	}
+	constexpr commodity_set_base(uint16_t size) {
+		std::memset(this, 0, sizeof(*this));
+		size_used = size;
+	}
+
+	uint16_t size() const {
+		return size_used;
+	}
+
+	dcon::commodity_id& types(uint16_t index) {
+		assert(index < size());
+		return commodity_type[index];
+	}
+	const dcon::commodity_id& types(uint16_t index) const {
+		assert(index < size());
+		return commodity_type[index];
+	}
+
+	float& amounts(uint16_t index) {
+		assert(index < size());
+		return commodity_amounts[index];
+	}
+	const float& amounts(uint16_t index) const {
+		assert(index < size());
+		return commodity_amounts[index];
+	}
+
+	bool is_at_capacity() const {
+		return size() == set_size;
+	}
+
 	template<typename F>
 	void for_each_commodity(const F&& function) const {
-		for(uint32_t i = 0; i < set_size; ++i) {
-			if(commodity_type[i]) {
-				function(commodity_type[i], commodity_amounts[i]);
-			} else {
-				break;
-			}
+		for(uint16_t i = 0; i < size(); ++i) {
+			function(commodity_type[i], commodity_amounts[i]);
 		}
 	}
 	template<typename F>
-	void for_each_commodity(F&& function) {
-		for(uint32_t i = 0; i < set_size; ++i) {
-			if(commodity_type[i]) {
-				function(commodity_type[i], commodity_amounts[i]);
-			} else {
-				break;
-			}
+	void for_each_commodity(F&& function){
+		for(uint16_t i = 0; i < size(); ++i) {
+			function(commodity_type[i], commodity_amounts[i]);
 		}
 	}
-	// Tries to add a commodity to the first free slot. Returns the index it was added to if sucessful, or -1 if no slot available or if the commodity is already added
-	int16_t try_add(dcon::commodity_id cid, float amount) {
-		assert(cid);
-		for(uint32_t i = 0; i < set_size; ++i) {
-			if(!commodity_type[i]) {
-				commodity_type[i] = cid;
-				commodity_amounts[i] = amount;
-				return i;
-			}
-			else if(commodity_type[i] == cid) {
-				return -1;
-			}
+	template<typename F>
+	void for_each_index(const F&& function) const {
+		for(uint32_t i = 0; i < size(); ++i) {
+			function(i);
 		}
-		return -1;
 	}
-
-	void copy_all_to(commodity_set_base& dest) const {
-		std::memcpy(&dest, this, sizeof(commodity_set_base));
+	void push_back(dcon::commodity_id commodity, float amount) {
+		assert(size() < set_size);
+		commodity_type[size()] = commodity;
+		commodity_amounts[size()] = amount;
+		size_used++;
 	}
-	void copy_types_to(commodity_set_base& dest) const {
-		std::memcpy(&dest.commodity_type, this->commodity_type, sizeof(commodity_set_base::commodity_type));
+	void pop_back() {
+		assert(size() > 0);
+		commodity_type[size()] = dcon::commodity_id{};
+		commodity_amounts[size()] = float{};
+		size_used--;
 	}
-	void copy_amounts_to(commodity_set_base& dest) const {
-		std::memcpy(&dest.commodity_amounts, this->commodity_amounts, sizeof(commodity_set_base::commodity_amounts));
-	}
-
 	void clear_types() {
 		std::memset(&commodity_type, 0, sizeof(commodity_type));
 	}
@@ -571,18 +588,6 @@ struct commodity_set_base {
 	}
 	void clear_all() {
 		std::memset(this, 0, sizeof(commodity_set_base));
-	}
-	uint32_t size_used() const {
-		uint32_t count = 0;
-		for(uint32_t i = 0; i < set_size; i++) {
-			if(commodity_type[i]) {
-				count++;
-			}
-			else {
-				break;
-			}
-		}
-		return count;
 	}
 
 };
@@ -613,21 +618,15 @@ using supply_and_build_cost_union_commodity_amount_array = sys::fixed_size_vecto
 using supply_and_build_cost_union_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, huge_set_size, supply_and_build_cost_union_tag>;
 
 using huge_commodity_set = commodity_set_base<huge_set_size>;
-static_assert(sizeof(huge_commodity_set) ==
-	sizeof(huge_commodity_set::commodity_amounts) +
-	+ sizeof(huge_commodity_set::commodity_type));
+static_assert(sizeof(huge_commodity_set) == 164);
 
 
 using commodity_set = commodity_set_base<set_size>;
-static_assert(sizeof(commodity_set) ==
-	sizeof(commodity_set::commodity_amounts) +
-	+ sizeof(commodity_set::commodity_type));
+static_assert(sizeof(commodity_set) == 44);
 
 
 using small_commodity_set = commodity_set_base<small_set_size>;
-static_assert(sizeof(small_commodity_set) ==
-	sizeof(small_commodity_set::commodity_amounts) +
-	+ sizeof(small_commodity_set::commodity_type) + 2); // take into account two padding bytes
+static_assert(sizeof(small_commodity_set) == 32);
 
 
 

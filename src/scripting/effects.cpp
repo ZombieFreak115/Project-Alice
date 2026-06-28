@@ -4787,8 +4787,7 @@ uint32_t ef_variable_good_name(EFFECT_PARAMTERS) {
 		economy::get_closest_available_market_states(ws, closest_stockpiles, nation, capital_prov);
 
 		economy::commodity_set to_consume{ };
-		to_consume.commodity_type[0] = commodity;
-		to_consume.commodity_amounts[0] = -amount;
+		to_consume.push_back(commodity, -amount);
 		economy::consume_from_government_stockpiles(ws, to_consume, closest_stockpiles, capital_prov, nation);
 	}
 

@@ -426,10 +426,8 @@ void commodity_set::any_value(std::string_view name, association_type, float val
 		scenario_building_context& context) {
 	auto found_commodity = context.map_of_commodity_names.find(std::string(name));
 	if(found_commodity != context.map_of_commodity_names.end()) {
-		if(num_added < int32_t(economy::commodity_set::set_size)) {
-			commodity_amounts[num_added] = value;
-			commodity_type[num_added] = found_commodity->second;
-			++num_added;
+		if(!is_at_capacity()) {
+			push_back(found_commodity->second, value);
 		} else {
 			err.accumulated_errors += "Too many items in a commodity set, in file " + err.file_name + " line " + std::to_string(line) + "\n";
 		}

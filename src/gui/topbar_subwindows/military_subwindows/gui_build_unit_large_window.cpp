@@ -384,20 +384,19 @@ public:
 			if(brigades) brigades->set_visible(state, true);
 			if(build_time) build_time->set_visible(state, true);
 
-			int16_t r = 0;
 			for(auto ele : resource_cost_elements) {
 				ele->set_visible(state, false);
 			}
 			float factor = economy::build_cost_multiplier(state, content.province_info, false);
-			for(auto com : udef.build_cost.commodity_type) {
-				if(udef.build_cost.commodity_amounts[r] > 0.0f) {
-					if(r >= int16_t(resource_cost_elements.size()))
+			for(uint32_t i = 0; i < udef.build_cost.size(); i++) {
+				if(udef.build_cost.amounts(i) > 0.0f) {
+					if(i >= resource_cost_elements.size())
 						break;
-					resource_cost_elements[r]->good_frame = state.world.commodity_get_icon(com);
-					resource_cost_elements[r]->good_quantity = udef.build_cost.commodity_amounts[r] * factor;
-					resource_cost_elements[r]->set_visible(state, true);
-					resource_cost_elements[r]->base_data.position.x = build_button->base_data.size.x - (resource_cost_elements[r]->base_data.size.x * (r + 1));
-					r++;
+					auto com = udef.build_cost.types(i);
+					resource_cost_elements[i]->good_frame = state.world.commodity_get_icon(com);
+					resource_cost_elements[i]->good_quantity = udef.build_cost.amounts(i) * factor;
+					resource_cost_elements[i]->set_visible(state, true);
+					resource_cost_elements[i]->base_data.position.x = build_button->base_data.size.x - (resource_cost_elements[i]->base_data.size.x * (i + 1));
 				}
 			}
 			if(build_button_group) build_button_group->set_visible(state, false);
@@ -454,20 +453,19 @@ public:
 				if(unit_name) unit_name->set_text(state, text::produce_simple_string(state, udef.name));
 			}
 		} else {
-			int16_t r = 0;
 			for(auto ele : resource_cost_elements) {
 				ele->set_visible(state, false);
 			}
 			float factor = economy::build_cost_multiplier(state, content.province_info, false);
-			for(auto com : udef.build_cost.commodity_type) {
-				if(udef.build_cost.commodity_amounts[r] > 0.0f) {
-					if(r >= int16_t(resource_cost_elements.size()))
+			for(uint32_t i = 0; i < udef.build_cost.size(); i++) {
+				if(udef.build_cost.amounts(i) > 0.0f) {
+					if(i >= resource_cost_elements.size())
 						break;
-					resource_cost_elements[r]->good_frame = state.world.commodity_get_icon(com);
-					resource_cost_elements[r]->good_quantity = (udef.build_cost.commodity_amounts[r] * factor) * float(content.num_on_continent);
-					resource_cost_elements[r]->set_visible(state, true);
-					resource_cost_elements[r]->base_data.position.x = build_button->base_data.size.x - (resource_cost_elements[r]->base_data.size.x * (r + 1));
-					r++;
+					auto com = udef.build_cost.types(i);
+					resource_cost_elements[i]->good_frame = state.world.commodity_get_icon(com);
+					resource_cost_elements[i]->good_quantity = (udef.build_cost.amounts(i) * factor) * float(content.num_on_continent);
+					resource_cost_elements[i]->set_visible(state, true);
+					resource_cost_elements[i]->base_data.position.x = build_button->base_data.size.x - (resource_cost_elements[i]->base_data.size.x * (i + 1));
 				}
 			}
 			if(build_button) build_button->set_visible(state, false);

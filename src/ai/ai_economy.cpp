@@ -92,16 +92,13 @@ void update_factory_types_priority(sys::state& state) {
 
 			// auto priority = 0.5f + float(rng::get_random(state, uint32_t(id) ^ uint32_t(factory_type_id)) & 0xFFFF) / float(0xFFFF);
 
-			auto& inputs = state.world.factory_type_get_inputs(factory_type_id);
+			const auto& inputs = state.world.factory_type_get_inputs(factory_type_id);
 
 			auto min_effective_supply = std::numeric_limits<float>::infinity();
-			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-				auto input = inputs.commodity_type[i];
-				if(input) {
-					min_effective_supply = std::min(supply[input.index()] / inputs.commodity_amounts[i], min_effective_supply);
-				} else {
-					break;
-				}
+			for(uint32_t i = 0; i < inputs.size(); ++i) {
+				auto input = inputs.types(i);
+				min_effective_supply = std::min(supply[input.index()] / inputs.amounts(i), min_effective_supply);
+				
 			}
 
 			//check if there are "rivals" which would push you away from the industry
@@ -446,18 +443,15 @@ void update_ai_econ_construction(sys::state& state) {
 							}
 
 							auto expected_item_cost = 0.f;
-							auto& costs = state.world.factory_type_get_construction_costs(type);
-							auto& time = state.world.factory_type_get_construction_time(type);
-							for(uint32_t i = 0; i < costs.set_size; ++i) {
-								if(costs.commodity_type[i]) {
-									expected_item_cost +=
-										costs.commodity_amounts[i]
-										* economy::price(state, market, costs.commodity_type[i])
-										/ float(time)
-										* days_prepaid;
-								} else {
-									break;
-								}
+							const auto& costs = state.world.factory_type_get_construction_costs(type);
+							auto time = state.world.factory_type_get_construction_time(type);
+							for(uint32_t i = 0; i < costs.size(); ++i) {
+								expected_item_cost +=
+									costs.amounts(i)
+									* economy::price(state, market, costs.types(i))
+									/ float(time)
+									* days_prepaid;
+								
 							}
 
 							if(budget - additional_expenses - expected_item_cost <= 0.f)
@@ -530,18 +524,15 @@ void update_ai_econ_construction(sys::state& state) {
 				// avoid overbuilding!
 
 				auto expected_item_cost = 0.f;
-				auto& costs = state.economy_definitions.building_definitions[int32_t(economy::province_building_type::naval_base)].cost;
-				auto& time = state.economy_definitions.building_definitions[int32_t(economy::province_building_type::naval_base)].time;
-				for(uint32_t i = 0; i < costs.set_size; ++i) {
-					if(costs.commodity_type[i]) {
-						expected_item_cost +=
-							costs.commodity_amounts[i]
-							* economy::price(state, market, costs.commodity_type[i])
-							/ float(time)
-							* days_prepaid;
-					} else {
-						break;
-					}
+				const auto& costs = state.economy_definitions.building_definitions[int32_t(economy::province_building_type::naval_base)].cost;
+				auto time = state.economy_definitions.building_definitions[int32_t(economy::province_building_type::naval_base)].time;
+				for(uint32_t i = 0; i < costs.size(); ++i) {
+					expected_item_cost +=
+						costs.amounts(i)
+						* economy::price(state, market, costs.types(i))
+						/ float(time)
+						* days_prepaid;
+					
 				}
 
 				if(budget - additional_expenses - expected_item_cost <= 0.f)
@@ -599,18 +590,15 @@ void update_ai_econ_construction(sys::state& state) {
 					// avoid overbuilding!
 
 					auto expected_item_cost = 0.f;
-					auto& costs = state.economy_definitions.building_definitions[uint8_t(econ_buildable[i].type)].cost;
-					auto& time = state.economy_definitions.building_definitions[uint8_t(econ_buildable[i].type)].time;
-					for(uint32_t k = 0; k < costs.set_size; ++k) {
-						if(costs.commodity_type[k]) {
-							expected_item_cost +=
-								costs.commodity_amounts[k]
-								* economy::price(state, market, costs.commodity_type[k])
-								/ float(time)
-								* days_prepaid;
-						} else {
-							break;
-						}
+					const auto& costs = state.economy_definitions.building_definitions[uint8_t(econ_buildable[i].type)].cost;
+					auto time = state.economy_definitions.building_definitions[uint8_t(econ_buildable[i].type)].time;
+					for(uint32_t k = 0; k < costs.size(); ++k) {
+						expected_item_cost +=
+							costs.amounts(k)
+							* economy::price(state, market, costs.types(k))
+							/ float(time)
+							* days_prepaid;
+						
 					}
 
 					if(budget - additional_expenses - expected_item_cost <= 0.f)
@@ -669,20 +657,17 @@ void update_ai_econ_construction(sys::state& state) {
 				// avoid overbuilding!
 
 				auto expected_item_cost = 0.f;
-				auto& costs = state.economy_definitions.building_definitions[uint8_t(economy::province_building_type::fort)].cost;
-				auto& time = state.economy_definitions.building_definitions[uint8_t(economy::province_building_type::fort)].time;
-				for(uint32_t k = 0; k < costs.set_size; ++k) {
-					if(costs.commodity_type[k]) {
-						expected_item_cost +=
-							costs.commodity_amounts[k]
-							* economy::price(state, market, costs.commodity_type[k])
-							* days_prepaid
-							* 100000.f;
+				const auto& costs = state.economy_definitions.building_definitions[uint8_t(economy::province_building_type::fort)].cost;
+				auto time = state.economy_definitions.building_definitions[uint8_t(economy::province_building_type::fort)].time;
+				for(uint32_t k = 0; k < costs.size(); ++k) {
+					expected_item_cost +=
+						costs.amounts(k)
+						* economy::price(state, market, costs.types(k))
+						* days_prepaid
+						* 100000.f;
 						// forts are very bad investment and demand volatile goods,
 						// so build them if AI is really rich and has no idea where how to spend money
-					} else {
-						break;
-					}
+					
 				}
 
 				if(budget - additional_expenses - expected_item_cost <= 0.f)

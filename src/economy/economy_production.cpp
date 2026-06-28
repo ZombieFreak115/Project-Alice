@@ -303,28 +303,25 @@ inputs_data get_inputs_data(sys::state const& state, dcon::market_id markets, SE
 	float input_total_adjusted = 0.0f;
 	float min_available = 1.0f;
 	float min_expected = 1.0f;
-	for(uint32_t j = 0; j < SET::set_size; ++j) {
-		if(inputs.commodity_type[j]) {
-			input_total =
-				input_total
-				+ inputs.commodity_amounts[j]
-				* price(state, markets, inputs.commodity_type[j]);
-			input_total_adjusted =
-				input_total_adjusted
-				+ inputs.commodity_amounts[j]
-				* price(state, markets, inputs.commodity_type[j])
-				* state.world.market_get_actual_probability_to_buy(markets, inputs.commodity_type[j]);
-			min_available = std::min(
-				min_available,
-				state.world.market_get_actual_probability_to_buy(markets, inputs.commodity_type[j])
-			);
-			min_expected = std::min(
-				min_expected,
-				state.world.market_get_expected_probability_to_buy(markets, inputs.commodity_type[j])
-			);
-		} else {
-			break;
-		}
+	for(uint32_t j = 0; j < inputs.size(); ++j) {
+		input_total =
+			input_total
+			+ inputs.amounts(j)
+			* price(state, markets, inputs.types(j));
+		input_total_adjusted =
+			input_total_adjusted
+			+ inputs.amounts(j)
+			* price(state, markets, inputs.types(j))
+			* state.world.market_get_actual_probability_to_buy(markets, inputs.types(j));
+		min_available = std::min(
+			min_available,
+			state.world.market_get_actual_probability_to_buy(markets, inputs.types(j))
+		);
+		min_expected = std::min(
+			min_expected,
+			state.world.market_get_expected_probability_to_buy(markets, inputs.types(j))
+		);
+		
 	}
 
 	assert(input_total >= 0.f);
@@ -768,17 +765,14 @@ float factory_min_input_actually_available(
 	dcon::factory_type_id fac_type
 ) {
 	float min_input_available = 1.0f;
-	auto& inputs = state.world.factory_type_get_inputs(fac_type);
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		if(inputs.commodity_type[i]) {
-			min_input_available =
-				std::min(
-					min_input_available,
-					state.world.market_get_actual_probability_to_buy(m, inputs.commodity_type[i])
-				);
-		} else {
-			break;
-		}
+	const auto& inputs = state.world.factory_type_get_inputs(fac_type);
+	for(uint32_t i = 0; i < inputs.size(); ++i) {
+		min_input_available =
+			std::min(
+				min_input_available,
+				state.world.market_get_actual_probability_to_buy(m, inputs.types(i))
+			);
+		
 	}
 	return min_input_available;
 }
@@ -789,17 +783,15 @@ float factory_min_input_expected_to_be_available(
 	dcon::factory_type_id fac_type
 ) {
 	float min_input_available = 1.0f;
-	auto& inputs = state.world.factory_type_get_inputs(fac_type);
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		if(inputs.commodity_type[i]) {
-			min_input_available =
-				std::min(
-					min_input_available,
-					state.world.market_get_expected_probability_to_buy(m, inputs.commodity_type[i])
-				);
-		} else {
-			break;
-		}
+	const auto& inputs = state.world.factory_type_get_inputs(fac_type);
+	for(uint32_t i = 0; i < inputs.size(); ++i) {
+
+		min_input_available =
+			std::min(
+				min_input_available,
+				state.world.market_get_expected_probability_to_buy(m, inputs.types(i))
+			);
+		
 	}
 	return min_input_available;
 }
@@ -1376,17 +1368,16 @@ void update_production_investement_consumption(
 			if(expand_priority > 0.f) {
 				auto investment = available_investment * factory_tokens / total_tokens * expand_priority;
 
-				auto& costs = state.world.factory_type_get_construction_costs(factory_type);
+				const auto& costs = state.world.factory_type_get_construction_costs(factory_type);
 				auto costs_data = get_inputs_data(state, market, costs);
 				// expansion is cheaper than new construction:
 				auto cost_per_unit = costs_data.total_cost / base_size / 2.f;
 				auto expansion_scale = std::min(100.f + size * 0.05f, investment / cost_per_unit);
 
-				for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-					auto cid = costs.commodity_type[i];
-					if (!cid) break;
-					auto amount = costs.commodity_amounts[i] / base_size / 2.f;
-					economy::register_demand(state, market, costs.commodity_type[i], expansion_scale * amount);
+				for(uint32_t i = 0; i < costs.size(); ++i) {
+					auto cid = costs.types(i);
+					auto amount = costs.amounts(i) / base_size / 2.f;
+					economy::register_demand(state, market, costs.types(i), expansion_scale * amount);
 					actually_spent = actually_spent + expansion_scale * amount * price(state, market, cid) * state.world.market_get_actual_probability_to_buy(market, cid);
 				}
 				auto actual_expansion = expansion_scale * costs_data.min_available;
@@ -1419,15 +1410,14 @@ void update_production_investement_consumption(
 
 			if (expand_priority < 1.f) {
 				auto investment = available_investment * factory_tokens / total_tokens * (1.f - expand_priority);
-				auto& efficiency_inputs = state.world.factory_type_get_efficiency_inputs(factory_type);
+				const auto& efficiency_inputs = state.world.factory_type_get_efficiency_inputs(factory_type);
 				auto total_can_afford = 0.f;
-				for(uint8_t i = 0; i < economy::small_commodity_set::set_size; i++) {
-					auto cid = efficiency_inputs.commodity_type[i];
-					if (!cid) break;
+				for(uint8_t i = 0; i < efficiency_inputs.size(); i++) {
+					auto cid = efficiency_inputs.types(i);
 
 					auto current_scale = (1.f + size) / state.world.factory_type_get_base_workforce(factory_type);
 
-					auto amount = 0.01f * efficiency_inputs.commodity_amounts[i] * current_scale;
+					auto amount = 0.01f * efficiency_inputs.amounts(i) * current_scale;
 					auto cost = amount * price(state, market, cid);
 					auto can_afford = std::max(0.f, investment / cost - 1.f);
 
@@ -1435,13 +1425,12 @@ void update_production_investement_consumption(
 				}
 
 				if(total_can_afford > 0.f) {
-					for(uint8_t i = 0; i < economy::small_commodity_set::set_size; i++) {
-						auto cid = efficiency_inputs.commodity_type[i];
-						if (!cid) break;
+					for(uint8_t i = 0; i < efficiency_inputs.size(); i++) {
+						auto cid = efficiency_inputs.types(i);
 
 						auto current_scale = (1.f + size) / state.world.factory_type_get_base_workforce(factory_type);
 
-						auto amount = 0.01f * efficiency_inputs.commodity_amounts[i] * current_scale;
+						auto amount = 0.01f * efficiency_inputs.amounts(i) * current_scale;
 						auto cost = amount * price(state, market, cid);
 						auto can_afford = std::max(0.f, investment / cost - 1.f);
 						auto investment_into_category = investment * can_afford / total_can_afford;
@@ -2484,18 +2473,17 @@ void update_production_consumption(sys::state& state) {
 
 float factory_type_build_cost(sys::state& state, dcon::nation_id n, dcon::province_id p, dcon::factory_type_id factory_type, bool is_pop_project) {
 	auto fat = dcon::fatten(state.world, factory_type);
-	auto& costs = fat.get_construction_costs();
+	const auto& costs = fat.get_construction_costs();
 	auto cost_factor = economy::factory_build_cost_multiplier(state, n, p, is_pop_project);
 
 	auto sid = state.world.province_get_state_membership(p);
 	auto m = state.world.state_instance_get_market_from_local_market(sid);
 
 	auto total = 0.0f;
-	for(uint32_t i = 0; i < economy::commodity_set::set_size; i++) {
-		auto cid = costs.commodity_type[i];
-		if(bool(cid)) {
-			total += price(state, m, cid) * costs.commodity_amounts[i] * cost_factor;
-		}
+	for(uint32_t i = 0; i < costs.size(); i++) {
+		auto cid = costs.types(i);
+		total += price(state, m, cid) * costs.amounts(i) * cost_factor;
+		
 	}
 
 	return total;
@@ -2575,23 +2563,20 @@ float estimate_factory_payback_time(
 float estimate_factory_consumption(sys::state& state, dcon::commodity_id c, dcon::factory_id f) {
 	auto fac = fatten(state.world, f);
 	auto fac_type = fac.get_building_type();
-	auto& direct_inputs = fac_type.get_inputs();
+	const auto& direct_inputs = fac_type.get_inputs();
 	auto result = 0.f;
 	auto states = state.world.province_get_state_membership(fac.get_province_from_factory_location());
 	auto markets = state.world.state_instance_get_market_from_local_market(states);
 	auto data = imitate_single_factory_consumption(state, f);
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		if(direct_inputs.commodity_type[i]) {
-			if(direct_inputs.commodity_type[i] == c) {
-				result +=
-					data.consumption.direct_inputs_scale
-					* direct_inputs.commodity_amounts[i]
-					* state.world.market_get_actual_probability_to_buy(markets, direct_inputs.commodity_type[i]);
-				break;
-			}
-		} else {
+	for(uint32_t i = 0; i < direct_inputs.size(); ++i) {
+		if(direct_inputs.types(i) == c) {
+			result +=
+				data.consumption.direct_inputs_scale
+				* direct_inputs.amounts(i)
+				* state.world.market_get_actual_probability_to_buy(markets, direct_inputs.types(i));
 			break;
 		}
+		
 	}
 	return result;
 }
@@ -2649,20 +2634,18 @@ float estimate_factory_consumption_in_production(sys::state& state, dcon::commod
 float estimate_artisan_consumption(sys::state& state, dcon::commodity_id c, dcon::province_id p, dcon::commodity_id output) {
 	auto mob_impact = military::mobilization_impact(state, state.world.province_get_nation_from_province_ownership(p));
 	auto data = imitate_artisan_consumption(state, p, output, mob_impact);
-	auto& direct_inputs = state.world.commodity_get_artisan_inputs(output);
+	const auto& direct_inputs = state.world.commodity_get_artisan_inputs(output);
 	auto result = 0.f;
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		if(direct_inputs.commodity_type[i]) {
-			if(direct_inputs.commodity_type[i] == c) {
-				result +=
-					data.consumption.direct_inputs_scale
-					* direct_inputs.commodity_amounts[i]
-					* data.base.direct_inputs_data.min_available;
-				break;
-			}
-		} else {
+	for(uint32_t i = 0; i < direct_inputs.size(); ++i) {
+
+		if(direct_inputs.types(i) == c) {
+			result +=
+				data.consumption.direct_inputs_scale
+				* direct_inputs.amounts(i)
+				* data.base.direct_inputs_data.min_available;
 			break;
 		}
+		
 	}
 	return result;
 }
@@ -2671,14 +2654,13 @@ float estimate_artisan_gdp_intermediate_consumption(sys::state& state, dcon::pro
 	auto markets = state.world.state_instance_get_market_from_local_market(states);
 	auto mob_impact = military::mobilization_impact(state, state.world.province_get_nation_from_province_ownership(p));
 	auto data = imitate_artisan_consumption(state, p, output, mob_impact);
-	auto& direct_inputs = state.world.commodity_get_artisan_inputs(output);
+	const auto& direct_inputs = state.world.commodity_get_artisan_inputs(output);
 	auto result = 0.f;
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		if(!direct_inputs.commodity_type[i]) break;
+	for(uint32_t i = 0; i < direct_inputs.size(); ++i) {
 		result +=
 			data.consumption.direct_inputs_scale
-			* direct_inputs.commodity_amounts[i]
-			* state.world.commodity_get_median_price(direct_inputs.commodity_type[i])
+			* direct_inputs.amounts(i)
+			* state.world.commodity_get_median_price(direct_inputs.types(i))
 			* data.base.direct_inputs_data.min_available;
 	}
 	return result;

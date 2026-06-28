@@ -63,16 +63,16 @@ public:
 
 		auto refit_cost = economy::calculate_factory_refit_goods_cost(state, state.local_player_nation, fat.get_factory_location().get_province(), type, refit_target);
 		auto total = 0.f;
-		for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-			if(refit_cost.commodity_type[i] && refit_cost.commodity_amounts[i] > 0) {
+		for(uint32_t i = 0; i < refit_cost.size(); ++i) {
+			if(refit_cost.amounts(i) > 0) {
 				float factor = economy::factory_build_cost_multiplier(state, n, fat.get_province_from_factory_location(), false);
 				auto price =
-					economy::price(state, pid.get_state_membership(), refit_cost.commodity_type[i])
-					* refit_cost.commodity_amounts[i]
+					economy::price(state, pid.get_state_membership(), refit_cost.types(i))
+					* refit_cost.amounts(i)
 					* factor;
 				total += price;
 
-				text::add_line(state, contents, "factory_refit_cost", text::variable_type::what, state.world.commodity_get_name(refit_cost.commodity_type[i]), text::variable_type::val, text::fp_three_places{ refit_cost.commodity_amounts[i] }, text::variable_type::value, text::format_money(price));
+				text::add_line(state, contents, "factory_refit_cost", text::variable_type::what, state.world.commodity_get_name(refit_cost.types(i)), text::variable_type::val, text::fp_three_places{ refit_cost.amounts(i) }, text::variable_type::value, text::format_money(price));
 			}
 		}
 
@@ -108,17 +108,7 @@ public:
 			auto output_2 = state.world.factory_type_get_output(refit_target);
 			auto inputs_1 = state.world.factory_type_get_inputs(type);
 			auto inputs_2 = state.world.factory_type_get_inputs(refit_target);
-			auto inputs_match = true;
-
-			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-				auto input_1 = inputs_1.commodity_type[i];
-				auto input_2 = inputs_2.commodity_type[i];
-
-				if(input_1 != input_2) {
-					inputs_match = false;
-					break;
-				}
-			}
+			auto inputs_match = (inputs_1 == inputs_2);
 
 			auto cond_2 = output_1 == output_2 || inputs_match;
 			text::add_line_with_condition(state, contents, "OR", cond_1 || cond_2);

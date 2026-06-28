@@ -16,8 +16,8 @@ std::string to_debug_string(const gamerule_option& obj)  {
 std::string to_debug_string(const economy::commodity_set& obj) {
 	std::string result{ };
 	result += "(commodity_id;amount) => ";
-	for(uint8_t i = 0; i < economy::commodity_set::set_size; i++) {
-		result += std::to_string(obj.commodity_type[i].value) + ";" + std::to_string(obj.commodity_amounts[i]) + " ";
+	for(uint16_t i = 0; i < obj.size() || i < obj.set_size; i++) {
+		result += std::to_string(obj.types(i).value) + ";" + std::to_string(obj.amounts(i)) + " ";
 	}
 	return result;
 }
@@ -26,8 +26,8 @@ std::string to_debug_string(const economy::commodity_set& obj) {
 std::string to_debug_string(const economy::small_commodity_set& obj) {
 	std::string result{ };
 	result += "(commodity_id;amount) => ";
-	for(uint8_t i = 0; i < economy::small_commodity_set::set_size; i++) {
-		result += std::to_string(obj.commodity_type[i].value) + ";" + std::to_string(obj.commodity_amounts[i]) + " ";
+	for(uint8_t i = 0; i < obj.size() || i < obj.set_size; i++) {
+		result += std::to_string(obj.types(i).value) + ";" + std::to_string(obj.amounts(i)) + " ";
 	}
 	return result;
 }

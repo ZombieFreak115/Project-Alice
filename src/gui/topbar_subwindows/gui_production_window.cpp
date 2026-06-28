@@ -576,23 +576,22 @@ public:
 
 				float factory_mod = economy::factory_build_cost_multiplier(state, p.get_nation(), pid, p.get_is_pop_project());
 
-				auto& goods = state.world.factory_type_get_construction_costs(nf.type);
-				auto& cgoods = p.get_purchased_goods();
+				const auto& goods = state.world.factory_type_get_construction_costs(nf.type);
+				const auto& cgoods = p.get_purchased_goods();
 
-				for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-					if(goods.commodity_type[i]) {
-						auto box = text::open_layout_box(contents, 0);
-						auto cid = goods.commodity_type[i];
-						std::string padding = cid.index() < 10 ? "0" : "";
-						std::string description = "@$" + padding + std::to_string(cid.index());
-						text::add_unparsed_text_to_layout_box(state, contents, box, description);
-						text::add_to_layout_box(state, contents, box, state.world.commodity_get_name(goods.commodity_type[i]));
-						text::add_to_layout_box(state, contents, box, std::string_view{ ": " });
-						text::add_to_layout_box(state, contents, box, text::fp_one_place{ cgoods.commodity_amounts[i] });
-						text::add_to_layout_box(state, contents, box, std::string_view{ " / " });
-						text::add_to_layout_box(state, contents, box, text::fp_one_place{ goods.commodity_amounts[i] * factory_mod });
+				for(uint32_t i = 0; i < goods.size(); ++i) {
+					auto box = text::open_layout_box(contents, 0);
+					auto cid = goods.types(i);
+					std::string padding = cid.index() < 10 ? "0" : "";
+					std::string description = "@$" + padding + std::to_string(cid.index());
+					text::add_unparsed_text_to_layout_box(state, contents, box, description);
+					text::add_to_layout_box(state, contents, box, state.world.commodity_get_name(goods.types(i)));
+					text::add_to_layout_box(state, contents, box, std::string_view{ ": " });
+					text::add_to_layout_box(state, contents, box, text::fp_one_place{ cgoods.amounts(i) });
+					text::add_to_layout_box(state, contents, box, std::string_view{ " / " });
+					text::add_to_layout_box(state, contents, box, text::fp_one_place{ goods.amounts(i) * factory_mod });
 						text::close_layout_box(contents, box);
-					}
+					
 				}
 				return;
 			}
@@ -626,20 +625,19 @@ public:
 
 				auto& cgoods = p.get_purchased_goods();
 
-				for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
-					if(goods.commodity_type[i]) {
-						auto box = text::open_layout_box(contents, 0);
-						auto cid = goods.commodity_type[i];
-						std::string padding = cid.index() < 10 ? "0" : "";
-						std::string description = "@$" + padding + std::to_string(cid.index());
-						text::add_unparsed_text_to_layout_box(state, contents, box, description);
-						text::add_to_layout_box(state, contents, box, state.world.commodity_get_name(goods.commodity_type[i]));
-						text::add_to_layout_box(state, contents, box, std::string_view{ ": " });
-						text::add_to_layout_box(state, contents, box, text::fp_one_place{ cgoods.commodity_amounts[i] });
-						text::add_to_layout_box(state, contents, box, std::string_view{ " / " });
-						text::add_to_layout_box(state, contents, box, text::fp_one_place{ goods.commodity_amounts[i] * factory_mod });
-						text::close_layout_box(contents, box);
-					}
+				for(uint32_t i = 0; i < goods.size(); ++i) {
+					auto box = text::open_layout_box(contents, 0);
+					auto cid = goods.types(i);
+					std::string padding = cid.index() < 10 ? "0" : "";
+					std::string description = "@$" + padding + std::to_string(cid.index());
+					text::add_unparsed_text_to_layout_box(state, contents, box, description);
+					text::add_to_layout_box(state, contents, box, state.world.commodity_get_name(goods.types(i)));
+					text::add_to_layout_box(state, contents, box, std::string_view{ ": " });
+					text::add_to_layout_box(state, contents, box, text::fp_one_place{ cgoods.amounts(i) });
+					text::add_to_layout_box(state, contents, box, std::string_view{ " / " });
+					text::add_to_layout_box(state, contents, box, text::fp_one_place{ goods.amounts(i) * factory_mod });
+					text::close_layout_box(contents, box);
+					
 				}
 				return;
 			}
@@ -936,10 +934,10 @@ public:
 			auto s = retrieve<dcon::state_instance_id>(state, parent);
 			auto market = state.world.state_instance_get_market_from_local_market(s);
 
-			auto& cset = fat_btid.get_inputs();
-			for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
+			const auto& cset = fat_btid.get_inputs();
+			for(uint32_t i = 0; i < cset.size(); ++i) {
 				if(input_icons[size_t(i)]) {
-					dcon::commodity_id cid = cset.commodity_type[size_t(i)];
+					dcon::commodity_id cid = cset.types(size_t(i));
 					input_icons[size_t(i)]->frame = int32_t(state.world.commodity_get_icon(cid));
 					input_icons[size_t(i)]->com = cid;
 					bool is_lack = cid != dcon::commodity_id{} ? state.world.market_get_actual_probability_to_buy(market, cid) < 0.5f : false;
