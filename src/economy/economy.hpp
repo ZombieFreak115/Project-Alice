@@ -5,6 +5,7 @@
 #include "system_state_forward.hpp"
 #include "constants_dcon.hpp"
 #include "economy_common_api_containers.hpp"
+#include "concept_declarations.hpp"
 
 namespace economy {
 
@@ -23,7 +24,7 @@ struct total_stockpile_spendings {
 struct total_stockpile_spendings_by_commodity {
 	economy::supply_and_build_cost_union_commodity_amount_array army_stockpile_spendings{ };
 	economy::supply_and_build_cost_union_commodity_amount_array navy_stockpile_spendings{ };
-	tagged_vector<float, dcon::commodity_id> military_construction_spendings{ };
+	economy::build_cost_union_commodity_amount_array military_construction_spendings{ };
 	tagged_vector<float, dcon::commodity_id> stockpile_filling_spendings{ };
 };
 
@@ -72,8 +73,14 @@ float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon
 template<price_estimation price_est>
 float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, const ve::vectorizable_buffer<float, dcon::commodity_id>& goods);
 
+template<price_estimation price_est, concepts::commodity_amount_military_union_array_type commodity_amounts_type>
+float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, const commodity_amounts_type& goods);
+
 template<price_estimation price_est>
 tagged_vector<float, dcon::commodity_id> get_estimated_stockpile_purchase_price_by_commodity(const sys::state& state, dcon::nation_id for_nation, const tagged_vector<float, dcon::commodity_id>& goods);
+
+template< price_estimation price_est, concepts::commodity_amount_military_union_array_type commodity_amounts_type>
+commodity_amounts_type get_estimated_stockpile_purchase_price_by_commodity(const sys::state& state, dcon::nation_id for_nation, const commodity_amounts_type& goods);
 
 total_stockpile_spendings estimate_total_stockpile_spendings(const sys::state& state, dcon::nation_id nation_as, float military_construction_budget, float stockpile_filling_budget);
 total_stockpile_spendings_by_commodity estimate_total_stockpile_spendings_by_commodity(const sys::state& state, dcon::nation_id nation_as, float military_construction_budget, float stockpile_filling_budget);

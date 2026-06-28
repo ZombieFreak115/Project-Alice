@@ -94,13 +94,9 @@ template<typename T>
 concept commodity_id_military_union_array_type = commodity_id_military_supply_or_build_union_array_type<T> ||
 												std::is_same_v<T, economy::supply_and_build_cost_union_commodity_id_array>;
 
-// Concept for all commodity amount array types which hold commodity amounts unique to a unit type (eg. build goods for a single unit type)
-template<typename T>
-concept commodity_id_military_unit_array_type = std::is_same_v<T, economy::unit_build_cost_commodity_id_array> ||
-												std::is_same_v<T, economy::unit_supply_cost_commodity_id_array>;
 // Concept for all commodity amount array types which either hold commodity amounts unique to a unit type, or hold a union of commodity amounts
 template<typename T>
-concept commodity_id_array_type = commodity_id_military_union_array_type<T> || commodity_id_military_unit_array_type<T>;
+concept commodity_id_array_type = commodity_id_military_union_array_type<T>;
 
 // Gets the corrosponding commodity id array type of the commodity amount array type
 template<commodity_amount_military_union_array_type array_type>

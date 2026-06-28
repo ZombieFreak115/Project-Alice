@@ -32,7 +32,7 @@ float estimate_private_construction_spendings(sys::state& state, dcon::nation_id
 void populate_construction_consumption(sys::state& state);
 void populate_military_construction_consumption(sys::state& state);
 float estimate_military_construction_stockpile_spending(const sys::state& state, dcon::nation_id nation, float budget);
-tagged_vector<float, dcon::commodity_id> estimate_military_construction_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation, float budget);
+economy::build_cost_union_commodity_amount_array estimate_military_construction_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation, float budget);
 
 
 

@@ -1204,12 +1204,14 @@ void  budgetwindow_main_espenses_table_t::update(sys::state& state, layout_windo
 
 	add_section_header(budget_categories::military_construction);
 	if(budget_categories::expanded[budget_categories::military_construction]) {
-		economy::for_each_commodity_no_money(state, [&](dcon::commodity_id com_id) {
-			float spending = stockpile_spendings.military_construction_spendings[com_id];
+		const auto& commodity_ids = military::get_military_commodities_union<economy::build_cost_union_commodity_id_array>(state);
+		for(uint32_t i = 0; i < commodity_ids.size(); i++) {
+			auto com_id = commodity_ids[i];
+			float spending = stockpile_spendings.military_construction_spendings[i];
 			if(spending > 0.0f) {
 				add_budget_row(text::produce_simple_string(state, state.world.commodity_get_name(com_id)), spending);
 			}
-		});
+		}
 	} else {
 		add_neutral_spacer();
 	}

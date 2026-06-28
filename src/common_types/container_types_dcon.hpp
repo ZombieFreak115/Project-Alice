@@ -329,13 +329,13 @@ public:
 	}
 	constexpr fixed_size_vector(uint32_t size) {
 		init();
-		assert(size <= total_capacity());
+		assert(size <= total_capacity() && size >= 0);
 		std::fill_n(_storage.data(), size, data_type{});
 		storage_size = size;
 	}
 	constexpr fixed_size_vector(uint32_t size, const data_type& init_val) {
 		init();
-		assert(size <= total_capacity());
+		assert(size <= total_capacity() && size >= 0);
 		std::fill_n(_storage.data(), size, init_val);
 		storage_size = size;
 	}
@@ -380,16 +380,16 @@ public:
 
 
 	constexpr data_type const& operator[](uint32_t index) const {
-		assert(index < size());
+		assert(index < size() && index >= 0);
 		return _storage[index];
 	}
 	constexpr data_type& operator[](uint32_t index) {
-		assert(index < size());
+		assert(index < size() && index >= 0);
 		return _storage[index];
 	}
 	// This will remove the element at the given index by moving it to the end of the collection and then popping it
 	constexpr void remove_at(uint32_t index) {
-		assert(index < size());
+		assert(index < size() && index >= 0);
 		std::swap(_storage[index], _storage[size() - 1]);
 		pop_back();
 	}
@@ -432,7 +432,7 @@ public:
 		return storage_size;
 	}
 	constexpr void resize(uint32_t new_size, const data_type& val = data_type{ }) {
-		assert(size() <= total_capacity());
+		assert(size() <= total_capacity() && new_size >= 0);
 		if(new_size < size()) {
 			std::fill_n(&_storage[new_size], size() - new_size, data_type{ });
 		}
