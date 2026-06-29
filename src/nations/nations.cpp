@@ -174,36 +174,6 @@ void restore_unsaved_values(sys::state& state) {
 	restore_cached_values(state);
 }
 
-float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
-	constexpr float min_land_speed = 1.0f;
-	float fastest_speed = 1.0f;
-	for(uint32_t i = 0; i < state.military_definitions.unit_base_definitions.size(); ++i) {
-		dcon::unit_type_id type{ dcon::unit_type_id::value_base_t(i) };
-		auto unit_type = state.military_definitions.unit_base_definitions[type].type;
-		auto activated = state.world.nation_get_active_unit(nation_as, type);
-		if(activated && unit_type == military::unit_type::transport) {
-			fastest_speed = std::max(fastest_speed, state.world.nation_get_unit_stats(nation_as, type).maximum_speed);
-		}
-	}
-
-	return fastest_speed;
-}
-
-
-float land_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
-	constexpr float min_land_speed = 1.0f;
-	float fastest_speed = min_land_speed;
-	for(uint32_t i = 0; i < state.military_definitions.unit_base_definitions.size(); ++i) {
-		dcon::unit_type_id type{ dcon::unit_type_id::value_base_t(i) };
-		auto unit_type = state.military_definitions.unit_base_definitions[type].type;
-		auto activated = state.world.nation_get_active_unit(nation_as, type);
-		if(activated && (unit_type == military::unit_type::cavalry || unit_type == military::unit_type::infantry || unit_type == military::unit_type::support || unit_type == military::unit_type::special)) {
-			fastest_speed = std::max(fastest_speed, state.world.nation_get_unit_stats(nation_as, type).maximum_speed);
-		}
-	}
-
-	return fastest_speed;
-}
 
 void recalculate_markets_distance(sys::state& state) {
 	state.world.execute_parallel_over_market([&](auto markets) {

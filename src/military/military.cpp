@@ -5866,6 +5866,49 @@ void update_battle_leaders(sys::state& state, dcon::naval_battle_id b) {
 	state.world.defending_admiral_set_admiral(ab, d_lid);
 }
 
+void update_fastest_units(sys::state& state) {
+	concurrency::parallel_for(uint32_t(0), state.world.nation_size(), [&](uint32_t i) {
+		dcon::nation_id nation{ dcon::nation_id::value_base_t(i) };
+		if(!nations::exists(state, nation)) {
+			return;
+		}
+		dcon::unit_type_id fastest_land_unit{};
+		dcon::unit_type_id fastest_transport_unit{};
+		for(uint32_t j = 2; j < state.military_definitions.unit_base_definitions.size(); j++) {
+			dcon::unit_type_id uid = dcon::unit_type_id{ dcon::unit_type_id::value_base_t(j) };
+			if(!state.world.nation_get_active_unit(nation, uid)) {
+				continue;
+			}
+			// Currently, primary culture-only units do not count
+			if(state.military_definitions.unit_base_definitions[uid].primary_culture) {
+				continue;
+			}
+			float unit_speed = state.world.nation_get_unit_stats(nation, uid).maximum_speed;
+			switch(state.military_definitions.unit_base_definitions[uid].type) {
+			case unit_type::transport:
+			{
+				float cur_speed = ( bool(fastest_transport_unit) ? state.world.nation_get_unit_stats(nation, fastest_transport_unit).maximum_speed : 0.0f );
+				fastest_transport_unit = (unit_speed > cur_speed ? uid : fastest_transport_unit);
+				break;
+			}
+			case unit_type::infantry:
+			case unit_type::support:
+			case unit_type::cavalry:
+			case unit_type::special:
+			{
+				float cur_speed = (bool(fastest_land_unit) ? state.world.nation_get_unit_stats(nation, fastest_land_unit).maximum_speed : 0.0f);
+				fastest_land_unit = (unit_speed > cur_speed ? uid : fastest_land_unit);
+				break;
+			}
+			default:
+				break;
+			}
+		}
+		state.world.nation_set_fastest_unlocked_transport_unit(nation, fastest_transport_unit);
+		state.world.nation_set_fastest_unlocked_land_unit(nation, fastest_land_unit);
+	});
+}
+
 void delete_regiment_safe_wrapper(sys::state& state, dcon::regiment_id reg) {
 	if(state.world.regiment_is_valid(reg)) {
 		auto army = state.world.regiment_get_army_from_army_membership(reg);

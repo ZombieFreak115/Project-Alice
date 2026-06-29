@@ -31,8 +31,6 @@ struct unit {
 	constexpr unit() = default;
 };
 
-static tagged_vector<tagged_vector<float, dcon::commodity_id>, dcon::nation_id> total_available_stockpiles_buffer; // TODO: MAKE THIS INTO DCON array
-
 
 dcon::province_id supply_route_get_destination(const sys::state& state, dcon::army_supply_route_id route) {
 	return state.world.army_get_location_from_army_location(state.world.army_supply_route_get_army(route));
@@ -109,6 +107,17 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_cons
 	return state.world.province_naval_construction_get_nation(construction);
 }
 
+float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
+	auto fastest_unit = state.world.nation_get_fastest_unlocked_transport_unit(nation_as);
+	return base_naval_supply_speed + state.world.nation_get_unit_stats(nation_as, fastest_unit).maximum_speed * fastest_transport_unit_supply_speed_mult;
+}
+
+
+float land_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
+	auto fastest_unit = state.world.nation_get_fastest_unlocked_land_unit(nation_as);
+	return base_land_supply_speed + state.world.nation_get_unit_stats(nation_as, fastest_unit).maximum_speed * fastest_land_unit_supply_speed_mult;
+}
+
 
 float port_supply_capacity_modifier(const sys::state& state, dcon::province_id port_prov) {
 	constexpr float port_supply_throughput_per_naval_base = 10.0f;
@@ -134,7 +143,7 @@ float get_enemy_blockade_power(const sys::state& state, dcon::province_id prov, 
 float supply_throughput_speed_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 	bool is_sea = province::is_sea(state, province);
 	float movement_cost = province::movement_cost(state, province);
-	float speed = (is_sea ? nations::naval_supply_speed(state, nation_as) : nations::land_supply_speed(state, nation_as));
+	float speed = (is_sea ? naval_supply_speed(state, nation_as) : land_supply_speed(state, nation_as));
 	return (is_sea ? supply_throughput_per_km_naval_speed : supply_throughput_per_km_land_speed) * (speed / movement_cost);
 }
 
@@ -617,8 +626,8 @@ void update_military_unit_routes_satisfaction(sys::state& state, unit_type unit,
 			assert(stockpile_buffer_amount - to_consume_w_attrition >= 0.0f);
 			// Update stockpile buffer to reflect the amount that will be subtracted later
 			state.world.market_set_govt_stockpile_satisfaction_buffer(market, com_id, stockpile_buffer_amount - to_consume_w_attrition);
-			float total_stockpile_buffer_count = total_available_stockpiles_buffer[nation][com_id];
-			total_available_stockpiles_buffer[nation][com_id] = std::max(total_stockpile_buffer_count - to_consume_w_attrition, 0.0f);
+			float total_stockpile_buffer_count = state.world.nation_get_temp_total_stockpiles_buffer(nation, com_id);
+			state.world.nation_set_temp_total_stockpiles_buffer(nation, com_id, std::max(total_stockpile_buffer_count - to_consume_w_attrition, 0.0f));
 			buffered_goods[i] += to_consume_w_attrition;
 			
 			volume += to_consume_w_attrition;
@@ -759,8 +768,8 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 					assert(stockpile_buffer_amount - to_consume_w_attrition >= 0.0f);
 					// Update stockpile buffer to reflect the amount that will be subtracted later
 					state.world.market_set_govt_stockpile_satisfaction_buffer(market, com_id, stockpile_buffer_amount - to_consume_w_attrition);
-					float total_stockpile_buffer_count = total_available_stockpiles_buffer[nation][com_id];
-					total_available_stockpiles_buffer[nation][com_id] = std::max(total_stockpile_buffer_count - to_consume_w_attrition, 0.0f);
+					float total_stockpile_buffer_count = state.world.nation_get_temp_total_stockpiles_buffer(nation, com_id);
+					state.world.nation_set_temp_total_stockpiles_buffer(nation, com_id, std::max(total_stockpile_buffer_count - to_consume_w_attrition, 0.0f));
 
 
 					route.get_buffered_goods()[i] += to_consume_w_attrition;
@@ -799,8 +808,8 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 					assert(stockpile_buffer_amount - to_consume_w_attrition >= 0.0f);
 					// Update stockpile buffer to reflect the amount that will be subtracted later
 					state.world.market_set_govt_stockpile_satisfaction_buffer(market, com_id, stockpile_buffer_amount - to_consume_w_attrition);
-					float total_stockpile_buffer_count = total_available_stockpiles_buffer[nation][com_id];
-					total_available_stockpiles_buffer[nation][com_id] = std::max(total_stockpile_buffer_count - to_consume_w_attrition, 0.0f);
+					float total_stockpile_buffer_count = state.world.nation_get_temp_total_stockpiles_buffer(nation, com_id);
+					state.world.nation_set_temp_total_stockpiles_buffer(nation, com_id, std::max(total_stockpile_buffer_count - to_consume_w_attrition, 0.0f));
 
 					new_pending_route.buffered_goods[i] += to_consume_w_attrition;
 
@@ -1193,12 +1202,10 @@ void update_supply_routes_daily(sys::state& state) {
 		});
 	},
 	[&]() {
-		total_available_stockpiles_buffer.resize(state.world.nation_size());
-		state.world.for_each_nation([&](auto nation) {
-			total_available_stockpiles_buffer[nation].resize(state.world.commodity_size());
+		state.world.execute_serial_over_nation([&](auto nations) {
 			state.world.for_each_commodity([&](dcon::commodity_id com_id) {
-				auto to_apply = state.world.nation_get_total_stockpiles(nation, com_id);
-				total_available_stockpiles_buffer[nation][com_id] = to_apply;
+				auto to_apply = state.world.nation_get_total_stockpiles(nations, com_id);
+				state.world.nation_set_temp_total_stockpiles_buffer(nations, com_id, to_apply);
 			});
 		});
 	}
@@ -1492,7 +1499,7 @@ void update_supply_routes_daily(sys::state& state) {
 			for(uint32_t j = 0; j < commodity_ids.size(); j++) {
 				auto com_id = commodity_ids[j];
 				float supply_required = total_supply_required[j];
-				expected_satisfaction_buffer[j] = (supply_required == 0.0f ? 1.0f : std::min(total_available_stockpiles_buffer[nation][com_id] / supply_required, 1.0f));
+				expected_satisfaction_buffer[j] = (supply_required == 0.0f ? 1.0f : std::min(state.world.nation_get_temp_total_stockpiles_buffer(nation, com_id) / supply_required, 1.0f));
 			}
 			for(auto unit : units_to_process) {
 				if(unit.is_army) {
@@ -1550,7 +1557,7 @@ void update_supply_routes_daily(sys::state& state) {
 		for(uint32_t j = 0; j < build_goods_ids.size(); j++) {
 			auto com_id = build_goods_ids[j];
 			float supply_required = consumption_buffer.nation_construction_need[nation][j];
-			expected_satisfaction_buffer[j] = (supply_required == 0.0f ? 1.0f : std::min(total_available_stockpiles_buffer[nation][com_id] / supply_required, 1.0f));
+			expected_satisfaction_buffer[j] = (supply_required == 0.0f ? 1.0f : std::min(state.world.nation_get_temp_total_stockpiles_buffer(nation, com_id) / supply_required, 1.0f));
 		}
 		for(auto construction : state.world.nation_get_province_land_construction(nation)) {
 			update_construction_routes_satisfaction(state, construction.id, nation, consumption_buffer.land_constructions_need[construction],expected_satisfaction_buffer, stockpiles_buffer.land_construction_closest_stockpiles[construction], pending_land_construction_routes[nation]);
@@ -1629,7 +1636,7 @@ void update_supply_routes_daily(sys::state& state) {
 		}
 
 		state.world.for_each_commodity([&](dcon::commodity_id commodity_id) {
-			auto to_apply = total_available_stockpiles_buffer[nation][commodity_id];
+			auto to_apply = state.world.nation_get_temp_total_stockpiles_buffer(nation, commodity_id);
 			// Consume the goods. We know that this amount is exactly the amount left after consumption, and it should not be less than zero
 			assert(to_apply >= 0.0f);
 			state.world.nation_set_total_stockpiles(nation, commodity_id, to_apply);

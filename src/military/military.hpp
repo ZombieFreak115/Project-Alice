@@ -569,6 +569,7 @@ dcon::province_id find_naval_rally_pt(sys::state& state, dcon::nation_id by, dco
 void move_land_to_merge(sys::state& state, dcon::nation_id by, dcon::army_id a, dcon::province_id start, dcon::province_id dest);
 void move_navy_to_merge(sys::state& state, dcon::nation_id by, dcon::navy_id a, dcon::province_id start, dcon::province_id dest);
 
+void update_fastest_units(sys::state& state);
 
 // Sets a navy to have the specific path. If override_path is true it will clear the path first, if false it will append to the existing path
 bool set_navy_path(sys::state& state, dcon::navy_id navy, std::span<const dcon::province_id, std::dynamic_extent> naval_path, bool override_path = true);

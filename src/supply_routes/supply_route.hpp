@@ -2,6 +2,10 @@
 #include "system_state.hpp"
 namespace supply_routes {
 
+constexpr float base_land_supply_speed = 0.1f; // base land supply speed
+constexpr float base_naval_supply_speed = 0.4f; // base naval supply speed
+constexpr float fastest_land_unit_supply_speed_mult = 1.0f; // land supply speed gained from the fastest land unit (eg. if 1.0f, then if the fastest unit is 4 km/h then land supply speed is increased by 4
+constexpr float fastest_transport_unit_supply_speed_mult = 1.0f; // naval supply speed gained from the fastest transport unit (eg. if 1.0f, then if the fastest unit is 4 km/h then naval supply speed is increased by 4
 
 constexpr float sea_base_supply_thoughput = 1000.0f;
 constexpr float land_base_supply_thoughput = 0.5f;

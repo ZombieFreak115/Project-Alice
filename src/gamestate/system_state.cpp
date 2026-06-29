@@ -3040,7 +3040,6 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	world.market_resize_consumption(world.commodity_size());
 	world.market_resize_intermediate_demand(world.commodity_size());
 	world.market_resize_government_stockpile(world.commodity_size());
-	world.market_resize_govt_stockpile_satisfaction_buffer(world.commodity_size());
 	world.market_resize_government_stockpile_demand_weights(world.commodity_size());
 
 	world.market_resize_life_needs_costs(world.pop_type_size());
@@ -3485,6 +3484,8 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	for(auto p : world.in_province) {
 		culture::fix_slaves_in_province(*this, p.get_nation_from_province_ownership(), p);
 	}
+
+	military::update_fastest_units(*this);
 
 	economy::sanity_check(*this);
 
@@ -3978,6 +3979,9 @@ void state::fill_unsaved_data() { // reconstructs derived values that are not di
 	world.nation_resize_demographics_alt(demographics::size(*this));
 	world.state_instance_resize_demographics_alt(demographics::size(*this));
 	world.province_resize_demographics_alt(demographics::size(*this));
+
+	world.nation_resize_temp_total_stockpiles_buffer(world.commodity_size());
+	world.market_resize_govt_stockpile_satisfaction_buffer(world.commodity_size());
 
 	province::restore_distances(*this);
 
@@ -4531,6 +4535,7 @@ void state::single_game_tick() {
 			break;
 		case 9:
 			military::repair_ships(*this);
+			military::update_fastest_units(*this);
 			break;
 		case 10:
 			province::update_crimes(*this);

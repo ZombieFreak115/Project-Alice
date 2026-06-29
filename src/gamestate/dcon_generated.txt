@@ -4356,6 +4356,11 @@ object {
 		tag{ save }
 	}
 	property {
+		name{ temp_total_stockpiles_buffer }
+		type{ array{commodity_id}{float} }
+		tag { mp_checksum_excluded }
+	}
+	property {
 		name{ national_bank }
 		type{ float }
 		tag{ save }
@@ -4550,6 +4555,16 @@ object {
 	property {
 		name{ utility_tag }
 		type{ bitfield }
+		tag{ save }
+	}
+	property {
+		name{ fastest_unlocked_land_unit }
+		type{ dcon::unit_type_id }
+		tag{ save }
+	}
+	property {
+		name{ fastest_unlocked_transport_unit }
+		type{ dcon::unit_type_id }
 		tag{ save }
 	}
 	property {
