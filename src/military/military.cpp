@@ -10251,10 +10251,64 @@ float get_naval_reinforcement_modifiers(const sys::state& state, dcon::ship_id s
 
 }
 
+void advance_unit_constructions(sys::state& state) {
+
+
+	auto process_construction = [&]<concepts::military_construction_type con_type>(con_type c) {
+		if(!economy::can_advance_construction(state, c)) {
+			return;
+		}
+		auto construction = fatten(state.world, c);
+		auto province = economy::construction_get_location(state, construction.id);
+		auto builder = economy::construction_get_controller(state, construction.id);
+		auto type = construction.get_type();
+		assert(type);
+		float cost_factor = economy::build_cost_multiplier(state, province, false);
+
+		const auto& goods = state.military_definitions.unit_base_definitions[type].build_cost;
+		const auto& cgoods = construction.get_purchased_goods();
+
+		float total = 0.0f;
+		float purchased = 0.0f;
+
+		for(uint32_t i = 0; i < goods.set_size; ++i) {
+			total += goods.commodity_amounts[i] * cost_factor;
+			purchased += cgoods.commodity_amounts[i];
+		}
+		uint32_t construction_time_needed = [&]() {
+			if constexpr(std::is_same_v< con_type, dcon::province_land_construction_id>) {
+				return economy::land_unit_construction_time(state, type, builder);
+			}
+			else if constexpr(std::is_same_v< con_type, dcon::province_naval_construction_id>) {
+				return economy::naval_unit_construction_time(state, type, builder);
+			}
+		}();
+
+		float construction_days_progress = economy::unit_construction_progress(state, construction.id);
+		float goods_progress = (total == 0.0f ? 1.0f : purchased / total);
+		if(goods_progress > construction_days_progress) {
+			construction.set_construction_days(construction.get_construction_days() + 1);
+		}
+	};
+
+
+	concurrency::parallel_for(uint32_t(0), state.world.province_land_construction_size(), [&](uint32_t i) {
+		dcon::province_land_construction_id con { dcon::province_land_construction_id::value_base_t(i) };
+		process_construction(con);
+	});
+	concurrency::parallel_for(uint32_t(0), state.world.province_naval_construction_size(), [&](uint32_t i) {
+		dcon::province_naval_construction_id con{ dcon::province_naval_construction_id::value_base_t(i) };
+		process_construction(con);
+	});
+}
+
 void resolve_unit_constructions(sys::state& state) {
 	// US1. Regiment construction
 	// US1AC7.
 	for(auto c : state.world.in_province_land_construction) {
+		if(!economy::can_advance_construction(state, c.id)) {
+			continue;
+		}
 		auto pop = state.world.province_land_construction_get_pop(c);
 		auto province = state.world.pop_get_province_from_pop_location(pop);
 		float cost_factor = economy::build_cost_multiplier(state, province, false);
@@ -10264,25 +10318,26 @@ void resolve_unit_constructions(sys::state& state) {
 		auto construction_time = economy::land_unit_construction_time(state, c.get_type(), c.get_nation());
 
 		// US1AC4. All goods costs must be built
-		bool ready_for_deployment = true;
-		if(!(c.get_nation().get_is_player_controlled() && state.cheat_data.instant_army)) {
-			for(uint32_t j = 0; j < economy::commodity_set::set_size && ready_for_deployment; ++j) {
+		// US1AC5. But no faster than construction_time
+		bool ready_for_deployment = [&]() {
+			if(c.get_nation().get_is_player_controlled() && state.cheat_data.instant_army) {
+				return true;
+			}
+			if(c.get_construction_days() < construction_time) {
+				return false;
+			}
+			for(uint32_t j = 0; j < economy::commodity_set::set_size; ++j) {
 				if(base_cost.commodity_type[j]) {
 					if(current_purchased.commodity_amounts[j] < base_cost.commodity_amounts[j] * cost_factor) {
-						ready_for_deployment = false;
+						return false;
 					}
 				} else {
 					break;
 				}
 			}
-		}
-
-		// US1AC5. But no faster than construction_time
-		if(!state.cheat_data.instant_army) {
-			if(state.current_date < c.get_start_date() + construction_time) {
-				ready_for_deployment = false;
-			}
-		}
+			return true;
+			
+		}();
 
 		if(ready_for_deployment) {
 			auto pop_location = c.get_pop().get_province_from_pop_location();
@@ -10312,62 +10367,62 @@ void resolve_unit_constructions(sys::state& state) {
 
 	// US2 Ships construction
 	// US2AC7
-	province::for_each_land_province(state, [&](dcon::province_id p) {
-		auto rng = state.world.province_get_province_naval_construction(p);
-		if(rng.begin() != rng.end()) {
-			auto c = *(rng.begin());
-
-			auto province = state.world.province_naval_construction_get_province(c);
-			float cost_factor = economy::build_cost_multiplier(state, province, false);
-
-			auto& base_cost = state.military_definitions.unit_base_definitions[c.get_type()].build_cost;
-			auto& current_purchased = c.get_purchased_goods();
-			auto construction_time = economy::naval_unit_construction_time(state, c.get_type(), c.get_nation());
-
-			// US2AC4.
-			bool ready_for_deployment = true;
-			if(!(c.get_nation().get_is_player_controlled() && state.cheat_data.instant_navy)) {
-				for(uint32_t i = 0; i < economy::commodity_set::set_size && ready_for_deployment; ++i) {
-					if(base_cost.commodity_type[i]) {
-						if(current_purchased.commodity_amounts[i] < base_cost.commodity_amounts[i] * cost_factor) {
-							ready_for_deployment = false;
-						}
-					} else {
-						break;
-					}
-				}
-			}
-
-			// US2AC5. But no faster than construction_time
-			if(!state.cheat_data.instant_navy) {
-				if(state.current_date < c.get_start_date() + construction_time) {
-					ready_for_deployment = false;
-				}
-			}
-
-			if(ready_for_deployment) {
-				auto new_ship = military::create_new_ship(state, c.get_nation(), c.get_type());
-				auto a = fatten(state.world, state.world.create_navy());
-				a.set_controller_from_navy_control(c.get_nation());
-				a.set_location_from_navy_location(p);
-				state.world.try_create_navy_membership(new_ship, a);
-				military::move_navy_to_merge(state, c.get_nation(), a, c.get_province(), c.get_template_province());
-
-				if(c.get_nation() == state.local_player_nation) {
-					notification::post(state, notification::message{ [](sys::state& state, text::layout_base& contents) {
-							text::add_line(state, contents, "amsg_navy_built");
-						},
-						"amsg_navy_built",
-						state.local_player_nation, dcon::nation_id{}, dcon::nation_id{},
-						sys::message_base_type::navy_built,
-						dcon::province_id{ }
-					});
-				}
-
-				economy::delete_unit_construction<economy::construction_completed::yes>(state, c.id);
-			}
+	for(auto c : state.world.in_province_naval_construction) {
+		if(!economy::can_advance_construction(state, c.id)) {
+			continue;
 		}
-	});
+		auto province = state.world.province_naval_construction_get_province(c);
+		float cost_factor = economy::build_cost_multiplier(state, province, false);
+
+		auto& base_cost = state.military_definitions.unit_base_definitions[c.get_type()].build_cost;
+		auto& current_purchased = c.get_purchased_goods();
+		auto construction_time = economy::naval_unit_construction_time(state, c.get_type(), c.get_nation());
+
+		// US2AC4.
+		bool ready_for_deployment = [&]() {
+			if(c.get_nation().get_is_player_controlled() && state.cheat_data.instant_navy) {
+				return true;
+			}
+			if(c.get_construction_days() < construction_time) {
+				return false;
+			}
+			for(uint32_t j = 0; j < economy::commodity_set::set_size; ++j) {
+				if(base_cost.commodity_type[j]) {
+					if(current_purchased.commodity_amounts[j] < base_cost.commodity_amounts[j] * cost_factor) {
+						return false;
+					}
+				} else {
+					break;
+				}
+			}
+			return true;
+
+			}();
+
+		if(ready_for_deployment) {
+			dcon::province_id p = economy::construction_get_location(state, c.id);
+			auto new_ship = military::create_new_ship(state, c.get_nation(), c.get_type());
+			auto a = fatten(state.world, state.world.create_navy());
+			a.set_controller_from_navy_control(c.get_nation());
+			a.set_location_from_navy_location(p);
+			state.world.try_create_navy_membership(new_ship, a);
+			military::move_navy_to_merge(state, c.get_nation(), a, c.get_province(), c.get_template_province());
+
+			if(c.get_nation() == state.local_player_nation) {
+				notification::post(state, notification::message{ [](sys::state& state, text::layout_base& contents) {
+						text::add_line(state, contents, "amsg_navy_built");
+					},
+					"amsg_navy_built",
+					state.local_player_nation, dcon::nation_id{}, dcon::nation_id{},
+					sys::message_base_type::navy_built,
+					dcon::province_id{ }
+				});
+			}
+
+			economy::delete_unit_construction<economy::construction_completed::yes>(state, c.id);
+		}
+		
+	}
 }
 
 

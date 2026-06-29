@@ -5519,55 +5519,31 @@ construction_status factory_upgrade(sys::state& state, dcon::factory_id f) {
 }
 
 float unit_construction_progress(sys::state& state, dcon::province_land_construction_id c) {
-	auto pop = state.world.province_land_construction_get_pop(c);
-	auto province = state.world.pop_get_province_from_pop_location(pop);
-	auto builder = state.world.province_land_construction_get_nation(c);
-	auto type = state.world.province_land_construction_get_type(c);
-	if(!c || !type) {
-		return 0.0f;
-	}
-	float cost_factor = economy::build_cost_multiplier(state, province, false);
+	auto construction = fatten(state.world, c);
+	auto type = construction.get_type();
+	assert(type);
+	auto builder = construction_get_controller(state, c);
+	uint32_t construction_time_needed = economy::land_unit_construction_time(state, type, builder);
 
-	auto& goods = state.military_definitions.unit_base_definitions[type].build_cost;
-	auto& cgoods = state.world.province_land_construction_get_purchased_goods(c);
+	auto current_construction_days = construction.get_construction_days();
+	assert(construction_time_needed > 0);
+	float construction_days_progress = std::min(float(current_construction_days) / float(construction_time_needed), 1.0f);
 
-	float total = 0.0f;
-	float purchased = 0.0f;
-
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		total += goods.commodity_amounts[i] * cost_factor;
-		purchased += cgoods.commodity_amounts[i];
-	}
-
-	auto construction_time = land_unit_construction_time(state, type, builder);
-	auto time_progress = (float) sys::days_difference(state.world.province_land_construction_get_start_date(c).to_ymd(state.start_date), state.current_date.to_ymd(state.start_date)) / (float) construction_time;
-
-	return std::min(time_progress, purchased / total);
+	return construction_days_progress;
 }
 
 float unit_construction_progress(sys::state& state, dcon::province_naval_construction_id c) {
-	auto province = state.world.province_naval_construction_get_province(c);
-	auto builder = state.world.province_naval_construction_get_nation(c);
-	float cost_factor = economy::build_cost_multiplier(state, province, false);
-	auto type = state.world.province_naval_construction_get_type(c);
-	if(!c || !type) {
-		return 0.0f;
-	}
-	auto& goods = state.military_definitions.unit_base_definitions[type].build_cost;
-	auto& cgoods = state.world.province_naval_construction_get_purchased_goods(c);
+	auto construction = fatten(state.world, c);
+	auto type = construction.get_type();
+	assert(type);
+	auto builder = construction_get_controller(state, c);
+	uint32_t construction_time_needed = economy::naval_unit_construction_time(state, type, builder);
 
-	float total = 0.0f;
-	float purchased = 0.0f;
+	auto current_construction_days = construction.get_construction_days();
+	assert(construction_time_needed > 0);
+	float construction_days_progress = std::min(float(current_construction_days) / float(construction_time_needed), 1.0f);
 
-	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-		total += goods.commodity_amounts[i] * cost_factor;
-		purchased += cgoods.commodity_amounts[i];
-	}
-
-	auto construction_time = naval_unit_construction_time(state, type, builder);
-	auto time_progress = (float)sys::days_difference(state.world.province_naval_construction_get_start_date(c).to_ymd(state.start_date), state.current_date.to_ymd(state.start_date)) / (float)construction_time;
-
-	return std::min(time_progress, purchased / total);
+	return construction_days_progress;
 }
 
 void add_factory_level_to_province(sys::state& state, dcon::province_id p, dcon::factory_type_id t) {

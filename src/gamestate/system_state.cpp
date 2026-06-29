@@ -4451,7 +4451,9 @@ void state::single_game_tick() {
 		//
 		supply_routes::update_supply_routes_daily(*this);
 
-		// Resolving military unit constructions should be handled right after updating supply routes, as they will add to the "purchased_goods" stockpile for unit constructions
+		military::advance_unit_constructions(*this);
+
+		// Resolving military unit constructions should be handled right after updating supply routes and advancing unit constructions, as they will add to the "purchased_goods" stockpile for unit constructions  and right after increase the construction days
 		military::resolve_unit_constructions(*this);
 
 

@@ -4607,7 +4607,7 @@ object{
 	property {
 		name{ govt_stockpile_satisfaction_buffer }
 		type{ array{commodity_id}{float} }
-		tag{ save }
+		tag { mp_checksum_excluded }
 	}
 	property {
 		name{ government_stockpile_demand_weights }
@@ -5502,6 +5502,11 @@ relationship{
 		type{ sys::date }
 		tag{ save }
 	}
+	property{
+		name{ construction_days }
+		type{ uint32_t }
+		tag{ save }
+	}
 }
 
 relationship{
@@ -5541,6 +5546,11 @@ relationship{
 	property{
 		name{ start_date }
 		type{ sys::date }
+		tag{ save }
+	}
+	property{
+		name{ construction_days }
+		type{ uint32_t }
 		tag{ save }
 	}
 }

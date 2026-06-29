@@ -891,6 +891,7 @@ void execute_start_naval_unit_construction(sys::state& state, dcon::nation_id so
 	c.set_type(type);
 	c.set_start_date(state.current_date);
 	c.set_template_province(template_province);
+	c.set_construction_days(0);
 }
 
 void start_land_unit_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::culture_id soldier_culture, dcon::unit_type_id type, dcon::province_id template_province) {
@@ -956,6 +957,7 @@ void execute_start_land_unit_construction(sys::state& state, dcon::nation_id sou
 	c.set_start_date(state.current_date);
 	c.set_type(type);
 	c.set_template_province(template_province);
+	c.set_construction_days(0);
 }
 
 void cancel_naval_unit_construction(sys::state& state, dcon::nation_id source, dcon::province_id location, dcon::unit_type_id type) {
