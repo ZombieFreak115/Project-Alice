@@ -370,7 +370,6 @@ void update_supply_route_path(sys::state& state, route_type r) {
 	update_supply_route_throughput_attrition(state, r, route_owner);
 	route.set_path_out_of_date(false);
 }
-static int counter = 0;
 
 
 template<concepts::supply_route_type route_type>
@@ -387,7 +386,6 @@ template<concepts::supply_route_type route_type>
 void try_update_route_path(sys::state& state, route_type r, tagged_vector<int64_t, dcon::province_id>& province_throughput_changes ) {
 	if(path_needs_update(state, r)) {
 		//Try make new path
-		counter++;
 		update_supply_route_path(state, r, province_throughput_changes);
 	}
 }
@@ -781,6 +779,7 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 					break;
 				}
 			}
+			route.set_is_active(true);
 		}
 		// Otherwise, create a pending route, and work on that, then push it to the vector
 		else {
@@ -1064,6 +1063,7 @@ dcon::army_supply_route_id create_supply_route_from_pending(sys::state& state, c
 	id.set_buffered_reinforcement_goods(pending.buffered_reinforcement_goods);
 	id.get_path().load_range(pending.path.data(), pending.path.data() + pending.path.size());
 	id.set_is_active(true);
+	id.set_inactive_days(0);
 	return id;
 }
 dcon::navy_supply_route_id create_supply_route_from_pending(sys::state& state, const pending_military_supply_route<dcon::navy_id>& pending) {
@@ -1075,6 +1075,7 @@ dcon::navy_supply_route_id create_supply_route_from_pending(sys::state& state, c
 	id.set_buffered_reinforcement_goods(pending.buffered_reinforcement_goods);
 	id.get_path().load_range(pending.path.data(), pending.path.data() + pending.path.size());
 	id.set_is_active(true);
+	id.set_inactive_days(0);
 	return id;
 }
 dcon::land_construction_supply_route_id create_supply_route_from_pending(sys::state& state, const pending_construction_supply_route<dcon::province_land_construction_id>& pending) {
@@ -1085,6 +1086,7 @@ dcon::land_construction_supply_route_id create_supply_route_from_pending(sys::st
 	id.set_buffered_goods(pending.buffered_goods);
 	id.get_path().load_range(pending.path.data(), pending.path.data() + pending.path.size());
 	id.set_is_active(true);
+	id.set_inactive_days(0);
 	return id;
 }
 dcon::naval_construction_supply_route_id create_supply_route_from_pending(sys::state& state, const pending_construction_supply_route<dcon::province_naval_construction_id>& pending) {
@@ -1095,6 +1097,7 @@ dcon::naval_construction_supply_route_id create_supply_route_from_pending(sys::s
 	id.set_buffered_goods(pending.buffered_goods);
 	id.get_path().load_range(pending.path.data(), pending.path.data() + pending.path.size());
 	id.set_is_active(true);
+	id.set_inactive_days(0);
 	return id;
 }
 
@@ -1272,9 +1275,6 @@ void update_supply_routes_daily(sys::state& state) {
 		economy::get_closest_available_market_states(state, stockpiles_buffer.navy_closest_stockpiles[navy], nation, location);
 		accumulate_military_requirements(state, navy, consumption_buffer.navy_supply_need[navy], consumption_buffer.navy_reinforcement_need[navy]);
 	});
-	end = std::chrono::steady_clock::now();
-	state.console_log(std::string("STEP 2 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
-	begin = std::chrono::steady_clock::now();
 
 	concurrency::parallel_for(uint32_t(0), state.world.province_land_construction_size(), [&](uint32_t i) {
 		dcon::province_land_construction_fat_id construction = fatten(state.world, dcon::province_land_construction_id{ dcon::province_land_construction_id::value_base_t(i) });
@@ -1315,6 +1315,7 @@ void update_supply_routes_daily(sys::state& state) {
 
 	begin = std::chrono::steady_clock::now();
 
+	// STEP 3: Split the total goods required by units in each of the priority brackets (high, medium, low), and accumulate total goods requried for constructions per-nation
 
 	static tagged_vector<std::vector<unit>, dcon::nation_id> low_prio_units;
 	static tagged_vector<std::vector<unit>, dcon::nation_id> normal_prio_units;
@@ -1418,19 +1419,27 @@ void update_supply_routes_daily(sys::state& state) {
 	// Weekly province updates are issued once per week at diffrent intervals, ie army supply routes are done at the 1st day of the week, navy supply routes on the 2nd day etc
 	// Updates triggered by unit movement is done daily 
 	end = std::chrono::steady_clock::now();
-	state.console_log(std::string("New step time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
+	state.console_log(std::string("STEP 3 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
 	begin = std::chrono::steady_clock::now();
-	auto day_of_week = state.current_date.value % 7;
-	parallel_for_each_supply_route(state, [&](auto route) {
-		auto fat_route = fatten(state.world, route);
-		for(auto prov : fat_route.get_path()) {
-			if(state.world.province_get_supply_route_requires_weekly_update(prov)) {
-				fat_route.set_path_out_of_date(true);
-				return; // Leave loop iteration 
-			}
-		}
 
-	});
+	auto day_of_week = state.current_date.value % 7;
+	if(day_of_week == 0) {
+		// Update paths which are flagged to require an update once per week
+		parallel_for_each_supply_route(state, [&](auto route) {
+			auto fat_route = fatten(state.world, route);
+			for(auto prov : fat_route.get_path()) {
+				if(state.world.province_get_supply_route_requires_weekly_update(prov)) {
+					fat_route.set_path_out_of_date(true);
+					return; // Leave loop iteration 
+				}
+			}
+
+		});
+		state.world.execute_serial_over_province([&](auto prov_ids) {
+			state.world.province_set_supply_route_requires_daily_update(prov_ids, ve::vbitfield_type{ 0 });
+			state.world.province_set_supply_route_requires_weekly_update(prov_ids, ve::vbitfield_type{ 0 });
+		});
+	}
 
 	static std::vector<dcon::army_supply_route_id> army_routes_to_update;
 	static std::vector<dcon::navy_supply_route_id> navy_routes_to_update;
@@ -1463,7 +1472,7 @@ void update_supply_routes_daily(sys::state& state) {
 	});
 	end = std::chrono::steady_clock::now();
 	state.console_log(std::string("STEP 4 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
-
+	
 	// STEP 5: Update route throughput and route attrition values.
 	// Can be done in parallel
 	begin = std::chrono::steady_clock::now();
@@ -1565,11 +1574,6 @@ void update_supply_routes_daily(sys::state& state) {
 		for(auto construction : state.world.nation_get_province_naval_construction(nation)) {
 			update_construction_routes_satisfaction(state, construction.id, nation, consumption_buffer.naval_constructions_need[construction], expected_satisfaction_buffer, stockpiles_buffer.naval_construction_closest_stockpiles[construction], pending_naval_construction_routes[nation]);
 		}
-
-
-
-
-
 		
 	});
 	// Then create the constructin pending routes
@@ -1581,28 +1585,41 @@ void update_supply_routes_daily(sys::state& state) {
 			create_supply_route_from_pending(state, pending_route);
 		}
 	});
+
+	end = std::chrono::steady_clock::now();
+	state.console_log(std::string("STEP 6 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
+	begin = std::chrono::steady_clock::now();
+
+	// STEP 7: Update the amount of days a route has been inactive, and delete routes which are deemed to be too inactive (has not moved any volume of goods for a certain amount of days)
+
+	parallel_for_each_supply_route(state, [&](auto r) {
+		auto route = fatten(state.world, r);
+		uint8_t new_inactive_days = (route.get_is_active() ? uint8_t(0) : route.get_inactive_days() + uint8_t(1));
+		route.set_inactive_days(new_inactive_days);
+		
+	});
 	// Finally, delete unused routes serially. Iterate from the end to compact as we go
 	for(uint32_t i = state.world.army_supply_route_size(); i-- > 0;) {
 		dcon::army_supply_route_fat_id route = fatten(state.world, dcon::army_supply_route_id{ dcon::army_supply_route_id::value_base_t(i) });
-		if(!route.get_is_active()) {
+		if(route.get_inactive_days() >= 5) {
 			state.world.delete_army_supply_route(route);
 		}
 	}
 	for(uint32_t i = state.world.navy_supply_route_size(); i-- > 0;) {
 		dcon::navy_supply_route_fat_id route = fatten(state.world, dcon::navy_supply_route_id{ dcon::navy_supply_route_id::value_base_t(i) });
-		if(!route.get_is_active()) {
+		if(route.get_inactive_days() >= 5) {
 			state.world.delete_navy_supply_route(route);
 		}
 	}
 	for(uint32_t i = state.world.land_construction_supply_route_size(); i-- > 0;) {
 		dcon::land_construction_supply_route_fat_id route = fatten(state.world, dcon::land_construction_supply_route_id{ dcon::land_construction_supply_route_id::value_base_t(i) });
-		if(!route.get_is_active()) {
+		if(route.get_inactive_days() >= 5) {
 			state.world.delete_land_construction_supply_route(route);
 		}
 	}
 	for(uint32_t i = state.world.naval_construction_supply_route_size(); i-- > 0;) {
 		dcon::naval_construction_supply_route_fat_id route = fatten(state.world, dcon::naval_construction_supply_route_id{ dcon::naval_construction_supply_route_id::value_base_t(i) });
-		if(!route.get_is_active()) {
+		if(route.get_inactive_days() >= 5) {
 			state.world.delete_naval_construction_supply_route(route);
 		}
 	}
@@ -1611,13 +1628,12 @@ void update_supply_routes_daily(sys::state& state) {
 
 	
 	end = std::chrono::steady_clock::now();
-	state.console_log(std::string("STEP 6 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
-
-
-
-	// STEP 7: subtract from stockpiles the actual buffered amount which each route has taken
-	// Can be done in parallel over each nation
+	state.console_log(std::string("STEP 7 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
 	begin = std::chrono::steady_clock::now();
+
+
+	// STEP 8: subtract from stockpiles the actual buffered amount which each route has taken
+	// Can be done in parallel over each nation
 	concurrency::parallel_for(uint32_t(0), state.world.market_size(), [&](uint32_t i) {
 		dcon::market_id market{ dcon::market_id::value_base_t(i) };
 		state.world.for_each_commodity([&](dcon::commodity_id commodity_id) {
@@ -1644,9 +1660,9 @@ void update_supply_routes_daily(sys::state& state) {
 
 	});
 	end = std::chrono::steady_clock::now();
-	state.console_log(std::string("STEP 7 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
+	state.console_log(std::string("STEP 8 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
 
-	// STEP 8: Update each army/navy supply & reinforcement satisfaction and advance constructions, by computing how much of their required commodities they were able to receive from all supply routes
+	// STEP 9: Update each army/navy supply & reinforcement satisfaction and advance constructions, by computing how much of their required commodities they were able to receive from all supply routes
 
 	// Start processing each army/navy and applying reinforcement/supply satisfaction
 	// Do armies
@@ -1685,10 +1701,10 @@ void update_supply_routes_daily(sys::state& state) {
 
 	});
 	end = std::chrono::steady_clock::now();
-	state.console_log(std::string("STEP 8 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
+	state.console_log(std::string("STEP 9 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
 
 
-	// STEP 9: Initialize used supply throughput values, to be used on the next day.
+	// STEP 10: Initialize used supply throughput values, to be used on the next day.
 	begin = std::chrono::steady_clock::now();
 
 	state.world.execute_serial_over_province([&](auto province_ids) {
@@ -1717,14 +1733,9 @@ void update_supply_routes_daily(sys::state& state) {
 		prov.set_used_supply_throughput(std::max(prov.get_used_supply_throughput() + float(final_province_supply_throughput[prov]) / used_throughput_integer_precision, 0.0f));
 	}
 	end = std::chrono::steady_clock::now();
-	state.console_log(std::string("STEP 9 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
+	state.console_log(std::string("STEP 10 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
 
 
-
-	state.world.execute_serial_over_province([&](auto prov_ids) {
-		state.world.province_set_supply_route_requires_daily_update(prov_ids, ve::vbitfield_type{ 0 });
-		state.world.province_set_supply_route_requires_weekly_update(prov_ids, ve::vbitfield_type{ 0 });
-	});
 }
 
 

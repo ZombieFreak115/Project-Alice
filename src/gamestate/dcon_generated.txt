@@ -4942,6 +4942,11 @@ relationship{
 		tag{ save }
 	}
 	property{
+		name{ inactive_days }
+		type{ uint8_t }
+		tag{ save }
+	}
+	property{
 		name{ path }
 		type{vector_pool{5000}{province_id}}
 		tag{ save }
@@ -5006,6 +5011,11 @@ relationship{
 	property{
 		name{ is_active }
 		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ inactive_days }
+		type{ uint8_t }
 		tag{ save }
 	}
 	property{
@@ -5081,6 +5091,11 @@ relationship{
 		tag{ save }
 	}
 	property{
+		name{ inactive_days }
+		type{ uint8_t }
+		tag{ save }
+	}
+	property{
 		name{ path }
 		type{vector_pool{5000}{province_id}}
 		tag{ save }
@@ -5141,6 +5156,11 @@ relationship{
 	property{
 		name{ is_active }
 		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ inactive_days }
+		type{ uint8_t }
 		tag{ save }
 	}
 	property{
