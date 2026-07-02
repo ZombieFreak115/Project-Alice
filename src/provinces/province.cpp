@@ -592,7 +592,7 @@ void set_province_controller(sys::state& state, dcon::province_id p, dcon::natio
 		state.world.province_set_rebel_faction_from_province_rebel_control(p, dcon::rebel_faction_id{});
 		state.world.province_set_nation_from_province_control(p, n);
 		// Schedule supply route update for routes which pass through this province
-		military::schedule_supply_paths_update(state, p);
+		military::schedule_prov_all_supply_paths_update(state, p);
 		state.military_definitions.pending_blackflag_update = true;
 		// Delete unit constructions in the occupied province
 		for(auto pop_loc : state.world.province_get_pop_location(p)) {
@@ -642,7 +642,7 @@ void set_province_controller(sys::state& state, dcon::province_id p, dcon::rebel
 		state.world.province_set_rebel_faction_from_province_rebel_control(p, rf);
 		state.world.province_set_nation_from_province_control(p, dcon::nation_id{});
 		// Schedule supply route update for routes which pass through this province
-		military::schedule_supply_paths_update(state, p);
+		military::schedule_prov_all_supply_paths_update(state, p);
 		state.military_definitions.pending_blackflag_update = true;
 	}
 }
@@ -1160,7 +1160,7 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 	state.national_cached_values_out_of_date = true;
 
 	// Schedule an update on all routes passing through
-	military::schedule_supply_paths_update(state, id);
+	military::schedule_prov_all_supply_paths_update(state, id);
 
 	bool state_is_new = false;
 	dcon::state_instance_id new_si;

@@ -179,19 +179,34 @@ int32_t total_ships(sys::state& state, dcon::nation_id n) {
 	return total;
 }
 
-void schedule_supply_paths_update(sys::state& state, dcon::province_id to_update) {
+void schedule_prov_all_supply_paths_update(sys::state& state, dcon::province_id to_update) {
 	state.world.province_set_supply_route_requires_daily_update(to_update, true);
 	state.world.province_set_supply_route_requires_weekly_update(to_update, true);
+}
+void schedule_prov_enemy_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation) {
+	// Add enemy nations to the vector of nations whose routes need to be updated
+	for(auto wa : state.world.nation_get_war_participant(nation)) {
+		auto is_attacker = wa.get_is_attacker();
+		for(auto o : wa.get_war().get_war_participant()) {
+			if(o.get_is_attacker() != is_attacker) {
+				auto nations_to_update = state.world.province_get_nation_routes_to_be_updated(to_update);
+				auto found = std::find(nations_to_update.begin(), nations_to_update.end(), o.get_nation());
+				if(found == nations_to_update.end()) {
+					nations_to_update.push_back(o.get_nation());
+				}
+			}
+		}
+	}
 }
 
 
 void set_siege_progress(sys::state& state, dcon::province_id prov, float new_val) {
 	float old_val = state.world.province_get_siege_progress(prov);
 	state.world.province_set_siege_progress(prov, new_val);
-	// Only schedule a supply route path update if the new value is 0 (siege stopped), or once a week otherwise
-	if(state.current_date.value % 7 == 0 || (old_val != 0.0f && new_val == 0.0f)) {
-		schedule_supply_paths_update(state, prov);
+	if(old_val != new_val) {
+		schedule_prov_all_supply_paths_update(state, prov);
 	}
+	
 
 }
 
@@ -1005,14 +1020,8 @@ bool are_enemies(sys::state const& state, dcon::nation_id a, dcon::nation_id b) 
 bool are_at_war(sys::state const& state, dcon::nation_id a, dcon::nation_id b) {
 	if(!state.world.nation_get_is_at_war(a) || !state.world.nation_get_is_at_war(b))
 		return false;
-	for(auto wa : state.world.nation_get_war_participant(a)) {
-		auto is_attacker = wa.get_is_attacker();
-		for(auto o : wa.get_war().get_war_participant()) {
-			if(o.get_nation() == b)
-				return o.get_is_attacker() != is_attacker;
-		}
-	}
-	return false;
+	auto diplo_rel = state.world.get_diplomatic_relation_by_diplomatic_pair(a, b);
+	return diplo_rel && state.world.diplomatic_relation_get_are_at_war(diplo_rel);
 }
 
 bool are_allied_in_war(sys::state const& state, dcon::nation_id a, dcon::nation_id b) {
@@ -2880,6 +2889,16 @@ void add_to_war(sys::state& state, dcon::war_id w, dcon::nation_id n, bool as_at
 	state.world.nation_set_is_at_war(n, true);
 	state.world.nation_set_disarmed_until(n, sys::date{});
 
+	for(auto war_par : state.world.war_get_war_participant(w)) {
+		if(war_par.get_is_attacker() != as_attacker) {
+			auto diplo_rel = state.world.get_diplomatic_relation_by_diplomatic_pair(war_par.get_nation(), n);
+			if(!diplo_rel) {
+				diplo_rel = state.world.force_create_diplomatic_relation(war_par.get_nation(), n);
+			}
+			state.world.diplomatic_relation_set_are_at_war(diplo_rel,true);
+		}
+	}
+
 	for(auto dep : state.world.nation_get_overlord_as_ruler(n)) {
 		add_to_war(state, w, dep.get_subject(), as_attacker);
 	}
@@ -3345,7 +3364,7 @@ void remove_from_war(sys::state& state, dcon::war_id w, dcon::nation_id n, bool 
 			}
 		}
 	}
-
+	bool was_attacker = state.world.war_participant_get_is_attacker(par);
 	state.world.delete_war_participant(par);
 	auto rem_wars = state.world.nation_get_war_participant(n);
 	if(rem_wars.begin() == rem_wars.end()) {
@@ -3354,6 +3373,16 @@ void remove_from_war(sys::state& state, dcon::war_id w, dcon::nation_id n, bool 
 			military::give_back_units(state, n);
 		}
 		state.world.nation_set_is_at_war(n, false);
+	}
+	// update diplo relationship
+	for(auto war_par : state.world.war_get_war_participant(w)) {
+		if(war_par.get_is_attacker() != was_attacker) {
+			auto diplo_rel = state.world.get_diplomatic_relation_by_diplomatic_pair(war_par.get_nation(), n);
+			if(!diplo_rel) {
+				diplo_rel = state.world.force_create_diplomatic_relation(war_par.get_nation(), n);
+			}
+			state.world.diplomatic_relation_set_are_at_war(diplo_rel, false);
+		}
 	}
 
 	// Remove invalid occupations
@@ -3407,7 +3436,6 @@ void cleanup_war(sys::state& state, dcon::war_id w, war_result result) {
 	while(lbattles.begin() != lbattles.end()) {
 		end_battle(state, (*lbattles.begin()).get_battle().id, battle_result::indecisive);
 	}
-
 	state.world.delete_war(w);
 }
 
@@ -5261,10 +5289,8 @@ void army_arrives_in_province(sys::state& state, dcon::army_id a, dcon::province
 			auto prev_loc_controller = state.world.province_get_nation_from_province_control(prev_location);
 			auto new_loc_controller = state.world.province_get_nation_from_province_control(p);
 			auto army_owner = state.world.army_get_controller_from_army_control(a);
-			if(are_enemies(state, army_owner, new_loc_controller)) {
-				schedule_supply_paths_update(state, prev_location);
-				schedule_supply_paths_update(state, p);
-			}
+			schedule_prov_enemy_supply_paths_update(state, prev_location, army_owner);
+			schedule_prov_enemy_supply_paths_update(state, p, army_owner);
 		}
 	}
 
@@ -8842,8 +8868,8 @@ void navy_arrives_in_province(sys::state& state, dcon::navy_id n, dcon::province
 			auto prev_loc_controller = state.world.province_get_nation_from_province_control(prev_location);
 			auto new_loc_controller = state.world.province_get_nation_from_province_control(p);
 			auto army_owner = state.world.navy_get_controller_from_navy_control(n);
-			schedule_supply_paths_update(state, prev_location);
-			schedule_supply_paths_update(state, p);
+			schedule_prov_enemy_supply_paths_update(state, prev_location, army_owner);
+			schedule_prov_enemy_supply_paths_update(state, p, army_owner);
 		}
 
 	}

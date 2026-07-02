@@ -1905,6 +1905,11 @@ object {
 		type{ float }
 		tag{ save }
 	}
+	property {
+		name{ nation_routes_to_be_updated }
+		type{ vector_pool{200}{nation_id} }
+		tag{ save }
+	}
 }
 
 relationship{
@@ -5218,6 +5223,11 @@ relationship{
 	}
 	property{
 		name{ are_allied }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ are_at_war }
 		type{ bitfield }
 		tag{ save }
 	}

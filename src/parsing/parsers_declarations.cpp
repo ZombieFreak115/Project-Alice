@@ -3540,6 +3540,14 @@ void war_history_file::finish(war_history_context& context) {
 		for(auto n : context.defenders) {
 			auto rel = context.outer_context.state.world.force_create_war_participant(new_war, n);
 			context.outer_context.state.world.war_participant_set_is_attacker(rel, false);
+			// Update the relationship so that they are properly considered at war
+			for(auto attacker : context.attackers) {
+				auto diplo_rel = context.outer_context.state.world.get_diplomatic_relation_by_diplomatic_pair(n, attacker);
+				if(!diplo_rel) {
+					diplo_rel = context.outer_context.state.world.force_create_diplomatic_relation(n, attacker);
+				}
+				context.outer_context.state.world.diplomatic_relation_set_are_at_war(diplo_rel, true);
+			}
 		}
 
 		// release puppet if subject declares on overlord or vice versa

@@ -1424,13 +1424,20 @@ void update_supply_routes_daily(sys::state& state) {
 
 	auto day_of_week = state.current_date.value % 7;
 	if(day_of_week == 0) {
+
 		// Update paths which are flagged to require an update once per week
 		parallel_for_each_supply_route(state, [&](auto route) {
 			auto fat_route = fatten(state.world, route);
-			for(auto prov : fat_route.get_path()) {
+			for(dcon::province_id prov : fat_route.get_path()) {
 				if(state.world.province_get_supply_route_requires_weekly_update(prov)) {
 					fat_route.set_path_out_of_date(true);
 					return; // Leave loop iteration 
+				}
+				auto nations_to_update = state.world.province_get_nation_routes_to_be_updated(prov);
+				dcon::nation_id owner = supply_route_get_owner(state, route);
+				if(auto found = std::find(nations_to_update.begin(), nations_to_update.end(), owner); found != nations_to_update.end()) {
+					fat_route.set_path_out_of_date(true);
+					return;
 				}
 			}
 
@@ -1438,8 +1445,14 @@ void update_supply_routes_daily(sys::state& state) {
 		state.world.execute_serial_over_province([&](auto prov_ids) {
 			state.world.province_set_supply_route_requires_daily_update(prov_ids, ve::vbitfield_type{ 0 });
 			state.world.province_set_supply_route_requires_weekly_update(prov_ids, ve::vbitfield_type{ 0 });
+			ve::apply([&](dcon::province_id prov) {
+				state.world.province_get_nation_routes_to_be_updated(prov).clear();
+			}, prov_ids);
 		});
 	}
+	end = std::chrono::steady_clock::now();
+	state.console_log(std::string("STEP 3.5 time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
+	begin = std::chrono::steady_clock::now();
 
 	static std::vector<dcon::army_supply_route_id> army_routes_to_update;
 	static std::vector<dcon::navy_supply_route_id> navy_routes_to_update;
