@@ -287,7 +287,14 @@ int32_t total_ships(sys::state& state, dcon::nation_id n);
 
 // Schedules a path update on all supply paths passing through the given province
 void schedule_prov_all_supply_paths_update(sys::state& state, dcon::province_id to_update);
+// Schedules a path update on all supply paths passing through the given province controlled by enemy nations
 void schedule_prov_enemy_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation);
+// Schedules a path update on all supply paths passing through the given province controlled by nation in common wars
+void schedule_prov_common_war_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation);
+// Schedules a path update on all supply paths passing through the given province controlled by nation
+void schedule_prov_specific_nation_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation);
+// Schedules a path update on all supply routes owned by the nation
+void schedule_nation_supply_paths_update(sys::state& state, dcon::nation_id nation);
 
 
 

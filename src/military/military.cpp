@@ -179,6 +179,14 @@ int32_t total_ships(sys::state& state, dcon::nation_id n) {
 	return total;
 }
 
+void schedule_prov_specific_nation_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation) {
+	auto nations_to_update = state.world.province_get_nation_routes_to_be_updated(to_update);
+	auto found = std::find(nations_to_update.begin(), nations_to_update.end(), nation);
+	if(found == nations_to_update.end()) {
+		nations_to_update.push_back(nation);
+	}
+}
+
 void schedule_prov_all_supply_paths_update(sys::state& state, dcon::province_id to_update) {
 	state.world.province_set_supply_route_requires_daily_update(to_update, true);
 	state.world.province_set_supply_route_requires_weekly_update(to_update, true);
@@ -189,14 +197,25 @@ void schedule_prov_enemy_supply_paths_update(sys::state& state, dcon::province_i
 		auto is_attacker = wa.get_is_attacker();
 		for(auto o : wa.get_war().get_war_participant()) {
 			if(o.get_is_attacker() != is_attacker) {
-				auto nations_to_update = state.world.province_get_nation_routes_to_be_updated(to_update);
-				auto found = std::find(nations_to_update.begin(), nations_to_update.end(), o.get_nation());
-				if(found == nations_to_update.end()) {
-					nations_to_update.push_back(o.get_nation());
-				}
+				schedule_prov_specific_nation_supply_paths_update(state, to_update, o.get_nation());
 			}
 		}
 	}
+}
+
+void schedule_prov_common_war_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation) {
+	// Add common war nations to the vector of nations whose routes need to be updated
+	for(auto wa : state.world.nation_get_war_participant(nation)) {
+		for(auto o : wa.get_war().get_war_participant()) {
+			if(o.get_nation() != nation) {
+				schedule_prov_specific_nation_supply_paths_update(state, to_update, o.get_nation());
+			}
+		}
+	}
+}
+
+void schedule_nation_supply_paths_update(sys::state& state, dcon::nation_id nation) {
+	state.world.nation_set_supply_routes_requires_path_update(nation, true);
 }
 
 
@@ -2833,11 +2852,17 @@ void give_military_access(sys::state& state, dcon::nation_id accessing_nation, d
 		ur = state.world.force_create_unilateral_relationship(target, accessing_nation);
 	}
 	state.world.unilateral_relationship_set_military_access(ur, true);
+	schedule_nation_supply_paths_update(state, accessing_nation); // Schedule supply route updates to all routes owned by the accessing nation
 }
 void remove_military_access(sys::state& state, dcon::nation_id accessing_nation, dcon::nation_id target) {
 	auto ur = state.world.get_unilateral_relationship_by_unilateral_pair(target, accessing_nation);
 	if(ur) {
 		state.world.unilateral_relationship_set_military_access(ur, false);
+	}
+	// Schedule supply route updates in routes owned by the accessor, in provinces controlled by the target
+	for(auto p : state.world.nation_get_province_control(target)) {
+		auto prov = p.get_province();
+		schedule_prov_specific_nation_supply_paths_update(state, prov, accessing_nation);
 	}
 }
 
@@ -3017,6 +3042,21 @@ void add_to_war(sys::state& state, dcon::war_id w, dcon::nation_id n, bool as_at
 		auto loc = o.get_navy().get_location_from_navy_location();
 		if(province::is_sea(state, loc))
 			navy_arrives_in_province(state, o.get_navy(), loc);
+	}
+	// Schedule supply route updates in routes owned by enemies, in our controlled provinces 
+	for(auto p : state.world.nation_get_province_control(n)) {
+		auto prov = p.get_province();
+		schedule_prov_enemy_supply_paths_update(state, p.get_province(), n);
+	}
+	// Schedule supply route updates in routes owned by the nation joining the war, in all provinces controlled by war participants
+	for(auto war_par : state.world.war_get_war_participant(w)) {
+		auto nation_par = war_par.get_nation();
+		if(nation_par != n) {
+			for(auto p : state.world.nation_get_province_control(n)) {
+				auto prov = p.get_province();
+				schedule_prov_specific_nation_supply_paths_update(state, prov, n);
+			}
+		}
 	}
 }
 
@@ -3404,6 +3444,12 @@ void remove_from_war(sys::state& state, dcon::war_id w, dcon::nation_id n, bool 
 				military::eject_ships(state, p.get_province());
 			}
 		}
+	}
+	// Schedule supply route updates to all routes owned by all participants in the war, and the nation who left the war
+	schedule_nation_supply_paths_update(state, n);
+	for(auto war_par : state.world.war_get_war_participant(w)) {
+		auto nation_par = war_par.get_nation();
+		schedule_nation_supply_paths_update(state, nation_par);
 	}
 
 	if(as_loss) {

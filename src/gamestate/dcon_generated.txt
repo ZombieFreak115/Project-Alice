@@ -4573,6 +4573,11 @@ object {
 		tag{ save }
 	}
 	property {
+		name{ supply_routes_requires_path_update }
+		type{ bitfield }
+		tag{ save }
+	}
+	property {
 		name{ production_directive }
 		type{ array{production_directive_id}{bitfield} }
 		tag{ save }

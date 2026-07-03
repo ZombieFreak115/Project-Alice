@@ -2198,15 +2198,17 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 	using commodity_amounts_type = concepts::unit_consumption_to_amount_union<consumption_type>::type;
 	using commodity_ids_type = concepts::unit_consumption_to_id_union<consumption_type>::type;
 	commodity_amounts_type commodities_required;
-	commodity_amounts_type commodities_satisfied_before_loss;
-	commodity_amounts_type commodities_satisfied;
+	commodity_amounts_type commodities_satisfied_no_loss;
+	commodity_amounts_type commodities_actual_satisfied;
 	commodity_amounts_type commodities_satisfied_w_throughput;
+	commodity_amounts_type commodities_satisfied_w_attrition;
 
 	const auto& commodity_types = military::get_military_commodities_union<commodity_ids_type>(state);
 
-	commodities_satisfied_before_loss.resize(commodity_types.size());
-	commodities_satisfied.resize(commodity_types.size());
+	commodities_satisfied_no_loss.resize(commodity_types.size());
+	commodities_actual_satisfied.resize(commodity_types.size());
 	commodities_satisfied_w_throughput.resize(commodity_types.size());
+	commodities_satisfied_w_attrition.resize(commodity_types.size());
 
 	// We get the last required supplies instead of the future required supplies because all the route data is current
 	commodities_required = military::get_last_required_supply<commodity_amounts_type>(state, unit);
@@ -2218,21 +2220,23 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 		for(uint32_t i = 0; i < commodity_types.size(); i++) {
 			dcon::commodity_id com_id = commodity_types[i];
 			assert(com_id);
-			commodities_satisfied[i] += (buffered_goods[i] * route.get_route_attrition());
-			commodities_satisfied_before_loss[i] += buffered_goods[i];
+			commodities_actual_satisfied[i] += (buffered_goods[i] * route.get_throughput() * route.get_route_attrition());
+			commodities_satisfied_no_loss[i] += buffered_goods[i];
 			commodities_satisfied_w_throughput[i] += (buffered_goods[i] * route.get_throughput());
+			commodities_satisfied_w_attrition[i] += (buffered_goods[i] * route.get_route_attrition());
+
 		}
 	}
 	for(uint32_t i = 0; i < commodity_types.size(); i++) {
 		dcon::commodity_id com_id = commodity_types[i];
 		assert(com_id);
 		if(commodities_required[i] > 0.0f) {
-			float satisfaction = commodities_satisfied[i] / commodities_required[i];
+			float satisfaction = commodities_actual_satisfied[i] / commodities_required[i];
 			int32_t display_satisfaction = int32_t(satisfaction * 100);
-			float supply_route_loss = (commodities_satisfied_before_loss[i] == 0.0f ? 0.0f : 1.0f - (commodities_satisfied[i] / commodities_satisfied_before_loss[i]));
-			float num_satisfied = commodities_satisfied[i];
+			float supply_route_loss = (commodities_satisfied_no_loss[i] == 0.0f ? 0.0f : 1.0f - (commodities_satisfied_w_attrition[i] / commodities_satisfied_no_loss[i]));
+			float num_satisfied = commodities_actual_satisfied[i];
 			float num_required = commodities_required[i];
-			float avg_throughput = (commodities_satisfied[i] == 0.0f ? 0.0f : std::min(commodities_satisfied_w_throughput[i] / commodities_satisfied[i], 1.0f));
+			float avg_throughput = (commodities_satisfied_no_loss[i] == 0.0f ? 0.0f : std::min(commodities_satisfied_w_throughput[i] / commodities_satisfied_no_loss[i], 1.0f));
 
 			text::substitution_map sub{};
 			auto com_icon = text::get_commodity_text_icon(state, com_id);
