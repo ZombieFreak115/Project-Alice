@@ -3032,7 +3032,7 @@ std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& st
 
 
 // Creates a military supply path, but will actively try to find the path with good supply thoughput and supply attrition. Path is inserted into the passed-in buffer. Buffer must be cleared first
-void make_military_supply_path(const sys::state& state, dcon::state_instance_id origin, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result) {
+void make_military_supply_path(const sys::state& state, dcon::state_instance_id origin, dcon::province_id end, dcon::nation_id nation_as, std::vector<dcon::province_id>& path_result) {
 	struct iteration_data {
 		float supply_throughput{};
 		float supply_attrition{};
@@ -3057,7 +3057,7 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 
 	};
 	auto province_init_func = [&](dcon::province_id to, iteration_data& data) {
-		data.supply_throughput = supply_routes::supply_throughput_efficiency_with_extra_weight(state, to, nation_as, expected_volume);
+		data.supply_throughput = supply_routes::supply_throughput_efficiency(state, to, nation_as);
 
 	};
 	auto adj_init_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data& data) {
