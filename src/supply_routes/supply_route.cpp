@@ -107,6 +107,13 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_cons
 	return state.world.province_naval_construction_get_nation(construction);
 }
 
+float get_enemy_blockade_power(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
+	assert(province::is_sea(state, prov) && !province::province_is_deep_waters(state, prov));
+	// TODO: actually compute blockade power
+	return military::navy_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, prov, nation_as) * 1.0f;
+}
+
+
 float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
 	auto fastest_unit = state.world.nation_get_fastest_unlocked_transport_unit(nation_as);
 	return base_naval_supply_speed + state.world.nation_get_unit_stats(nation_as, fastest_unit).maximum_speed * fastest_transport_unit_supply_speed_mult;
@@ -118,26 +125,47 @@ float land_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
 	return base_land_supply_speed + state.world.nation_get_unit_stats(nation_as, fastest_unit).maximum_speed * fastest_land_unit_supply_speed_mult;
 }
 
-
-float port_supply_capacity_modifier(const sys::state& state, dcon::province_id port_prov) {
-	constexpr float port_supply_throughput_per_naval_base = 10.0f;
+float port_supply_capacity_base_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
 	constexpr float base_port_supply_throughput = 0.1f;
-	assert(state.world.province_get_port_to(port_prov)); // Should always be a port prov
-	// TODO: make it a modifier on the naval base instead of just taking the naval base level
+	assert(province::is_port(state, port_prov)); // Should always be a port prov
+	return base_port_supply_throughput;
+}
+
+float port_supply_capacity_naval_base_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
+	constexpr float port_supply_throughput_per_naval_base = 10.0f;
+	assert(province::is_port(state, port_prov)); // Should always be a port prov
 	auto naval_base_id = uint8_t(economy::province_building_type::naval_base);
 	auto size = state.world.province_get_building_level(port_prov, naval_base_id);
-	return port_supply_throughput_per_naval_base * size + base_port_supply_throughput;
+	return port_supply_throughput_per_naval_base * size;
+}
+
+
+float port_supply_capacity_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
+	return port_supply_capacity_naval_base_modifier(state, port_prov, nation_as) + port_supply_capacity_base_modifier(state, port_prov, nation_as);
+}
+
+float port_supply_capacity_percentage_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
+	assert(province::is_port(state, port_prov));
+	auto port_to_prov = state.world.province_get_port_to(port_prov);
+	auto enemy_blockade_power = get_enemy_blockade_power(state, port_to_prov, nation_as);
+	return navy_port_supply_capacity_blockade_threshold > 0.0f ? std::max((navy_port_supply_capacity_blockade_threshold - enemy_blockade_power) / navy_port_supply_capacity_blockade_threshold, 0.f) : 1.0f;
+}
+
+float port_supply_capacity_percentage_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
+	return port_supply_capacity_percentage_blockaded_modifier(state, port_prov, nation_as) * 1.0f;
+}
+
+float port_supply_capacity_combined_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
+	return port_supply_capacity_modifier(state, port_prov, nation_as) * port_supply_capacity_percentage_modifier(state, port_prov, nation_as);
+}
+
+float port_supply_capacity_efficiency(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
+	float used_capacity = state.world.province_get_used_port_supply_capacity(port_prov);
+	return (used_capacity == 0.0f ? 1.0f : std::min(port_supply_capacity_combined_modifier(state, port_prov, nation_as) / used_capacity, 1.0f)); 
 }
 
 
 
-
-
-float get_enemy_blockade_power(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
-	assert(province::is_sea(state, prov) && !province::province_is_deep_waters(state, prov));
-	// TODO: actually compute blockade power
-	return military::navy_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, prov, nation_as) * 1.0f;
-}
 
 
 float supply_throughput_speed_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
@@ -168,21 +196,13 @@ float supply_throughput_percentage_access_modifier(const sys::state& state, dcon
 	return has_access ? 1.0f - siege_progress : 0.0f;
 }
 
-float supply_throughput_percentage_blockade_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
+float supply_throughput_percentage_hostile_troops_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
 	// prev_prov may be invalid to signifiy no previous province
 	assert(prov);
 	assert(nation_as);
 
 	if(province::is_sea(state, prov)) {
-		if(province::province_is_deep_waters(state, prov)) {
-			return 1.0f; // Can't blockade deep waters (for balance)
-		}
-		else {
-			float blockade_power = military::navy_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, prov, nation_as);
-			float province_size_km2 = state.map_state.map_data.province_area_km2[province::to_map_id(prov)];
-			float blockade_mod = blockade_power * province_size_km2 / 1000.0f;
-			return navy_supply_throughput_coastal_sea_blockade_threshold > 0.0f ? std::max((navy_supply_throughput_coastal_sea_blockade_threshold - blockade_mod) / navy_supply_throughput_coastal_sea_blockade_threshold, 0.f) : 1.0f;
-		}
+		return 1.0f; // Cannot have hostile troops in sea provinces. Blockades of ports are handled with a malus to port supply capacity, convoy raiding is handled as supply attrition
 	} else {
 		float enemy_strength_present = military::army_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, prov, nation_as);
 		return army_supply_throughput_blockade_threshold > 0.0f ? std::max((army_supply_throughput_blockade_threshold - enemy_strength_present) / army_supply_throughput_blockade_threshold, 0.f) : 1.0f;
@@ -195,7 +215,7 @@ float supply_throughput_percentage_modifier(const sys::state& state, dcon::provi
 	assert(nation_as);
 
 	float from_access = supply_throughput_percentage_access_modifier(state, prov, nation_as);
-	float from_blockade = supply_throughput_percentage_blockade_modifier(state, prov, nation_as);
+	float from_blockade = supply_throughput_percentage_hostile_troops_modifier(state, prov, nation_as);
 	float result =  std::max(1.0f - ((1.0f - from_access) + (1.0f - from_blockade)), 0.0f);
 	assert(result >= 0.0f && result <= 1.0f);
 	return result;
@@ -271,8 +291,20 @@ float calculate_supply_route_throughput(const sys::state& state, std::span<const
 	float smallest_supply_throughput = 1.0f;
 	for(uint32_t i = 0; i < path.size(); i++) {
 		auto prov = path[i];
+		// The next prov after this one is either the next one in the path, or if the path has no more items, its the destination. Destination is not directly part of the path
+		// A unit/construction shall be affected if the port it is standing on is occupied, but it should not be affected if the province it is standing on is occupied (as long as there are adjacent friendly provinces for supply to pass through). Otherwise you would no tbe able to get any supplies when fighting a battle just across your border
+		auto next_prov = (i + 1 < path.size() ? path[i + 1] : destination);
+		assert(province::provinces_are_adjacent(state, prov, next_prov));
 		float province_throughput = supply_throughput_efficiency(state, prov, controller);
 		smallest_supply_throughput = std::min(smallest_supply_throughput, province_throughput);
+		//limit throughput to the port capacity efficiency, if this or the next province are a port and are connected
+		if(province::is_port_connected_to(state, prov, next_prov)) {
+			smallest_supply_throughput = std::min(smallest_supply_throughput, port_supply_capacity_efficiency(state,prov, controller));
+		}
+		else if(province::is_port_connected_to(state, next_prov, prov)) {
+			smallest_supply_throughput = std::min(smallest_supply_throughput, port_supply_capacity_efficiency(state, next_prov, controller));
+		}
+		
 	}
 	return smallest_supply_throughput;
 }
@@ -287,15 +319,29 @@ float calculate_supply_route_attrition(const sys::state& state, std::span<const 
 	float total_attrition_mod = 1.0f;
 	for(uint32_t i = 0; i < path.size(); i++) {
 		auto prov = path[i];
-		if(i + 1 < path.size()) {
-			auto next_prov = path[i + 1];
-			auto adj = state.world.get_province_adjacency_by_province_pair(prov, next_prov);
-			assert(adj);
-			total_attrition_mod *= adjacency_supply_attrition_modifier(state, adj, controller);
-			assert(std::isfinite(total_attrition_mod));
-		}
+		auto next_prov = (i + 1 < path.size() ? path[i + 1] : destination);
+		auto adj = state.world.get_province_adjacency_by_province_pair(prov, next_prov);
+		assert(adj);
+		total_attrition_mod *= adjacency_supply_attrition_modifier(state, adj, controller);
+		assert(std::isfinite(total_attrition_mod));
+		
 	}
 	return std::max(total_attrition_mod, 0.5f); // capped at 50% loss
+}
+
+
+void add_used_supply_throughput_and_used_port_capacity(sys::state& state, std::span<const dcon::province_id> path,  dcon::province_id destination_prov, float volume) {
+	for(uint32_t i = 0; i < path.size(); i++) {
+		dcon::province_id prov = path[i];
+		dcon::province_id next_prov = (i + 1 < path.size() ? path[i + 1] : destination_prov);
+		state.world.province_set_used_supply_throughput(prov, state.world.province_get_used_supply_throughput(prov) + volume);
+		if(province::is_port_connected_to(state, prov, next_prov)) {
+			state.world.province_set_used_port_supply_capacity(prov, state.world.province_get_used_port_supply_capacity(prov) + volume);
+		} else if(province::is_port_connected_to(state, next_prov, prov)) {
+			state.world.province_set_used_port_supply_capacity(next_prov, state.world.province_get_used_port_supply_capacity(next_prov) + volume);
+		}
+
+	}
 }
 
 template<concepts::military_unit unit_type>
@@ -576,7 +622,7 @@ void update_military_unit_routes_satisfaction(sys::state& state, unit_type unit,
 		reinf_needs[i] *= needs_multiplier[union_index];
 	}
 
-
+	
 	for(auto stockpile_state : stockpiles_buffer) {
 		auto market = state.world.state_instance_get_market_from_local_market(stockpile_state);
 		bool need_more_goods = any_needs_left(state, supply_needs) || any_needs_left(state, reinf_needs);
@@ -612,9 +658,8 @@ void update_military_unit_routes_satisfaction(sys::state& state, unit_type unit,
 			process_route(market, reinf_needs, route.get_buffered_reinforcement_goods(), route.get_volume(), route.get_route_attrition(), route.get_throughput());
 			auto path = route.get_path();
 			// Update used supply throughput by adding the volume
-			std::for_each(path.begin(), path.end(), [&](dcon::province_id prov) {
-				state.world.province_set_used_supply_throughput(prov, state.world.province_get_used_supply_throughput(prov) + route.get_volume());
-			});
+			dcon::province_id route_dest = supply_route_get_destination(state, r);
+			add_used_supply_throughput_and_used_port_capacity(state, path, route_dest, route.get_volume());
 			route.set_is_active(true);
 		}
 		// Otherwise, create a pending route, and work on that
@@ -628,9 +673,8 @@ void update_military_unit_routes_satisfaction(sys::state& state, unit_type unit,
 			process_route(market, reinf_needs, new_pending_route.buffered_reinforcement_goods, new_pending_route.volume, new_pending_route.route_attrition, new_pending_route.route_throughput);
 			const auto& path = new_pending_route.path;
 			// Update used supply throughput by adding the volume
-			std::for_each(path.begin(), path.end(), [&](dcon::province_id prov) {
-				state.world.province_set_used_supply_throughput(prov, state.world.province_get_used_supply_throughput(prov) + new_pending_route.volume);
-			});
+			dcon::province_id route_dest = military::unit_get_location(state, unit);
+			add_used_supply_throughput_and_used_port_capacity(state, path, route_dest, new_pending_route.volume);
 			create_supply_route_from_pending(state, new_pending_route);
 			
 		}
@@ -736,9 +780,8 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 			}
 			auto path = route.get_path();
 			// Update used supply throughput by adding the volume
-			std::for_each(path.begin(), path.end(), [&](dcon::province_id prov) {
-				state.world.province_set_used_supply_throughput(prov, state.world.province_get_used_supply_throughput(prov) + route.get_volume());
-			});
+			dcon::province_id route_dest = supply_route_get_destination(state, route.id);
+			add_used_supply_throughput_and_used_port_capacity(state, path, route_dest, route.get_volume());
 			route.set_is_active(true);
 		}
 		// Otherwise, create a pending route, and work on that, then push it to the vector
@@ -780,9 +823,8 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 			}
 			const auto& path = new_pending_route.path;
 			// Update used supply throughput by adding the volume
-			std::for_each(path.begin(), path.end(), [&](dcon::province_id prov) {
-				state.world.province_set_used_supply_throughput(prov, state.world.province_get_used_supply_throughput(prov) + new_pending_route.volume);
-			});
+			dcon::province_id route_dest = economy::construction_get_location(state, conc);
+			add_used_supply_throughput_and_used_port_capacity(state, path, route_dest, new_pending_route.volume);
 			create_supply_route_from_pending(state, new_pending_route);
 		}
 	}

@@ -38,6 +38,10 @@ bool is_port(const sys::state& state, dcon::province_id prov) {
 	return bool(state.world.province_get_port_to(prov));
 }
 
+bool is_port_connected_to(const sys::state& state, dcon::province_id port, dcon::province_id port_to) {
+	return state.world.province_get_port_to(port) == port_to;
+}
+
 float movement_cost(const sys::state& state, dcon::province_id prov) {
 	return std::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
 
@@ -55,7 +59,7 @@ bool nations_are_adjacent(sys::state& state, dcon::nation_id a, dcon::nation_id 
 	auto it = state.world.get_nation_adjacency_by_nation_adjacency_pair(a, b);
 	return bool(it);
 }
-bool provinces_are_adjacent(sys::state& state, dcon::province_id a, dcon::province_id b) {
+bool provinces_are_adjacent(const sys::state& state, dcon::province_id a, dcon::province_id b) {
 	auto adj =  state.world.get_province_adjacency_by_province_pair(a, b);
 	return bool(adj);
 }
@@ -3062,6 +3066,11 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 	};
 	auto adj_init_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data& data) {
 		data.supply_attrition = supply_routes::avg_adjacency_supply_attrition_modifier(state, to, from, nation_as);
+		if(province::is_port_connected_to(state, from, to)) {
+			data.supply_throughput = std::min(data.supply_throughput, supply_routes::port_supply_capacity_efficiency(state, from, nation_as));
+		} else if(province::is_port_connected_to(state, to, from)) {
+			data.supply_throughput = std::min(data.supply_throughput, supply_routes::port_supply_capacity_efficiency(state, to, nation_as));
+		}
 
 	};
 	// We are passing "start" province as end, and "end" as start. This is because creating the path in reverse has some desired effects. For example it means the province the army is on will not be path of the path (so that you wont lose supply instantly when adjacen to a friendly province)

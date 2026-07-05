@@ -13,7 +13,7 @@ constexpr float supply_throughput_per_km_land_speed = 10.0f; // Supply throughpu
 constexpr float supply_throughput_per_km_naval_speed = 10.0f; // Supply throughput in naval provinces per 1 km/h naval supply speed. Eg if set to 100 and a nation has a speed of 4 km/h, then the base is 400
 constexpr float supply_throughput_infrastructure = 6.0f; // Extra supply throughput per 1% of infrastructure
 constexpr float army_supply_throughput_blockade_threshold = 0.9f; // This amount of POP_SIZE_PER_REGIMENT army strength is required to fully block enemy throughput in a land province. Throughput scales linearly with the amount of strength present. Also includes strength in battles. Set to zero or negative number to disable
-constexpr float navy_supply_throughput_coastal_sea_blockade_threshold = 30.0f; // This amount of blockade power (unit stat) per 1000 km2 province size is required to to fully block enemy throughput in a sea province. Throughput scales linearly with the amount of strength present. Also includes strength in battles. Set to zero or negative number to disable
+constexpr float navy_port_supply_capacity_blockade_threshold = 10.0f; // This amount of blockade power (unit stat) is required to to fully block enemy port capacity throughput in a port province. Throughput scales linearly with the amount of strength present. Also includes strength in battles. Set to zero or negative number to disable
 constexpr float base_land_supply_attrition = 0.0000001f;
 constexpr float base_sea_supply_attrition = 0.0f;
 constexpr float control_level_supply_attrition = 0.0001f; // the supply loss % per km of travel if province control is 0%. Scales back to 0 at 100% control.
@@ -44,8 +44,25 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::navy_suppl
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::land_construction_supply_route_id route);
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_construction_supply_route_id route);
 
+float port_supply_capacity_base_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+
+float port_supply_capacity_naval_base_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+
+
+float port_supply_capacity_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+
+float port_supply_capacity_percentage_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+
+float port_supply_capacity_percentage_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+
+float port_supply_capacity_combined_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+
+float port_supply_capacity_efficiency(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+
+
+
 float supply_throughput_percentage_access_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
-float supply_throughput_percentage_blockade_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
+float supply_throughput_percentage_hostile_troops_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
 
 // Gets the percentage supply throughput modifier for the specified nation in the specified province
 float supply_throughput_percentage_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);

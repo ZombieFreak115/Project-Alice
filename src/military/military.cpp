@@ -5938,6 +5938,10 @@ void update_battle_leaders(sys::state& state, dcon::naval_battle_id b) {
 	state.world.defending_admiral_set_admiral(ab, d_lid);
 }
 
+bool has_unit_type_unlocked(const sys::state& state, dcon::nation_id nation_as, dcon::unit_type_id unit) {
+	return state.military_definitions.unit_base_definitions[unit].active || state.world.nation_get_active_unit(nation_as, unit);
+}
+
 void update_fastest_units(sys::state& state) {
 	concurrency::parallel_for(uint32_t(0), state.world.nation_size(), [&](uint32_t i) {
 		dcon::nation_id nation{ dcon::nation_id::value_base_t(i) };
@@ -5948,7 +5952,7 @@ void update_fastest_units(sys::state& state) {
 		dcon::unit_type_id fastest_transport_unit{};
 		for(uint32_t j = 2; j < state.military_definitions.unit_base_definitions.size(); j++) {
 			dcon::unit_type_id uid = dcon::unit_type_id{ dcon::unit_type_id::value_base_t(j) };
-			if(!state.world.nation_get_active_unit(nation, uid)) {
+			if(!has_unit_type_unlocked(state, nation, uid)) {
 				continue;
 			}
 			// Currently, primary culture-only units do not count

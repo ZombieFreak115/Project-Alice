@@ -2282,8 +2282,8 @@ public:
 			}
 			
 		} else if(navy) {
-			economy::build_cost_union_commodity_amount_array commodities_required = military::get_last_required_supply<economy::build_cost_union_commodity_amount_array>(state, navy);
-			economy::build_cost_union_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<economy::build_cost_union_commodity_amount_array>(state, navy);
+			economy::supply_cost_union_commodity_amount_array commodities_required = military::get_last_required_supply<economy::supply_cost_union_commodity_amount_array>(state, navy);
+			economy::supply_cost_union_commodity_amount_array commodities_fufilled = military::get_last_fufilled_supply<economy::supply_cost_union_commodity_amount_array>(state, navy);
 			for(uint32_t i = 0; i < commodity_types.size(); i++) {
 				dcon::commodity_id com_id = commodity_types[i];
 				assert(com_id);

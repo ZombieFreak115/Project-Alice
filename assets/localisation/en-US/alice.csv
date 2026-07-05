@@ -2066,6 +2066,5 @@ supply_throughput_base_tooltip;Base: ?G$value$?W
 supply_throughput_total_tooltip;Total supply throughput: ?Y$value$?W
 supply_throughput_used_tooltip;Supply throughput used: ?Y$value$?W
 supply_throughput_percentage_access_tooltip;Supply access: ?R$value$?W
-supply_throughput_percentage_blockade_tooltip;Blockade: ?R$value$?W
+supply_throughput_percentage_blockade_tooltip;Hostile armies: ?R$value$?W
 supply_throughput_efficiency_tooltip;Net efficiency: ?Y$value$?W
-cant_blockade_ocean_tooltip;Ocean provinces cannot be blockaded

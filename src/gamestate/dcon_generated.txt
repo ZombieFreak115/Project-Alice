@@ -1770,6 +1770,11 @@ object {
 		tag{ save }
 	}
 	property{
+		name{ used_port_supply_capacity }
+		type{ float }
+		tag{ save }
+	}
+	property{
 		name{ is_blockaded }
 		type{ bitfield }
 		

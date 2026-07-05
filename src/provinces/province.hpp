@@ -28,6 +28,9 @@ bool is_land(const sys::state& state, dcon::province_id prov);
 
 bool is_port(const sys::state& state, dcon::province_id prov);
 
+// Checks if the port province is connected to the given sea province
+bool is_port_connected_to(const sys::state& state, dcon::province_id port, dcon::province_id port_to);
+
 // Get movement cost. Makes sure it cannot be zero, ever
 float movement_cost(const sys::state& state, dcon::province_id prov);
 
@@ -41,7 +44,7 @@ bool province_is_deep_waters(const sys::state& state, dcon::province_id prov);
 bool sea_province_is_adjacent_to_accessible_coast(sys::state& state, dcon::province_id prov, dcon::nation_id nation);
 
 bool nations_are_adjacent(sys::state& state, dcon::nation_id a, dcon::nation_id b);
-bool provinces_are_adjacent(sys::state& state, dcon::province_id a, dcon::province_id b);
+bool provinces_are_adjacent(const sys::state& state, dcon::province_id a, dcon::province_id b);
 void update_connected_regions(sys::state& state);
 void update_cached_values(sys::state& state);
 void update_blockaded_cache(sys::state& state);
