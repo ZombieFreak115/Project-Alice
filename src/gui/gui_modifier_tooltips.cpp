@@ -7,6 +7,7 @@
 #include "triggers.hpp"
 #include "ve_scalar_extensions.hpp"
 #include "province.hpp"
+#include "supply_route.hpp"
 
 namespace ui {
 
@@ -101,6 +102,58 @@ void modifier_description(sys::state& state, text::layout_base& layout, dcon::mo
 		text::close_layout_box(layout, box);
 	}
 }
+
+
+
+void active_single_hardcoded_modifier_description(sys::state& state, text::layout_base& layout, std::string_view mod_name, float value, int32_t indentation,
+		bool& header, dcon::national_modifier_value nmid) {
+	if(!header) {
+		header = true;
+		auto box = text::open_layout_box(layout, 0);
+		text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, national_modifier_names[nmid.index()].name),
+				text::text_color::yellow);
+		text::add_to_layout_box(state, layout, box, std::string_view(":"), text::text_color::yellow);
+		text::close_layout_box(layout, box);
+	}
+
+	auto data = national_modifier_names[nmid.index()];
+	auto box = text::open_layout_box(layout, indentation);
+	text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, mod_name), text::text_color::white);
+	text::add_to_layout_box(state, layout, box, std::string_view{ ":" }, text::text_color::white);
+	text::add_space_to_layout_box(state, layout, box);
+	auto color = data.positive_is_green ? (value >= 0.f ? text::text_color::green : text::text_color::red)
+		: (value >= 0.f ? text::text_color::red : text::text_color::green);
+	text::add_to_layout_box(state, layout, box, format_modifier_value(state, value, data.type), color);
+	text::close_layout_box(layout, box);
+	
+}
+
+void active_single_hardcoded_modifier_description(sys::state& state, text::layout_base& layout, std::string_view mod_name, float value, int32_t indentation,
+		bool& header, dcon::provincial_modifier_value pmid) {
+
+		if(!header) {
+			header = true;
+			auto box = text::open_layout_box(layout, 0);
+			text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, province_modifier_names[pmid.index()].name),
+					text::text_color::yellow);
+			text::add_to_layout_box(state, layout, box, std::string_view(":"), text::text_color::yellow);
+			text::close_layout_box(layout, box);
+		}
+
+		auto data = province_modifier_names[pmid.index()];
+		auto box = text::open_layout_box(layout, indentation);
+		text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, mod_name), text::text_color::white);
+		text::add_to_layout_box(state, layout, box, std::string_view{ ":" }, text::text_color::white);
+		text::add_space_to_layout_box(state, layout, box);
+		auto color = data.positive_is_green ? (value >= 0.f ? text::text_color::green : text::text_color::red)
+			: (value >= 0.f ? text::text_color::red : text::text_color::green);
+		text::add_to_layout_box(state, layout, box, format_modifier_value(state, value, data.type), color);
+		text::close_layout_box(layout, box);
+	
+}
+
+
+
 void active_single_modifier_description(sys::state& state, text::layout_base& layout, dcon::modifier_id mid, int32_t indentation,
 		bool& header, dcon::national_modifier_value nmid, float scaled) {
 	if(scaled == 0.f)
@@ -168,11 +221,40 @@ void active_single_modifier_description(sys::state& state, text::layout_base& la
 	}
 }
 
+void active_hardcoded_modifiers_description(sys::state& state, text::layout_base& layout, dcon::nation_id n, int32_t identation,
+		dcon::national_modifier_value nmid, bool& header) {
+	auto fat_nation = fatten(state.world, n);
+	if(nmid == sys::national_mod_offsets::national_land_supply_throughput_add) {
+		float land_supply_speed = supply_routes::land_supply_speed(state, n);
+		active_single_hardcoded_modifier_description(state, layout, "modifier_national_land_supply_throughput_from_supply_speed", land_supply_speed * supply_routes::supply_throughput_per_km_land_supply_speed, identation, header, sys::national_mod_offsets::national_land_supply_throughput_add);
+	}
+	else if(nmid == sys::national_mod_offsets::national_naval_supply_throughput_add) {
+		float naval_supply_speed = supply_routes::naval_supply_speed(state, n);
+		active_single_hardcoded_modifier_description(state, layout, "modifier_national_naval_supply_throughput_from_supply_speed", naval_supply_speed * supply_routes::supply_throughput_per_km_naval_supply_speed, identation, header, sys::national_mod_offsets::national_naval_supply_throughput_add);
+	}
+}
+
+void active_hardcoded_modifiers_description(sys::state& state, text::layout_base& layout, dcon::province_id prov, int32_t identation,
+		dcon::provincial_modifier_value pmid, bool& header) {
+	auto fat_prov = fatten(state.world, prov);
+	if(pmid == sys::provincial_mod_offsets::supply_throughput_percent) {
+		auto movement_cost = province::movement_cost(state, prov);
+		active_single_hardcoded_modifier_description(state, layout, "modifier_supply_throughput_percent_from_movement_cost", (1.0f / movement_cost) - 1.0f, identation, header, sys::provincial_mod_offsets::supply_throughput_percent);
+	}
+}
+
 template<typename T>
 void acting_modifiers_description_province(sys::state& state, text::layout_base& layout, dcon::province_id p, int32_t identation,
 		bool& header, T nmid) {
-	if(state.national_definitions.land_province)
+	if(state.national_definitions.province_base) {
+		active_single_modifier_description(state, layout, state.national_definitions.province_base, identation, header, nmid);
+	}
+	if(state.national_definitions.land_province) {
 		active_single_modifier_description(state, layout, state.national_definitions.land_province, identation, header, nmid);
+	}
+	else {
+		active_single_modifier_description(state, layout, state.national_definitions.sea_zone, identation, header, nmid);
+	}
 	for(auto mpr : state.world.province_get_current_modifiers(p))
 		active_single_modifier_description(state, layout, mpr.mod_id, identation, header, nmid);
 	if(auto m = state.world.province_get_terrain(p); m)
@@ -223,6 +305,10 @@ void acting_modifiers_description_province(sys::state& state, text::layout_base&
 		active_single_modifier_description(state, layout, state.national_definitions.blockaded, identation, header, nmid,
 				military::province_is_blockaded(state, p) ? 1.f : 0.f);
 	}
+	if constexpr(std::is_same_v<T, dcon::provincial_modifier_value>) {
+		active_hardcoded_modifiers_description(state, layout, p, identation, nmid, header);
+	}
+
 }
 
 void active_modifiers_description(sys::state& state, text::layout_base& layout, dcon::province_id p, int32_t identation,
@@ -264,6 +350,10 @@ void active_modifiers_description(sys::state& state, text::layout_base& layout, 
 			if(imod)
 				active_single_modifier_description(state, layout, imod, identation, header, nmid);
 		});
+	}
+
+	if(state.national_definitions.nation_base) {
+		active_single_modifier_description(state, layout, state.national_definitions.nation_base, identation, header, nmid);
 	}
 
 	auto in_wars = state.world.nation_get_war_participant(n);
@@ -346,12 +436,26 @@ void active_modifiers_description(sys::state& state, text::layout_base& layout, 
 				active_single_modifier_description(state, layout, tm.linked_modifier, identation, header, nmid);
 		}
 	}
+	if(state.national_definitions.fastest_land_unit_speed) {
+		auto fastest_land_unit = state.world.nation_get_fastest_unlocked_land_unit(n);
+		auto spd = state.world.nation_get_unit_stats(n, fastest_land_unit).maximum_speed;
+		active_single_modifier_description(state, layout, state.national_definitions.fastest_land_unit_speed, identation, header, nmid, spd);
+	}
+	if(state.national_definitions.fastest_transport_unit_speed) {
+		auto fastest_transport_unit = state.world.nation_get_fastest_unlocked_transport_unit(n);
+		auto spd = state.world.nation_get_unit_stats(n, fastest_transport_unit).maximum_speed;
+		active_single_modifier_description(state, layout, state.national_definitions.fastest_transport_unit_speed, identation, header, nmid, spd);
+	}
 
 	// Provinces of this nation
 	for(auto pc : state.world.nation_get_province_ownership_as_nation(n)) {
 		auto p = pc.get_province().id;
 		acting_modifiers_description_province<dcon::national_modifier_value>(state, layout, p, identation, header, nmid);
 	}
+
+	// Hardcoded modifiers applied from the code are shown here
+	active_hardcoded_modifiers_description(state, layout, n, identation, nmid, header);
+	
 }
 void display_battle_reinforcement_modifiers(sys::state& state, dcon::land_battle_id b, text::layout_base& contents, int32_t indent, bool attacker) {
 	uint32_t reserve_count = military::get_reserves_count_by_side(state, b, attacker);

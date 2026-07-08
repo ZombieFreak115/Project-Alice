@@ -559,6 +559,10 @@ int32_t* f_dump_oos(fif::state_stack& s, int32_t* p, fif::environment* e) {
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.total_occupation);
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.total_blockaded);
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.in_bankrupcy);
+		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.fastest_land_unit_speed);
+		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.fastest_transport_unit_speed);
+		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.province_base);
+		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.nation_base);
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.num_allocated_national_variables);
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.num_allocated_national_flags);
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.num_allocated_global_flags);

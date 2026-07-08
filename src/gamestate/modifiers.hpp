@@ -60,8 +60,14 @@ namespace sys {
 	MOD_LIST_ELEMENT(48, min_build_bank, false, modifier_display_type::integer, "bank_level") \
 	MOD_LIST_ELEMENT(49, min_build_university, false, modifier_display_type::integer, "university_level") \
 	MOD_LIST_ELEMENT(50, conversion_rate, true, modifier_display_type::percent, "modifier_conversion_rate") \
-	MOD_LIST_ELEMENT(51, fort_level, true, modifier_display_type::integer, "fort_level")
-#define MOD_PROV_LIST_COUNT 52
+	MOD_LIST_ELEMENT(51, fort_level, true, modifier_display_type::integer, "fort_level")  \
+	MOD_LIST_ELEMENT(52, supply_throughput_add, true, modifier_display_type::fp_two_places, "modifier_supply_throughput")  \
+	MOD_LIST_ELEMENT(53, supply_throughput_percent, true, modifier_display_type::percent, "modifier_supply_throughput")  \
+	MOD_LIST_ELEMENT(54, supply_loss_add, false, modifier_display_type::fp_two_places, "modifier_supply_loss")  \
+	MOD_LIST_ELEMENT(55, supply_loss_percent, false, modifier_display_type::percent, "modifier_supply_loss")  \
+	MOD_LIST_ELEMENT(56, port_supply_capacity_add, true, modifier_display_type::fp_two_places, "modifier_port_supply_capacity")  \
+	MOD_LIST_ELEMENT(57, port_supply_capacity_percent, true, modifier_display_type::percent, "modifier_port_supply_capacity") 
+#define MOD_PROV_LIST_COUNT 58
 
 #define MOD_NAT_LIST                                                                                                             \
 	MOD_LIST_ELEMENT(0, war_exhaustion, false, modifier_display_type::fp_two_places, "war_exhaustion")                             \
@@ -210,8 +216,22 @@ namespace sys {
 	MOD_LIST_ELEMENT(135, disallow_land_trade, false, modifier_display_type::yesno, "disallow_land_trade") \
 	MOD_LIST_ELEMENT(136, trade_routes_attraction, false, modifier_display_type::percent, "alice_trade_attractiveness") \
 	MOD_LIST_ELEMENT(137, min_land_upkeep, true, modifier_display_type::percent, "modifier_min_land_upkeep")            \
+	MOD_LIST_ELEMENT(138, land_supply_speed_add, true, modifier_display_type::fp_two_places, "modifier_land_supply_speed")            \
+	MOD_LIST_ELEMENT(139, land_supply_speed_percent, true, modifier_display_type::percent, "modifier_land_supply_speed")            \
+	MOD_LIST_ELEMENT(140, naval_supply_speed_add, true, modifier_display_type::fp_two_places, "modifier_naval_supply_speed")            \
+	MOD_LIST_ELEMENT(141, naval_supply_speed_percent, true, modifier_display_type::percent, "modifier_naval_supply_speed")            \
+	MOD_LIST_ELEMENT(142, national_land_supply_throughput_add, true, modifier_display_type::fp_two_places, "modifier_national_land_supply_throughput")  \
+	MOD_LIST_ELEMENT(143, national_land_supply_throughput_percent, true, modifier_display_type::percent, "modifier_national_land_supply_throughput")  \
+	MOD_LIST_ELEMENT(144, national_land_supply_loss_add, false, modifier_display_type::fp_two_places, "modifier_national_land_supply_loss")  \
+	MOD_LIST_ELEMENT(145, national_land_supply_loss_percent, false, modifier_display_type::percent, "modifier_national_land_supply_loss")  \
+	MOD_LIST_ELEMENT(146, national_naval_supply_throughput_add, true, modifier_display_type::fp_two_places, "modifier_national_naval_supply_throughput")  \
+	MOD_LIST_ELEMENT(147, national_naval_supply_throughput_percent, true, modifier_display_type::percent, "modifier_national_naval_supply_throughput")  \
+	MOD_LIST_ELEMENT(148, national_naval_supply_loss_add, false, modifier_display_type::fp_two_places, "modifier_national_naval_supply_loss")  \
+	MOD_LIST_ELEMENT(149, national_naval_supply_loss_percent, false, modifier_display_type::percent, "modifier_national_naval_supply_loss")  \
+	MOD_LIST_ELEMENT(150, national_port_supply_capacity_add, true, modifier_display_type::fp_two_places, "modifier_national_port_supply_capacity")  \
+	MOD_LIST_ELEMENT(151, national_port_supply_capacity_percent, true, modifier_display_type::percent, "modifier_national_port_supply_capacity") 
 
-#define MOD_NAT_LIST_COUNT 138
+#define MOD_NAT_LIST_COUNT 152
 
 namespace provincial_mod_offsets {
 #define MOD_LIST_ELEMENT(num, name, green_is_negative, display_type, locale_name)                                                \

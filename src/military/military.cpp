@@ -5096,8 +5096,8 @@ float effective_navy_speed(sys::state& state, dcon::navy_id n) {
 }
 float get_avg_movement_cost_modifier(const sys::state& state, dcon::nation_id as_nation, dcon::province_id prov_a, dcon::province_id prov_b) {
 	// take the average of the modifiers in the two provinces. If prov is a sea prov use 1.0f as the movement_cost.
-	float prov_a_mod = province::is_land(state, prov_a) ? std::max(province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_a, sys::provincial_mod_offsets::movement_cost), 0.01f) : 1.0f;
-	float prov_b_mod = province::is_land(state, prov_b) ? std::max(province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_b, sys::provincial_mod_offsets::movement_cost), 0.01f) : 1.0f;
+	float prov_a_mod = province::is_land(state, prov_a) ? std::max(province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_a, sys::provincial_mod_offsets::movement_cost) + 1.0f, 0.01f) : 1.0f;
+	float prov_b_mod = province::is_land(state, prov_b) ? std::max(province::get_province_modifier_without_hostile_buildings(state, as_nation, prov_b, sys::provincial_mod_offsets::movement_cost) + 1.0f, 0.01f) : 1.0f;
 	float avg_mods = (prov_a_mod + prov_b_mod) / 2.0f;
 	return avg_mods;
 }

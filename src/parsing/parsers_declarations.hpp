@@ -702,7 +702,6 @@ public:
 	void icon(association_type, uint32_t v, error_handler& err, int32_t line, T& context) {
 		icon_index = uint8_t(v);
 	}
-
 	MOD_PROV_FUNCTION(supply_limit)
 	MOD_PROV_FUNCTION(attrition)
 	MOD_PROV_FUNCTION(max_attrition)
@@ -773,8 +772,34 @@ public:
 	MOD_PROV_FUNCTION(poor_luxury_needs)
 	MOD_PROV_FUNCTION(middle_luxury_needs)
 	MOD_PROV_FUNCTION(rich_luxury_needs)
+
+	MOD_PROV_FUNCTION(supply_throughput_add)
+	MOD_PROV_FUNCTION(supply_throughput_percent)
+	MOD_PROV_FUNCTION(supply_loss_add)
+	MOD_PROV_FUNCTION(supply_loss_percent)
+	MOD_PROV_FUNCTION(port_supply_capacity_add)
+	MOD_PROV_FUNCTION(port_supply_capacity_percent)
+
+	MOD_NAT_FUNCTION(national_land_supply_throughput_add)
+	MOD_NAT_FUNCTION(national_land_supply_throughput_percent)
+	MOD_NAT_FUNCTION(national_land_supply_loss_add)
+	MOD_NAT_FUNCTION(national_land_supply_loss_percent)
+
+	MOD_NAT_FUNCTION(national_naval_supply_throughput_add)
+	MOD_NAT_FUNCTION(national_naval_supply_throughput_percent)
+	MOD_NAT_FUNCTION(national_naval_supply_loss_add)
+	MOD_NAT_FUNCTION(national_naval_supply_loss_percent)
+
+	MOD_NAT_FUNCTION(national_port_supply_capacity_add)
+	MOD_NAT_FUNCTION(national_port_supply_capacity_percent)
+
+
 	MOD_NAT_FUNCTION(unemployment_benefit)
 	MOD_NAT_FUNCTION(pension_level)
+	MOD_NAT_FUNCTION(land_supply_speed_add)
+	MOD_NAT_FUNCTION(land_supply_speed_percent)
+	MOD_NAT_FUNCTION(naval_supply_speed_add)
+	MOD_NAT_FUNCTION(naval_supply_speed_percent)
 	MOD_PROV_FUNCTION(population_growth)
 	template<typename T>
 	void global_population_growth(association_type, float v, error_handler& err, int32_t line, T& context) {
@@ -1371,6 +1396,8 @@ struct national_values_file {
 	void finish(scenario_building_context&) { }
 };
 
+dcon::modifier_id create_static_modifier(scenario_building_context& context, uint8_t icon, std::string_view name);
+
 void m_very_easy_player(token_generator& gen, error_handler& err, scenario_building_context& context);
 void m_easy_player(token_generator& gen, error_handler& err, scenario_building_context& context);
 void m_hard_player(token_generator& gen, error_handler& err, scenario_building_context& context);
@@ -1392,6 +1419,7 @@ void m_has_siege(token_generator& gen, error_handler& err, scenario_building_con
 void m_occupied(token_generator& gen, error_handler& err, scenario_building_context& context);
 void m_nationalism(token_generator& gen, error_handler& err, scenario_building_context& context);
 void m_infrastructure(token_generator& gen, error_handler& err, scenario_building_context& context);
+void m_province_base(token_generator& gen, error_handler& err, scenario_building_context& context);
 void m_base_values(token_generator& gen, error_handler& err, scenario_building_context& context);
 void m_war(token_generator& gen, error_handler& err, scenario_building_context& context);
 void m_peace(token_generator& gen, error_handler& err, scenario_building_context& context);
@@ -1410,9 +1438,12 @@ void m_generalised_debt_default(token_generator& gen, error_handler& err, scenar
 void m_total_occupation(token_generator& gen, error_handler& err, scenario_building_context& context);
 void m_total_blockaded(token_generator& gen, error_handler& err, scenario_building_context& context);
 void m_in_bankrupcy(token_generator& gen, error_handler& err, scenario_building_context& context);
+void m_nation_base(token_generator& gen, error_handler& err, scenario_building_context& context);
+void m_fastest_land_unit_speed(token_generator& gen, error_handler& err, scenario_building_context& context);
+void m_fastest_transport_unit_speed(token_generator& gen, error_handler& err, scenario_building_context& context);
 
 struct static_modifiers_file {
-	void finish(scenario_building_context&) { }
+	void finish(scenario_building_context& context);
 };
 
 void make_event_modifier(std::string_view name, token_generator& gen, error_handler& err, scenario_building_context& context);

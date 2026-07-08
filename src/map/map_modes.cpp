@@ -856,13 +856,13 @@ std::vector<uint32_t> supply_throughput_map_from(sys::state& state) {
 		float mx = 0.0f;
 		float mn = 1.0f;
 		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
-			auto v = supply_routes::combined_supply_throughput_modifier(state, p.get_province(), state.local_player_nation);
+			auto v = supply_routes::supply_throughput_in_province(state, p.get_province(), state.local_player_nation);
 			mn = std::min(mn, v);
 			mx = std::max(mx, v);
 		}
 		if(mx > mn) {
 			for(auto p : state.world.nation_get_province_ownership(for_nation)) {
-				auto v = supply_routes::combined_supply_throughput_modifier(state, p.get_province(), state.local_player_nation);
+				auto v = supply_routes::supply_throughput_in_province(state, p.get_province(), state.local_player_nation);
 
 				uint32_t color = ogl::color_gradient((v - mn) / (mx - mn),
 					sys::pack_color(46, 247, 15),	// to green
@@ -877,13 +877,13 @@ std::vector<uint32_t> supply_throughput_map_from(sys::state& state) {
 		float mx = 0.0f;
 		float mn = 1.0f;
 		province::for_each_land_province(state, [&](dcon::province_id prov) {
-			auto v = supply_routes::combined_supply_throughput_modifier(state, prov, state.local_player_nation);
+			auto v = supply_routes::supply_throughput_in_province(state, prov, state.local_player_nation);
 			mn = std::min(mn, v);
 			mx = std::max(mx, v);
 		});
 		if(mx > mn) {
 			province::for_each_land_province(state, [&](dcon::province_id prov) {
-				auto v = supply_routes::combined_supply_throughput_modifier(state, prov, state.local_player_nation);
+				auto v = supply_routes::supply_throughput_in_province(state, prov, state.local_player_nation);
 
 				uint32_t color = ogl::color_gradient((v - mn) / (mx - mn),
 					sys::pack_color(46, 247, 15),	// to green

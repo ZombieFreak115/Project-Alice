@@ -93,7 +93,7 @@ void for_each_nation_controlled_province_parallel_over_nation(sys::state& state,
 
 // Get movement cost. Makes sure it cannot be zero, ever
 template<concepts::dcon_id_ve_type<dcon::province_id> ve_id_type>
-ve::value_to_vector_type<float> movement_cost(sys::state& state, ve_id_type prov) {
+ve::value_to_vector_type<float> movement_cost(const sys::state& state, ve_id_type prov) {
 	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
 }
 

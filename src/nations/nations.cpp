@@ -932,10 +932,10 @@ float control_shift_weight_mult(sys::state& state, dcon::province_adjacency_id a
 	}
 
 	auto movement_A = 1.f + std::max(0.f, (
-		province::movement_cost(state, A) + 1.f
+		province::movement_cost(state, A)
 		));
 	auto movement_B = 1.f + std::max(0.f, (
-		province::movement_cost(state, B) + 1.f
+		province::movement_cost(state, B)
 		));
 	auto distance = state.world.province_adjacency_get_distance(adj) * (movement_A * movement_B);
 
@@ -1157,7 +1157,7 @@ void update_administrative_efficiency(sys::state& state) {
 		auto river_multiplier = ve::select(has_major_river, reduced_multiplier, normal_multiplier); // Rivers reduce decay by 20%
 		auto movement = ve::max(
 			0.f,
-			province::movement_cost(state, pids) + 1.f
+			province::movement_cost(state, pids)
 		); // High movement cost increases decay
 		auto attrition = ve::max(
 			0.f,

@@ -249,6 +249,26 @@ modifier_base
 	disallow_naval_trade              value      float            member_fn
 	disallow_land_trade              value      float            member_fn
 	fort_level 						value       float 			 member_fn
+	supply_throughput_add 						value       float 			 member_fn
+	supply_throughput_percent 						value       float 			 member_fn
+	supply_loss_add 						value       float 			 member_fn
+	supply_loss_percent 						value       float 			 member_fn
+	port_supply_capacity_add 						value       float 			 member_fn
+	port_supply_capacity_percent 						value       float 			 member_fn
+	land_supply_speed_add 						value       float 			 member_fn
+	land_supply_speed_percent 						value       float 			 member_fn
+	naval_supply_speed_add 						value       float 			 member_fn
+	naval_supply_speed_percent 						value       float 			 member_fn
+	national_land_supply_throughput_add 						value       float 			 member_fn
+	national_land_supply_throughput_percent 						value       float 			 member_fn
+	national_land_supply_loss_add 						value       float 			 member_fn
+	national_land_supply_loss_percent 						value       float 			 member_fn
+	national_naval_supply_throughput_add 						value       float 			 member_fn
+	national_naval_supply_throughput_percent 						value       float 			 member_fn
+	national_naval_supply_loss_add 						value       float 			 member_fn
+	national_naval_supply_loss_percent 						value       float 			 member_fn
+
+
 
 religion_def
 	nation_modifier group     modifier_base    member_fn
@@ -409,6 +429,11 @@ static_modifiers_file
 	total_occupation         extern   m_total_occupation         discard
 	total_blockaded          extern   m_total_blockaded          discard
 	in_bankrupcy             extern   m_in_bankrupcy             discard
+	nation_base             extern   m_nation_base            discard
+	province_base             extern   m_province_base            discard
+	fastest_land_unit_speed             extern   m_fastest_land_unit_speed           discard
+	fastest_transport_unit_speed             extern   m_fastest_transport_unit_speed           discard
+
 
 event_modifiers_file
 	#any           extern      make_event_modifier      discard

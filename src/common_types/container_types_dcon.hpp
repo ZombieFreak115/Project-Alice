@@ -148,6 +148,18 @@ struct provincial_modifier_definition {
 	dcon::provincial_modifier_value offsets[modifier_definition_size] = { dcon::provincial_modifier_value{} };
 	uint16_t padding = 0;
 
+	bool add_manual_modifier(dcon::provincial_modifier_value modifier, float value) {
+		if(value == 0.0f) return true;
+		for(uint32_t i = 0; i < modifier_definition_size; i++) {
+			if(offsets[i] == dcon::provincial_modifier_value{}) {
+				offsets[i] = modifier;
+				values[i] = value;
+				return true;
+			}
+		}
+		return false;
+	}
+
 	bool operator==(const provincial_modifier_definition& other) const {
 		return std::memcmp(this->values, other.values, sizeof(values)) == 0 && std::memcmp(this->offsets, other.offsets, sizeof(offsets)) == 0;
 	}
@@ -166,6 +178,23 @@ struct national_modifier_definition {
 
 	float values[modifier_definition_size] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 	dcon::national_modifier_value offsets[modifier_definition_size] = { dcon::national_modifier_value{} };
+
+
+	bool add_manual_modifier(dcon::national_modifier_value modifier, float value) {
+		if(value == 0.0f) return true;
+		for(uint32_t i = 0; i < modifier_definition_size; i++) {
+			if(offsets[i] == dcon::national_modifier_value{}) {
+				offsets[i] = modifier;
+				values[i] = value;
+				return true;
+			}
+			else {
+				break;
+			}
+		}
+		return false;
+	}
+
 
 	bool operator==(const national_modifier_definition& other) const {
 		return std::memcmp(this->values, other.values, sizeof(values)) == 0 && std::memcmp(this->offsets, other.offsets, sizeof(offsets)) == 0;

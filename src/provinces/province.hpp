@@ -34,7 +34,6 @@ bool is_port_connected_to(const sys::state& state, dcon::province_id port, dcon:
 // Get movement cost. Makes sure it cannot be zero, ever
 float movement_cost(const sys::state& state, dcon::province_id prov);
 
-
 struct naval_range_data {
 	float distance;
 	bool is_reachable;
