@@ -7,6 +7,7 @@
 #include "economy_stats.hpp"
 #include "province.hpp"
 #include "supply_route.hpp"
+#include "gui_modifier_tooltips.hpp"
 
 namespace ui {
 
@@ -853,9 +854,24 @@ void migration_map_tt_box(sys::state& state, text::columnar_layout& contents, dc
 
 void supply_loss_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {
 	if(prov) {
+		auto local_nation = state.local_player_nation;
+		auto is_sea = province::is_sea(state, prov);
 		auto fat = dcon::fatten(state.world, prov);
-		float supply_loss = 1.0f - supply_routes::province_supply_attrition_modifier(state, prov, state.local_player_nation);
-		text::add_line(state, contents, "mapmode_tooltip_45", text::variable_type::val, text::fp_percentage_two_places{ supply_loss });
+		float total = supply_routes::supply_loss_in_province(state, prov, local_nation);
+		bool header = false;
+		text::add_line(state, contents, "supply_loss_total_tooltip", text::variable_type::value, text::fp_one_place{ total }, 0);
+		ui::active_modifiers_description(state, contents, prov, 8, sys::provincial_mod_offsets::supply_loss_add, header);
+		if(is_sea) {
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_naval_supply_loss_add, header);
+		} else {
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_land_supply_loss_add, header);
+		}
+		ui::active_modifiers_description(state, contents, prov, 8, sys::provincial_mod_offsets::supply_loss_percent, header);
+		if(is_sea) {
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_naval_supply_loss_percent, header);
+		} else {
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_land_supply_loss_percent, header);
+		}
 	}
 		
 }
@@ -866,28 +882,21 @@ void supply_throughput_map_tt_box(sys::state& state, text::columnar_layout& cont
 		auto local_nation = state.local_player_nation;
 		auto is_sea = province::is_sea(state, prov);
 		auto fat = dcon::fatten(state.world, prov);
+		bool header = false;
 		float total = supply_routes::supply_throughput_in_province(state, prov, local_nation);
 		text::add_line(state, contents, "supply_throughput_total_tooltip", text::variable_type::value, text::fp_one_place{ total }, 0);
-		ui::active_modifiers_description(state, contents, prov, 8, sys::provincial_mod_offsets::supply_throughput_add, false);
+		ui::active_modifiers_description(state, contents, prov, 8, sys::provincial_mod_offsets::supply_throughput_add, header);
 		if(is_sea) {
-			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_naval_supply_throughput_add, false);
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_naval_supply_throughput_add, header);
 		}
 		else {
-			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_land_supply_throughput_add, false);
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_land_supply_throughput_add, header);
 		}
-		ui::active_modifiers_description(state, contents, prov, 8, sys::provincial_mod_offsets::supply_throughput_percent, false);
+		ui::active_modifiers_description(state, contents, prov, 8, sys::provincial_mod_offsets::supply_throughput_percent, header);
 		if(is_sea) {
-			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_naval_supply_throughput_percent, false);
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_naval_supply_throughput_percent, header);
 		} else {
-			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_land_supply_throughput_percent, false);
-		}
-		float blockade_mod = supply_routes::supply_throughput_mult_hostile_troops_modifier(state, prov, local_nation);
-		float access_mod = supply_routes::supply_throughput_mult_access_modifier(state, prov, local_nation);
-		if(access_mod != 1.0f) {
-			text::add_line(state, contents, "supply_throughput_percentage_access_tooltip", text::variable_type::value, text::fp_two_places{ access_mod }, 8);
-		}
-		if(blockade_mod != 1.0f) {
-			text::add_line(state, contents, "supply_throughput_percentage_blockade_tooltip", text::variable_type::value, text::fp_two_places{ blockade_mod }, 8);
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_land_supply_throughput_percent, header);
 		}
 	}
 }

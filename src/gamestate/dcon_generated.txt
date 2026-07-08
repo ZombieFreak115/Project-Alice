@@ -4967,7 +4967,7 @@ relationship{
 		tag{ save }
 	}
 	property{
-		name{ route_attrition }
+		name{ supply_loss }
 		type{float}
 		tag{ save }
 	}
@@ -5039,7 +5039,7 @@ relationship{
 		tag{ save }
 	}
 	property{
-		name{ route_attrition }
+		name{ supply_loss }
 		type{float}
 		tag{ save }
 	}
@@ -5116,7 +5116,7 @@ relationship{
 		tag{ save }
 	}
 	property{
-		name{ route_attrition }
+		name{ supply_loss}
 		type{float}
 		tag{ save }
 	}
@@ -5184,7 +5184,7 @@ relationship{
 		tag{ save }
 	}
 	property{
-		name{ route_attrition }
+		name{ supply_loss }
 		type{float}
 		tag{ save }
 	}

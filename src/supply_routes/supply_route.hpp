@@ -56,10 +56,13 @@ float supply_throughput_efficiency(const sys::state& state, dcon::province_id pr
 // Gets the current effective efficency percentage in moving supplies for a nation in the specified provincce WITH some extra used throughput added (0.0-1.0)
 float supply_throughput_efficiency_with_extra_weight(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as, float extra_used_throughput);
 
-float province_supply_attrition_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
-float adjacency_supply_attrition_modifier(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
-float avg_adjacency_supply_attrition_modifier(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as);
-float avg_adjacency_supply_attrition_modifier(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
+float supply_loss_add_convoy_raiding(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
+float supply_loss_add_hostile_armies(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
+
+float supply_loss_in_province(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
+float adjacency_net_supply_loss(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
+float adjacency_avg_supply_loss(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as);
+float adjacency_avg_supply_loss(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
 void update_supply_routes_daily(sys::state& state);
 void update_supply_routes_monthly(sys::state& state);
 

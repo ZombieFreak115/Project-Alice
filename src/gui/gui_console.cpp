@@ -541,6 +541,8 @@ int32_t* f_dump_oos(fif::state_stack& s, int32_t* p, fif::environment* e) {
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.occupied);
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.nationalism);
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.infrastructure);
+		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.province_militancy);
+		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.province_control);
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.base_values);
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.war);
 		ptr_in = sys::memcpy_serialize(ptr_in, state.national_definitions.peace);

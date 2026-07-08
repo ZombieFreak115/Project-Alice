@@ -47,12 +47,14 @@ constexpr float supply_throughput_per_km_naval_supply_speed = 10.0f; // Supply t
 constexpr float supply_throughput_infrastructure = 6.0f; // Extra supply throughput per 1% of infrastructure
 constexpr float army_supply_throughput_blockade_threshold = 0.9f; // This amount of POP_SIZE_PER_REGIMENT army strength is required to fully block enemy throughput in a land province. Throughput scales linearly with the amount of strength present. Also includes strength in battles. Set to zero or negative number to disable
 constexpr float navy_port_supply_capacity_blockade_threshold = 10.0f; // This amount of blockade power (unit stat) is required to to fully block enemy port capacity throughput in a port province. Throughput scales linearly with the amount of strength present. Also includes strength in battles. Set to zero or negative number to disable
-constexpr float base_land_supply_attrition = 0.0000001f;
-constexpr float base_sea_supply_attrition = 0.0f;
-constexpr float control_level_supply_attrition = 0.0001f; // the supply loss % per km of travel if province control is 0%. Scales back to 0 at 100% control.
-constexpr float militancy_supply_attrition = 0.000005f; // the supply loss % per km of travel per average militancy in the province.
-constexpr float hostile_army_supply_attrition = 0.0f; // the supply loss % per km of travel per POP_SIZE_PER_REGIMENT enemy strength present in the land province
-constexpr float hostile_navy_supply_attrition = 0.0f; // the supply loss % per km of travel per 100% enemy ship strength present in the sea province
+constexpr float base_land_supply_loss = 0.0001f;
+constexpr float base_sea_supply_loss = 0.0f;
+constexpr float control_level_supply_loss = -0.0001f; // the supply loss % per km of travel if province control is 100%. Modifier is scaled back to 0% linearly.
+constexpr float militancy_supply_loss = 0.00005f; // the supply loss % per km of travel when the province has 10 militancy. Scales down linearly
+constexpr float hostile_army_supply_loss = 0.0f; // the supply loss % per km of travel per POP_SIZE_PER_REGIMENT enemy strength present in the land province
+constexpr float convoy_raiding_supply_loss = 0.0f; // the supply loss % per km of travel per effective convoy_raiding stats present in the sea province
+
+constexpr float max_supply_route_loss = 0.5f; // the maximum total supply loss % a route may incur. 
 
 }
 

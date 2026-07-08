@@ -3039,7 +3039,7 @@ std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& st
 void make_military_supply_path(const sys::state& state, dcon::state_instance_id origin, dcon::province_id end, dcon::nation_id nation_as, std::vector<dcon::province_id>& path_result) {
 	struct iteration_data {
 		float supply_throughput{};
-		float supply_attrition{};
+		float supply_loss{};
 	};
 
 	auto start = state.world.state_instance_get_capital(origin);
@@ -3053,10 +3053,10 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 
 	};
 	auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data data) {
-		// Take into account the expected supply throughput, and supply attrition
+		// Take into account the expected supply throughput, and supply loss
 		assert(data.supply_throughput > 0.0f);
-		assert(data.supply_attrition > 0.0f);
-		return (distance / data.supply_attrition) / data.supply_throughput;
+		assert(data.supply_loss > 0.0f);
+		return (distance / data.supply_loss) / data.supply_throughput;
 		
 
 	};
@@ -3065,7 +3065,8 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 
 	};
 	auto adj_init_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data& data) {
-		data.supply_attrition = supply_routes::avg_adjacency_supply_attrition_modifier(state, to, from, nation_as);
+		float supply_loss = 1.0f - supply_routes::adjacency_avg_supply_loss(state, to, from, nation_as);
+		data.supply_loss = std::max(supply_loss, 0.00000001f); // Clamp so that it cannot be zero, but is allowed to be a very small value
 		if(province::is_port_connected_to(state, from, to)) {
 			data.supply_throughput = std::min(data.supply_throughput, supply_routes::port_supply_capacity_efficiency(state, from, nation_as));
 		} else if(province::is_port_connected_to(state, to, from)) {

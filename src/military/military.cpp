@@ -9790,7 +9790,7 @@ commodity_array_type get_last_fufilled_supply(const sys::state& state, unit_type
 		for(uint32_t i = 0; i < commodity_types.size(); i++) {
 			auto com_id = commodity_types[i];
 			assert(com_id);
-			fufilled[i] += (buffered_goods[i] * route.get_route_attrition() * route.get_throughput()); // take into account goods which will be lost to attrition and throughput
+			fufilled[i] += (buffered_goods[i] * route.get_supply_loss() * route.get_throughput()); // take into account goods which will be lost to attrition and throughput
 		}
 	}
 	return fufilled;

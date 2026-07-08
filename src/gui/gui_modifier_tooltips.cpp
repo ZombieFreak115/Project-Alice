@@ -226,20 +226,59 @@ void active_hardcoded_modifiers_description(sys::state& state, text::layout_base
 	auto fat_nation = fatten(state.world, n);
 	if(nmid == sys::national_mod_offsets::national_land_supply_throughput_add) {
 		float land_supply_speed = supply_routes::land_supply_speed(state, n);
-		active_single_hardcoded_modifier_description(state, layout, "modifier_national_land_supply_throughput_from_supply_speed", land_supply_speed * supply_routes::supply_throughput_per_km_land_supply_speed, identation, header, sys::national_mod_offsets::national_land_supply_throughput_add);
+		active_single_hardcoded_modifier_description(state, layout, "national_land_supply_throughput_supply_speed_modifier", land_supply_speed * supply_routes::supply_throughput_per_km_land_supply_speed, identation, header, sys::national_mod_offsets::national_land_supply_throughput_add);
 	}
 	else if(nmid == sys::national_mod_offsets::national_naval_supply_throughput_add) {
 		float naval_supply_speed = supply_routes::naval_supply_speed(state, n);
-		active_single_hardcoded_modifier_description(state, layout, "modifier_national_naval_supply_throughput_from_supply_speed", naval_supply_speed * supply_routes::supply_throughput_per_km_naval_supply_speed, identation, header, sys::national_mod_offsets::national_naval_supply_throughput_add);
+		active_single_hardcoded_modifier_description(state, layout, "national_naval_supply_throughput_supply_speed_modifier", naval_supply_speed * supply_routes::supply_throughput_per_km_naval_supply_speed, identation, header, sys::national_mod_offsets::national_naval_supply_throughput_add);
 	}
 }
 
 void active_hardcoded_modifiers_description(sys::state& state, text::layout_base& layout, dcon::province_id prov, int32_t identation,
 		dcon::provincial_modifier_value pmid, bool& header) {
 	auto fat_prov = fatten(state.world, prov);
-	if(pmid == sys::provincial_mod_offsets::supply_throughput_percent) {
+	auto local_nation = state.local_player_nation;
+	switch(pmid.value) {
+	case sys::provincial_mod_offsets::supply_throughput_percent.value:
+	{
 		auto movement_cost = province::movement_cost(state, prov);
-		active_single_hardcoded_modifier_description(state, layout, "modifier_supply_throughput_percent_from_movement_cost", (1.0f / movement_cost) - 1.0f, identation, header, sys::provincial_mod_offsets::supply_throughput_percent);
+		auto percent_mod = (1.0f / movement_cost) - 1.0f;
+		if(percent_mod != 0.0f) {
+			active_single_hardcoded_modifier_description(state, layout, "supply_throughput_percent_movement_cost_modifier", percent_mod, identation, header, sys::provincial_mod_offsets::supply_throughput_percent);
+		}
+		float blockade_mod = supply_routes::supply_throughput_mult_hostile_troops_modifier(state, prov, local_nation);
+		float access_mod = supply_routes::supply_throughput_mult_access_modifier(state, prov, local_nation);
+		if(access_mod != 1.0f) {
+			ui::active_single_hardcoded_modifier_description(state, layout, "supply_throughput_mult_access_modifier", access_mod, 8, header, sys::provincial_mod_offsets::supply_throughput_percent);
+		}
+		if(blockade_mod != 1.0f) {
+			ui::active_single_hardcoded_modifier_description(state, layout, "supply_throughput_mult_blockade_modifier", blockade_mod, 8, header, sys::provincial_mod_offsets::supply_throughput_percent);
+		}
+
+		break;
+	}
+	case sys::provincial_mod_offsets::supply_loss_add.value:
+	{
+		bool is_sea = province::is_sea(state, prov);
+		if(is_sea) {
+
+			float convoy_raiding_add = supply_routes::supply_loss_add_convoy_raiding(state, prov, local_nation);
+			if(convoy_raiding_add != 0.0f) {
+				ui::active_single_hardcoded_modifier_description(state, layout, "supply_loss_add_convoy_raiding_modifier", convoy_raiding_add, 8, header, sys::provincial_mod_offsets::supply_loss_add);
+			}
+		}
+		else {
+			float hostile_armies_add = supply_routes::supply_loss_add_hostile_armies(state, prov, local_nation);
+			if(hostile_armies_add != 0.0f) {
+				ui::active_single_hardcoded_modifier_description(state, layout, "supply_loss_add_hostile_armies_modifier", hostile_armies_add, 8, header, sys::provincial_mod_offsets::supply_loss_add);
+			}
+		}
+		break;
+	}
+	default:
+	{
+		break;
+	}
 	}
 }
 
@@ -249,11 +288,15 @@ void acting_modifiers_description_province(sys::state& state, text::layout_base&
 	if(state.national_definitions.province_base) {
 		active_single_modifier_description(state, layout, state.national_definitions.province_base, identation, header, nmid);
 	}
-	if(state.national_definitions.land_province) {
-		active_single_modifier_description(state, layout, state.national_definitions.land_province, identation, header, nmid);
+	if(province::is_land(state, p)) {
+		if(state.national_definitions.land_province) {
+			active_single_modifier_description(state, layout, state.national_definitions.land_province, identation, header, nmid);
+		}
 	}
 	else {
-		active_single_modifier_description(state, layout, state.national_definitions.sea_zone, identation, header, nmid);
+		if(state.national_definitions.sea_zone) {
+			active_single_modifier_description(state, layout, state.national_definitions.sea_zone, identation, header, nmid);
+		}
 	}
 	for(auto mpr : state.world.province_get_current_modifiers(p))
 		active_single_modifier_description(state, layout, mpr.mod_id, identation, header, nmid);
@@ -304,6 +347,16 @@ void acting_modifiers_description_province(sys::state& state, text::layout_base&
 	if(state.national_definitions.blockaded) {
 		active_single_modifier_description(state, layout, state.national_definitions.blockaded, identation, header, nmid,
 				military::province_is_blockaded(state, p) ? 1.f : 0.f);
+	}
+	if(state.national_definitions.province_militancy) {
+		float total_militancy = state.world.province_get_demographics(p, demographics::militancy);
+		float total_pop = state.world.province_get_demographics(p, demographics::total);
+		float avg_militancy = (total_pop == 0.0f ? 0.0f : total_militancy / total_pop);
+		active_single_modifier_description(state, layout, state.national_definitions.province_militancy, identation, header, nmid, avg_militancy / 10.f);
+	}
+	if(state.national_definitions.province_control) {
+		float control_level = state.world.province_get_control_ratio(p);
+		active_single_modifier_description(state, layout, state.national_definitions.province_control, identation, header, nmid, control_level / 1.0f);
 	}
 	if constexpr(std::is_same_v<T, dcon::provincial_modifier_value>) {
 		active_hardcoded_modifiers_description(state, layout, p, identation, nmid, header);

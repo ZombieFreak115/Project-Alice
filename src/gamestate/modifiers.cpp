@@ -629,12 +629,15 @@ void recreate_province_modifiers(sys::state& state) {
 	if(state.national_definitions.province_base) {
 		bulk_apply_modifier_to_provinces(state, state.national_definitions.province_base);
 	}
-
 	if(state.national_definitions.land_province) {
-		bulk_apply_modifier_to_provinces(state, state.national_definitions.land_province);
+		province::for_each_land_province(state, [&](dcon::province_id prov) {
+			apply_modifier_values_to_province(state, prov, state.national_definitions.land_province);
+		});
 	}
-	else {
-		bulk_apply_modifier_to_provinces(state, state.national_definitions.sea_zone);
+	if(state.national_definitions.sea_zone) {
+		province::for_each_sea_province(state, [&](dcon::province_id prov) {
+			apply_modifier_values_to_province(state, prov, state.national_definitions.sea_zone);
+		});
 	}
 
 	state.world.for_each_province([&](dcon::province_id p) {
@@ -706,6 +709,20 @@ void recreate_province_modifiers(sys::state& state) {
 	if(state.national_definitions.blockaded) {
 		bulk_apply_masked_modifier_to_provinces(state, state.national_definitions.blockaded,
 				[&](auto ids) { return military::province_is_blockaded(state, ids); });
+	}
+	if(state.national_definitions.province_militancy) {
+		bulk_apply_scaled_modifier_to_provinces(state, state.national_definitions.province_militancy, [&](auto ids) {
+			auto total_militancy = state.world.province_get_demographics(ids, demographics::militancy);
+			auto total_pop = state.world.province_get_demographics(ids, demographics::total);
+			return ve::select(total_pop == 0.0f, 0.0f, (total_militancy / total_pop) / 10.0f);
+
+		});
+	}
+	if(state.national_definitions.province_control) {
+		bulk_apply_scaled_modifier_to_provinces(state, state.national_definitions.province_control, [&](auto ids) {
+			auto control_level = state.world.province_get_control_ratio(ids);
+			return control_level / 1.0f;
+		});
 	}
 	state.world.for_each_province([&](dcon::province_id p) {
 		apply_hardcoded_modifier_values_to_province(state, p);

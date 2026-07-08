@@ -65,7 +65,8 @@ struct global_national_state {
 	dcon::modifier_id occupied;
 	dcon::modifier_id nationalism;
 	dcon::modifier_id infrastructure;
-
+	dcon::modifier_id province_militancy;
+	dcon::modifier_id province_control;
 	// national
 	dcon::modifier_id base_values; // old vanilla one, is not expected to work so we don't do anything with it
 	dcon::modifier_id nation_base; // new base added, this one will actually work

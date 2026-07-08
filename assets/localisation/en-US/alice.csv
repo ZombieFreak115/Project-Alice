@@ -2062,8 +2062,8 @@ investment_efficiency_tooltip;Tools, efficiency inputs and machines
 investment_expansion_tooltip;Expansion
 supply_throughput_total_tooltip;Total supply throughput: ?Y$value$?W
 supply_throughput_used_tooltip;Supply throughput used: ?Y$value$?W
-supply_throughput_percentage_access_tooltip;Supply access: ?R$value$x?W
-supply_throughput_percentage_blockade_tooltip;Hostile armies: ?R$value$x?W
+supply_throughput_mult_access_modifier;Supply access
+supply_throughput_mult_blockade_modifier;Hostile armies
 supply_throughput_efficiency_tooltip;Net efficiency: ?Y$value$?W
 modifier_naval_supply_speed;Naval supply speed
 modifier_land_supply_speed;Land supply speed
@@ -2071,6 +2071,11 @@ modifier_supply_throughput;Supply throughput
 modifier_supply_loss;Supply loss
 modifier_port_supply_capacity;Port supply capacity
 nation_base;Nation base
-modifier_national_land_supply_throughput_from_supply_speed;Land supply speed
-modifier_national_naval_supply_throughput_from_supply_speed;Naval supply speed
-modifier_supply_throughput_percent_from_movement_cost;Movement cost
+national_land_supply_throughput_supply_speed_modifier;Land supply speed
+national_naval_supply_throughput_supply_speed_modifier;Naval supply speed
+supply_throughput_percent_movement_cost_modifier;Movement cost
+province_militancy;Province militancy
+province_control;Province control
+supply_loss_total_tooltip;Supply loss per km: ?Y$value$?W
+supply_loss_add_convoy_raiding_modifier;Convoy raiding
+supply_loss_add_hostile_armies_modifier;Hostile armies
