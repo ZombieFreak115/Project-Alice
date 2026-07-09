@@ -796,19 +796,19 @@ std::vector<uint32_t> supply_loss_map_from(sys::state& state) {
 	auto for_nation = state.world.province_get_nation_from_province_ownership(selected);
 	if(for_nation) {
 		float mx = 0.0f;
-		float mn = 1.0f;
+		float mn = 99999999.0f;
 		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
-			auto v = 1.0f - supply_routes::supply_loss_in_province(state, p.get_province(), state.local_player_nation);
+			auto v = supply_routes::supply_loss_in_province(state, p.get_province(), state.local_player_nation);
 			mn = std::min(mn, v);
 			mx = std::max(mx, v);
 		}
 		if(mx > mn) {
 			for(auto p : state.world.nation_get_province_ownership(for_nation)) {
-				auto v =  1.0f - supply_routes::supply_loss_in_province(state, p.get_province(), state.local_player_nation);
+				auto v =  supply_routes::supply_loss_in_province(state, p.get_province(), state.local_player_nation);
 
 				uint32_t color = ogl::color_gradient((v - mn) / (mx - mn),
-					sys::pack_color(46, 247, 15),	// to green
-					sys::pack_color(247, 15, 15)	// from red
+					sys::pack_color(247, 15, 15),	// from red
+					sys::pack_color(46, 247, 15)	// to green
 				);
 				auto i = province::to_map_id(p.get_province());
 				prov_color[i] = color;
@@ -817,19 +817,19 @@ std::vector<uint32_t> supply_loss_map_from(sys::state& state) {
 		}
 	} else {
 		float mx = 0.0f;
-		float mn = 1.0f;
+		float mn = 99999999.0f;
 		province::for_each_land_province(state, [&](dcon::province_id prov) {
-			auto v = 1.0f - supply_routes::supply_loss_in_province(state, prov, state.local_player_nation);
+			auto v = supply_routes::supply_loss_in_province(state, prov, state.local_player_nation);
 			mn = std::min(mn, v);
 			mx = std::max(mx, v);
 		});
 		if(mx > mn) {
 			province::for_each_land_province(state, [&](dcon::province_id prov) {
-				auto v = 1.0f - supply_routes::supply_loss_in_province(state, prov, state.local_player_nation);
+				auto v = supply_routes::supply_loss_in_province(state, prov, state.local_player_nation);
 
 				uint32_t color = ogl::color_gradient((v - mn) / (mx - mn),
-					sys::pack_color(46, 247, 15),	// to green
-					sys::pack_color(247, 15, 15)	// from red
+					sys::pack_color(247, 15, 15),	// from red
+					sys::pack_color(46, 247, 15)	// to green
 				);
 				auto i = province::to_map_id(prov);
 				prov_color[i] = color;

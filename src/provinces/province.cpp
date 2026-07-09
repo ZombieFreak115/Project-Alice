@@ -3065,7 +3065,7 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 
 	};
 	auto adj_init_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data& data) {
-		float supply_loss = 1.0f - supply_routes::adjacency_avg_supply_loss(state, to, from, nation_as);
+		float supply_loss = 1.0f - supply_routes::adjacency_avg_supply_loss(state, to, from, nation_as) / state.map_state.map_data.world_circumference; // Get the supply loss measured in loss per km
 		data.supply_loss = std::max(supply_loss, 0.00000001f); // Clamp so that it cannot be zero, but is allowed to be a very small value
 		if(province::is_port_connected_to(state, from, to)) {
 			data.supply_throughput = std::min(data.supply_throughput, supply_routes::port_supply_capacity_efficiency(state, from, nation_as));
@@ -3075,7 +3075,7 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 
 	};
 	// We are passing "start" province as end, and "end" as start. This is because creating the path in reverse has some desired effects. For example it means the province the army is on will not be path of the path (so that you wont lose supply instantly when adjacen to a friendly province)
-	// And will enable faster early-exists if units are deep in enemy territory
+	// And will enable faster early-exits if units are deep in enemy territory
 	make_path_to_prov<1.0f, iteration_data>(state, end, start, path_result, adjacency_func, province_func, modifier_func, province_init_func, adj_init_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
 
 }

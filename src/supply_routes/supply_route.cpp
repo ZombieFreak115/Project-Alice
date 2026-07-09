@@ -189,7 +189,7 @@ float supply_throughput_mult_hostile_troops_modifier(const sys::state& state, dc
 
 
 float supply_throughput_in_province(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
-	// TODO: add the hardcoded modifiers to show as an active modifier in tooltips
+
 	bool is_sea = province::is_sea(state, province);
 	auto nation_add_mod_offset = (is_sea ? sys::national_mod_offsets::national_naval_supply_throughput_add : sys::national_mod_offsets::national_land_supply_throughput_add);
 	auto nation_percent_mod_offset = (is_sea ? sys::national_mod_offsets::national_naval_supply_throughput_percent : sys::national_mod_offsets::national_land_supply_throughput_percent);
@@ -252,10 +252,10 @@ float adjacency_avg_supply_loss(const sys::state& state, dcon::province_adjacenc
 float adjacency_net_supply_loss(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as) {
 	auto prov_1 = state.world.province_adjacency_get_connected_provinces(province_adj, 0);
 	auto prov_2 = state.world.province_adjacency_get_connected_provinces(province_adj, 1);
-	auto avg_supply_attr = adjacency_avg_supply_loss(state, province_adj, nation_as);
+	auto avg_supply_loss_per_km = adjacency_avg_supply_loss(state, province_adj, nation_as) / state.map_state.map_data.world_circumference; // Get supply loss measured in loss per km
 	auto distance = state.world.province_adjacency_get_distance_km(province_adj) * military::get_avg_movement_cost_modifier(state, nation_as, prov_1, prov_2);
-	assert(std::isfinite(distance * avg_supply_attr));
-	return distance * avg_supply_attr;
+	assert(std::isfinite(distance * avg_supply_loss_per_km));
+	return distance * avg_supply_loss_per_km;
 }
 
 float calculate_supply_route_throughput(const sys::state& state, std::span<const dcon::province_id> path, dcon::province_id origin_prov, dcon::province_id destination, dcon::nation_id controller) {

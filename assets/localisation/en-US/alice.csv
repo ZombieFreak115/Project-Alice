@@ -2076,6 +2076,6 @@ national_naval_supply_throughput_supply_speed_modifier;Naval supply speed
 supply_throughput_percent_movement_cost_modifier;Movement cost
 province_militancy;Province militancy
 province_control;Province control
-supply_loss_total_tooltip;Supply loss per km: ?Y$value$?W
+supply_loss_total_tooltip;Supply loss: ?Y$value$?W
 supply_loss_add_convoy_raiding_modifier;Convoy raiding
 supply_loss_add_hostile_armies_modifier;Hostile armies
