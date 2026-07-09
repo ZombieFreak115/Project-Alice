@@ -191,11 +191,12 @@ float supply_throughput_mult_hostile_troops_modifier(const sys::state& state, dc
 float supply_throughput_in_province(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 
 	bool is_sea = province::is_sea(state, province);
-	auto nation_add_mod_offset = (is_sea ? sys::national_mod_offsets::national_naval_supply_throughput_add : sys::national_mod_offsets::national_land_supply_throughput_add);
-	auto nation_percent_mod_offset = (is_sea ? sys::national_mod_offsets::national_naval_supply_throughput_percent : sys::national_mod_offsets::national_land_supply_throughput_percent);
-	float add_modifiers = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_throughput_add) + state.world.nation_get_modifier_values(nation_as, nation_add_mod_offset);
-	float percent_modifiers = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_throughput_percent) + state.world.nation_get_modifier_values(nation_as, nation_percent_mod_offset) + 1.0f;
-	float mult_modifiers = supply_throughput_mult_access_modifier(state, province, nation_as) * supply_throughput_mult_hostile_troops_modifier(state, province, nation_as);
+	auto nation_add_mod = (is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_throughput_add) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_throughput_add));
+	auto nation_percent_mod = (is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_throughput_percent) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_throughput_percent));
+	auto nation_mul_mod = (is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_throughput_mul) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_throughput_mul));
+	float add_modifiers = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_throughput_add) + nation_add_mod;
+	float percent_modifiers = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_throughput_percent) + nation_percent_mod + 1.0f;
+	float mult_modifiers = supply_throughput_mult_access_modifier(state, province, nation_as) * supply_throughput_mult_hostile_troops_modifier(state, province, nation_as) * state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_throughput_mul) * nation_mul_mod;
 	return std::max(add_modifiers * percent_modifiers * mult_modifiers, 0.0f);
 }
 
@@ -231,11 +232,13 @@ float supply_loss_in_province(const sys::state& state, dcon::province_id provinc
 	bool province_is_sea = province::is_sea(state, province);
 	float national_add_mod = (province_is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_loss_add) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_loss_add));
 	float national_percent_mod = (province_is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_loss_percent) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_loss_percent));
+	float national_mul_mod = (province_is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_loss_mul) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_loss_mul));
 
 	float hostile_units_add = (province_is_sea ? supply_loss_add_convoy_raiding(state, province, nation_as) : supply_loss_add_hostile_armies(state, province, nation_as));
 	float add_mods = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_loss_add) + national_add_mod + hostile_units_add;
 	float percent_mods = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_loss_percent) + national_percent_mod + 1.0f;
-	return std::max(add_mods * percent_mods, 0.0f);
+	float mul_mods = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_loss_mul) * national_mul_mod;
+	return std::max(add_mods * percent_mods * mul_mods, 0.0f);
 }
 
 float adjacency_avg_supply_loss(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as) {

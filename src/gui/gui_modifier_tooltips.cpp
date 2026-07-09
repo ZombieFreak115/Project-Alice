@@ -11,50 +11,38 @@
 
 namespace ui {
 
-enum class modifier_display_type : uint8_t {
-	integer,
-	percent,
-	fp_two_places,
-	fp_three_places,
-	yesno,
-	percent_two_places
-};
-struct modifier_display_info {
-	bool positive_is_green;
-	modifier_display_type type;
-	std::string_view name;
-};
 
-static const modifier_display_info province_modifier_names[sys::provincial_mod_offsets::count] = {
-#define MOD_LIST_ELEMENT(num, name, green_is_negative, display_type, locale_name)                                                \
-	modifier_display_info{green_is_negative, display_type, locale_name},
-		MOD_PROV_LIST
-#undef MOD_LIST_ELEMENT
-};
-static const modifier_display_info national_modifier_names[sys::national_mod_offsets::count] = {
-#define MOD_LIST_ELEMENT(num, name, green_is_negative, display_type, locale_name)                                                \
-	modifier_display_info{green_is_negative, display_type, locale_name},
-		MOD_NAT_LIST
-#undef MOD_LIST_ELEMENT
-};
-
-std::string format_modifier_value(sys::state& state, float value, modifier_display_type type) {
+std::string format_modifier_value(sys::state& state, float value, sys::modifier_display_type type) {
 	switch(type) {
-	case modifier_display_type::integer:
+	case sys::modifier_display_type::integer:
 		return (value >= 0.f ? "+" : "") + text::prettify(int64_t(value));
-	case modifier_display_type::percent:
+	case sys::modifier_display_type::percent:
 		return (value >= 0.f ? "+" : "") + text::format_percentage(value, 1);
-	case modifier_display_type::percent_two_places:
+	case sys::modifier_display_type::percent_two_places:
 		return (value >= 0.f ? "+" : "") + text::format_percentage(value, 2);
-	case modifier_display_type::fp_two_places:
+	case sys::modifier_display_type::fp_two_places:
 		return(value >= 0.f ? "+" : "") + text::format_float(value, 2);
-	case modifier_display_type::fp_three_places:
+	case sys::modifier_display_type::fp_three_places:
 		return (value >= 0.f ? "+" : "") + text::format_float(value, 3);
-	case modifier_display_type::yesno:
+	case sys::modifier_display_type::yesno:
 		return (value >= 0.f ? "yes" : "no");
+	case sys::modifier_display_type::multiplier_two_places:
+		return "x" + text::format_float(value, 2);
 	}
 	return "x%";
 }
+
+text::text_color get_modifier_value_color(sys::modifier_color_type modifier_color, float value) {
+	switch(modifier_color) {
+	case sys::modifier_color_type::positive_is_green:
+		return (value >= 0.f ? text::text_color::green : text::text_color::red);
+	case sys::modifier_color_type::positive_is_red:
+		return (value >= 0.f ? text::text_color::red : text::text_color::green);
+	case sys::modifier_color_type::less_than_one_is_red:
+		return (value >= 1.f ? text::text_color::green : text::text_color::red);
+	}
+}
+
 
 void modifier_description(sys::state& state, text::layout_base& layout, dcon::modifier_id mid, int32_t indentation, float scale) {
 	auto fat_id = dcon::fatten(state.world, mid);
@@ -63,13 +51,12 @@ void modifier_description(sys::state& state, text::layout_base& layout, dcon::mo
 	for(uint32_t i = 0; i < prov_def.modifier_definition_size; ++i) {
 		if(!bool(prov_def.offsets[i]))
 			break;
-		auto data = province_modifier_names[prov_def.offsets[i].index()];
+		auto data = sys::province_modifier_metadata[prov_def.offsets[i].index()];
 		auto box = text::open_layout_box(layout, indentation);
 		text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, data.name), text::text_color::white);
 		text::add_to_layout_box(state, layout, box, std::string_view{ ":" }, text::text_color::white);
 		text::add_space_to_layout_box(state, layout, box);
-		auto color = data.positive_is_green ? (prov_def.values[i] >= 0.f ? text::text_color::green : text::text_color::red)
-			: (prov_def.values[i] >= 0.f ? text::text_color::red : text::text_color::green);
+		auto color = get_modifier_value_color(data.color_type, prov_def.values[i]);
 		text::add_to_layout_box(state, layout, box, format_modifier_value(state, prov_def.values[i] * scale, data.type), color);
 		
 		// Special case since movement_cost is to show two modifiers: movement cost and trade attraction
@@ -91,13 +78,12 @@ void modifier_description(sys::state& state, text::layout_base& layout, dcon::mo
 	for(uint32_t i = 0; i < nat_def.modifier_definition_size; ++i) {
 		if(!bool(nat_def.offsets[i]))
 			break;
-		auto data = national_modifier_names[nat_def.offsets[i].index()];
+		auto data = sys::national_modifier_metadata[nat_def.offsets[i].index()];
 		auto box = text::open_layout_box(layout, indentation);
 		text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, data.name), text::text_color::white);
 		text::add_to_layout_box(state, layout, box, std::string_view{":"}, text::text_color::white);
 		text::add_space_to_layout_box(state, layout, box);
-		auto color = data.positive_is_green ? (nat_def.values[i] >= 0.f ? text::text_color::green : text::text_color::red)
-																				: (nat_def.values[i] >= 0.f ? text::text_color::red : text::text_color::green);
+		auto color = get_modifier_value_color(data.color_type, nat_def.values[i]);
 		text::add_to_layout_box(state, layout, box, format_modifier_value(state, nat_def.values[i] * scale, data.type), color);
 		text::close_layout_box(layout, box);
 	}
@@ -110,19 +96,18 @@ void active_single_hardcoded_modifier_description(sys::state& state, text::layou
 	if(!header) {
 		header = true;
 		auto box = text::open_layout_box(layout, 0);
-		text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, national_modifier_names[nmid.index()].name),
+		text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, sys::national_modifier_metadata[nmid.index()].name),
 				text::text_color::yellow);
 		text::add_to_layout_box(state, layout, box, std::string_view(":"), text::text_color::yellow);
 		text::close_layout_box(layout, box);
 	}
 
-	auto data = national_modifier_names[nmid.index()];
+	auto data = sys::national_modifier_metadata[nmid.index()];
 	auto box = text::open_layout_box(layout, indentation);
 	text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, mod_name), text::text_color::white);
 	text::add_to_layout_box(state, layout, box, std::string_view{ ":" }, text::text_color::white);
 	text::add_space_to_layout_box(state, layout, box);
-	auto color = data.positive_is_green ? (value >= 0.f ? text::text_color::green : text::text_color::red)
-		: (value >= 0.f ? text::text_color::red : text::text_color::green);
+	auto color = get_modifier_value_color(data.color_type, value);
 	text::add_to_layout_box(state, layout, box, format_modifier_value(state, value, data.type), color);
 	text::close_layout_box(layout, box);
 	
@@ -134,19 +119,18 @@ void active_single_hardcoded_modifier_description(sys::state& state, text::layou
 		if(!header) {
 			header = true;
 			auto box = text::open_layout_box(layout, 0);
-			text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, province_modifier_names[pmid.index()].name),
+			text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, sys::province_modifier_metadata[pmid.index()].name),
 					text::text_color::yellow);
 			text::add_to_layout_box(state, layout, box, std::string_view(":"), text::text_color::yellow);
 			text::close_layout_box(layout, box);
 		}
 
-		auto data = province_modifier_names[pmid.index()];
+		auto data = sys::province_modifier_metadata[pmid.index()];
 		auto box = text::open_layout_box(layout, indentation);
 		text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, mod_name), text::text_color::white);
 		text::add_to_layout_box(state, layout, box, std::string_view{ ":" }, text::text_color::white);
 		text::add_space_to_layout_box(state, layout, box);
-		auto color = data.positive_is_green ? (value >= 0.f ? text::text_color::green : text::text_color::red)
-			: (value >= 0.f ? text::text_color::red : text::text_color::green);
+		auto color = get_modifier_value_color(data.color_type, value);
 		text::add_to_layout_box(state, layout, box, format_modifier_value(state, value, data.type), color);
 		text::close_layout_box(layout, box);
 	
@@ -169,20 +153,19 @@ void active_single_modifier_description(sys::state& state, text::layout_base& la
 		if(!header) {
 			header = true;
 			auto box = text::open_layout_box(layout, 0);
-			text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, national_modifier_names[nmid.index()].name),
+			text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, sys::national_modifier_metadata[nmid.index()].name),
 					text::text_color::yellow);
 			text::add_to_layout_box(state, layout, box, std::string_view(":"), text::text_color::yellow);
 			text::close_layout_box(layout, box);
 		}
 
-		auto data = national_modifier_names[nmid.index()];
+		auto data = sys::national_modifier_metadata[nmid.index()];
 		auto box = text::open_layout_box(layout, indentation);
 		text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, fat_id.get_name()), text::text_color::white);
 		text::add_to_layout_box(state, layout, box, std::string_view{":"}, text::text_color::white);
 		text::add_space_to_layout_box(state, layout, box);
 		auto value = def.values[i] * scaled;
-		auto color = data.positive_is_green ? (value >= 0.f ? text::text_color::green : text::text_color::red)
-																				: (value >= 0.f ? text::text_color::red : text::text_color::green);
+		auto color = get_modifier_value_color(data.color_type, value);
 		text::add_to_layout_box(state, layout, box, format_modifier_value(state, value, data.type), color);
 		text::close_layout_box(layout, box);
 	}
@@ -202,20 +185,19 @@ void active_single_modifier_description(sys::state& state, text::layout_base& la
 		if(!header) {
 			header = true;
 			auto box = text::open_layout_box(layout, 0);
-			text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, province_modifier_names[pmid.index()].name),
+			text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, sys::province_modifier_metadata[pmid.index()].name),
 					text::text_color::yellow);
 			text::add_to_layout_box(state, layout, box, std::string_view(":"), text::text_color::yellow);
 			text::close_layout_box(layout, box);
 		}
 
-		auto data = province_modifier_names[pmid.index()];
+		auto data = sys::province_modifier_metadata[pmid.index()];
 		auto box = text::open_layout_box(layout, indentation);
 		text::add_to_layout_box(state, layout, box, text::produce_simple_string(state, fat_id.get_name()), text::text_color::white);
 		text::add_to_layout_box(state, layout, box, std::string_view{":"}, text::text_color::white);
 		text::add_space_to_layout_box(state, layout, box);
 		auto value = def.values[i] * scaled;
-		auto color = data.positive_is_green ? (value >= 0.f ? text::text_color::green : text::text_color::red)
-																				: (value >= 0.f ? text::text_color::red : text::text_color::green);
+		auto color = get_modifier_value_color(data.color_type, value);
 		text::add_to_layout_box(state, layout, box, format_modifier_value(state, value, data.type), color);
 		text::close_layout_box(layout, box);
 	}
@@ -246,13 +228,18 @@ void active_hardcoded_modifiers_description(sys::state& state, text::layout_base
 		if(percent_mod != 0.0f) {
 			active_single_hardcoded_modifier_description(state, layout, "supply_throughput_percent_movement_cost_modifier", percent_mod, identation, header, sys::provincial_mod_offsets::supply_throughput_percent);
 		}
+		break;
+	}
+
+	case sys::provincial_mod_offsets::supply_throughput_mul.value:
+	{
 		float blockade_mod = supply_routes::supply_throughput_mult_hostile_troops_modifier(state, prov, local_nation);
 		float access_mod = supply_routes::supply_throughput_mult_access_modifier(state, prov, local_nation);
 		if(access_mod != 1.0f) {
-			ui::active_single_hardcoded_modifier_description(state, layout, "supply_throughput_mult_access_modifier", access_mod, 8, header, sys::provincial_mod_offsets::supply_throughput_percent);
+			ui::active_single_hardcoded_modifier_description(state, layout, "supply_throughput_mult_access_modifier", access_mod, 8, header, sys::provincial_mod_offsets::supply_throughput_mul);
 		}
 		if(blockade_mod != 1.0f) {
-			ui::active_single_hardcoded_modifier_description(state, layout, "supply_throughput_mult_blockade_modifier", blockade_mod, 8, header, sys::provincial_mod_offsets::supply_throughput_percent);
+			ui::active_single_hardcoded_modifier_description(state, layout, "supply_throughput_mult_blockade_modifier", blockade_mod, 8, header, sys::provincial_mod_offsets::supply_throughput_mul);
 		}
 
 		break;

@@ -872,6 +872,12 @@ void supply_loss_map_tt_box(sys::state& state, text::columnar_layout& contents, 
 		} else {
 			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_land_supply_loss_percent, header);
 		}
+		ui::active_modifiers_description(state, contents, prov, 8, sys::provincial_mod_offsets::supply_loss_mul, header);
+		if(is_sea) {
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_naval_supply_loss_mul, header);
+		} else {
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_land_supply_loss_mul, header);
+		}
 	}
 		
 }
@@ -897,6 +903,12 @@ void supply_throughput_map_tt_box(sys::state& state, text::columnar_layout& cont
 			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_naval_supply_throughput_percent, header);
 		} else {
 			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_land_supply_throughput_percent, header);
+		}
+		ui::active_modifiers_description(state, contents, prov, 8, sys::provincial_mod_offsets::supply_throughput_mul, header);
+		if(is_sea) {
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_naval_supply_throughput_mul, header);
+		} else {
+			ui::active_modifiers_description(state, contents, local_nation, 8, sys::national_mod_offsets::national_land_supply_throughput_mul, header);
 		}
 	}
 }

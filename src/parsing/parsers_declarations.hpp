@@ -676,10 +676,38 @@ struct goods_file {
 			++next_to_add_p;                                                                                                           \
 		}                                                                                                                            \
 	}
+
+
+#define MUL_MOD_PROV_FUNCTION(X)                                                                                                     \
+	template<typename T>                                                                                                           \
+	void X(association_type, float v, error_handler& err, int32_t line, T& context) {                                              \
+		if(v == 1.0f) return; \
+		if(next_to_add_p >= sys::provincial_modifier_definition::modifier_definition_size) {                                         \
+			err.accumulated_errors += "Too many modifier values; " + err.file_name + " line " + std::to_string(line) + "\n";           \
+		} else {                                                                                                                     \
+			constructed_definition_p.offsets[next_to_add_p] = sys::provincial_mod_offsets::X;                                          \
+			constructed_definition_p.values[next_to_add_p] = v;                                                                        \
+			++next_to_add_p;                                                                                                           \
+		}                                                                                                                            \
+	}
+
 #define MOD_NAT_FUNCTION(X)                                                                                                      \
 	template<typename T>                                                                                                           \
 	void X(association_type, float v, error_handler& err, int32_t line, T& context) {                                              \
 		if(v == 0.0f) return; \
+		if(next_to_add_n >= sys::national_modifier_definition::modifier_definition_size) {                                           \
+			err.accumulated_errors += "Too many modifier values; " + err.file_name + " line " + std::to_string(line) + "\n";           \
+		} else {                                                                                                                     \
+			constructed_definition_n.offsets[next_to_add_n] = sys::national_mod_offsets::X;                                            \
+			constructed_definition_n.values[next_to_add_n] = v;                                                                        \
+			++next_to_add_n;                                                                                                           \
+		}                                                                                                                            \
+	}
+
+#define MUL_MOD_NAT_FUNCTION(X)                                                                                                      \
+	template<typename T>                                                                                                           \
+	void X(association_type, float v, error_handler& err, int32_t line, T& context) {                                              \
+		if(v == 1.0f) return; \
 		if(next_to_add_n >= sys::national_modifier_definition::modifier_definition_size) {                                           \
 			err.accumulated_errors += "Too many modifier values; " + err.file_name + " line " + std::to_string(line) + "\n";           \
 		} else {                                                                                                                     \
@@ -775,31 +803,49 @@ public:
 
 	MOD_PROV_FUNCTION(supply_throughput_add)
 	MOD_PROV_FUNCTION(supply_throughput_percent)
+	MUL_MOD_PROV_FUNCTION(supply_throughput_mul)
+
+
 	MOD_PROV_FUNCTION(supply_loss_add)
 	MOD_PROV_FUNCTION(supply_loss_percent)
+	MUL_MOD_PROV_FUNCTION(supply_loss_mul)
+
+
 	MOD_PROV_FUNCTION(port_supply_capacity_add)
 	MOD_PROV_FUNCTION(port_supply_capacity_percent)
+	MUL_MOD_PROV_FUNCTION(port_supply_capacity_mul)
 
 	MOD_NAT_FUNCTION(national_land_supply_throughput_add)
 	MOD_NAT_FUNCTION(national_land_supply_throughput_percent)
+	MUL_MOD_NAT_FUNCTION(national_land_supply_throughput_mul)
+
+
 	MOD_NAT_FUNCTION(national_land_supply_loss_add)
 	MOD_NAT_FUNCTION(national_land_supply_loss_percent)
+	MUL_MOD_NAT_FUNCTION(national_land_supply_loss_mul)
 
 	MOD_NAT_FUNCTION(national_naval_supply_throughput_add)
 	MOD_NAT_FUNCTION(national_naval_supply_throughput_percent)
+	MUL_MOD_NAT_FUNCTION(national_naval_supply_throughput_mul)
+
 	MOD_NAT_FUNCTION(national_naval_supply_loss_add)
 	MOD_NAT_FUNCTION(national_naval_supply_loss_percent)
+	MUL_MOD_NAT_FUNCTION(national_naval_supply_loss_mul)
 
 	MOD_NAT_FUNCTION(national_port_supply_capacity_add)
 	MOD_NAT_FUNCTION(national_port_supply_capacity_percent)
-
+	MUL_MOD_NAT_FUNCTION(national_port_supply_capacity_mul)
 
 	MOD_NAT_FUNCTION(unemployment_benefit)
 	MOD_NAT_FUNCTION(pension_level)
 	MOD_NAT_FUNCTION(land_supply_speed_add)
 	MOD_NAT_FUNCTION(land_supply_speed_percent)
+	MUL_MOD_NAT_FUNCTION(land_supply_speed_mul)
+
 	MOD_NAT_FUNCTION(naval_supply_speed_add)
 	MOD_NAT_FUNCTION(naval_supply_speed_percent)
+	MUL_MOD_NAT_FUNCTION(naval_supply_speed_mul)
+
 	MOD_PROV_FUNCTION(population_growth)
 	template<typename T>
 	void global_population_growth(association_type, float v, error_handler& err, int32_t line, T& context) {

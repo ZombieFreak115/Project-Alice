@@ -41,8 +41,10 @@ void apply_modifier_values_to_nation(sys::state& state, dcon::nation_id target_n
 
 		auto fixed_offset = nat_values.offsets[i];
 		auto modifier_amount = nat_values.values[i];
-		auto& current_val = state.world.nation_get_modifier_values(target_nation, fixed_offset);
-		state.world.nation_set_modifier_values(target_nation, fixed_offset, current_val + modifier_amount);
+		const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
+		auto current_val = state.world.nation_get_modifier_values(target_nation, fixed_offset);
+		float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount);
+		state.world.nation_set_modifier_values(target_nation, fixed_offset, new_val);
 	}
 }
 
@@ -55,8 +57,10 @@ void apply_scaled_modifier_values_to_nation(sys::state& state, dcon::nation_id t
 
 		auto fixed_offset = nat_values.offsets[i];
 		auto modifier_amount = nat_values.values[i];
-		auto& current_val = state.world.nation_get_modifier_values(target_nation, fixed_offset);
-		state.world.nation_set_modifier_values(target_nation, fixed_offset, current_val + modifier_amount * scale);
+		const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
+		auto current_val = state.world.nation_get_modifier_values(target_nation, fixed_offset);
+		float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount * scale : current_val * modifier_amount * scale);
+		state.world.nation_set_modifier_values(target_nation, fixed_offset, new_val);
 	}
 }
 
@@ -69,8 +73,10 @@ void apply_modifier_values_to_province(sys::state& state, dcon::province_id targ
 
 		auto fixed_offset = prov_values.offsets[i];
 		auto modifier_amount = prov_values.values[i];
-		auto& current_val = state.world.province_get_modifier_values(target_prov, fixed_offset);
-		state.world.province_set_modifier_values(target_prov, fixed_offset, current_val + modifier_amount);
+		const auto& metadata = sys::province_modifier_metadata[fixed_offset.index()];
+		auto current_val = state.world.province_get_modifier_values(target_prov, fixed_offset);
+		float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount);
+		state.world.province_set_modifier_values(target_prov, fixed_offset, new_val);
 	}
 	if(owner) {
 		auto& nat_values = state.world.modifier_get_national_values(mod_id);
@@ -80,8 +86,11 @@ void apply_modifier_values_to_province(sys::state& state, dcon::province_id targ
 
 			auto fixed_offset = nat_values.offsets[i];
 			auto modifier_amount = nat_values.values[i];
-			auto& current_val = state.world.nation_get_modifier_values(owner, fixed_offset);
-			state.world.nation_set_modifier_values(owner, fixed_offset, current_val + modifier_amount);
+			const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
+			auto current_val = state.world.nation_get_modifier_values(owner, fixed_offset);
+
+			float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount);
+			state.world.nation_set_modifier_values(owner, fixed_offset, new_val);
 		}
 	}
 }
@@ -155,12 +164,16 @@ void bulk_apply_masked_modifier_to_nations(sys::state& state, dcon::modifier_id 
 		if(!(nat_values.offsets[i]))
 			break; // no more modifier values attached
 
+		auto fixed_offset = nat_values.offsets[i];
+		auto modifier_amount = nat_values.values[i];
+		const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
 		state.world.execute_serial_over_nation(
-				[&, fixed_offset = nat_values.offsets[i], modifier_amount = nat_values.values[i]](auto nation_indices) {
+				[&](auto nation_indices) {
 					auto has_mod_mask = mask_functor(nation_indices);
 					auto old_mod_value = state.world.nation_get_modifier_values(nation_indices, fixed_offset);
+					auto new_mod_value = (metadata.op == sys::modifier_operation::add ? old_mod_value + modifier_amount : old_mod_value * modifier_amount);
 					state.world.nation_set_modifier_values(nation_indices, fixed_offset,
-							ve::select(has_mod_mask, old_mod_value + modifier_amount, old_mod_value));
+							ve::select(has_mod_mask, new_mod_value, old_mod_value));
 				});
 	}
 }
@@ -172,11 +185,16 @@ void bulk_apply_scaled_modifier_to_nations(sys::state& state, dcon::modifier_id 
 		if(!(nat_values.offsets[i]))
 			break; // no more modifier values attached
 
+
+		auto fixed_offset = nat_values.offsets[i];
+		auto modifier_amount = nat_values.values[i];
+		const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
 		state.world.execute_serial_over_nation(
-				[&, fixed_offset = nat_values.offsets[i], modifier_amount = nat_values.values[i]](auto nation_indices) {
+				[&](auto nation_indices) {
 					auto scaling_factor = scale_functor(nation_indices);
 					auto old_mod_value = state.world.nation_get_modifier_values(nation_indices, fixed_offset);
-					state.world.nation_set_modifier_values(nation_indices, fixed_offset, old_mod_value + scaling_factor * modifier_amount);
+					auto new_mod_values = (metadata.op == sys::modifier_operation::add ? old_mod_value + modifier_amount * scaling_factor : old_mod_value * modifier_amount * scaling_factor);
+					state.world.nation_set_modifier_values(nation_indices, fixed_offset, new_mod_values);
 				});
 	}
 }
@@ -191,11 +209,13 @@ void bulk_apply_masked_modifier_to_provinces(sys::state& state, dcon::modifier_i
 
 		auto fixed_offset = prov_values.offsets[i];
 		auto modifier_amount = prov_values.values[i];
+		const auto& metadata = sys::province_modifier_metadata[fixed_offset.index()];
 		state.world.execute_serial_over_province([&](auto ids) {
 			auto has_mod_mask = mask_functor(ids);
 			auto old_value = state.world.province_get_modifier_values(ids, fixed_offset);
+			auto new_val = (metadata.op == sys::modifier_operation::add ? old_value + modifier_amount : old_value * modifier_amount);
 			state.world.province_set_modifier_values(ids, fixed_offset,
-					ve::select(has_mod_mask, old_value + modifier_amount, old_value));
+					ve::select(has_mod_mask, new_val, old_value));
 		});
 	}
 
@@ -207,14 +227,16 @@ void bulk_apply_masked_modifier_to_provinces(sys::state& state, dcon::modifier_i
 
 		auto fixed_offset = nat_values.offsets[i];
 		auto modifier_amount = nat_values.values[i];
+		const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
 
 		province::ve_for_each_land_province(state, [&](auto ids) {
 			auto owners = state.world.province_get_nation_from_province_ownership(ids);
 			auto has_mod_mask = mask_functor(ids) && (owners != dcon::nation_id{});
 
 			auto old_value = state.world.nation_get_modifier_values(owners, fixed_offset);
+			auto new_val = (metadata.op == sys::modifier_operation::add ? old_value + modifier_amount : old_value * modifier_amount);
 			state.world.nation_set_modifier_values(owners, fixed_offset,
-					ve::select(has_mod_mask, old_value + modifier_amount, old_value));
+					ve::select(has_mod_mask, new_val, old_value));
 		});
 	}
 }
@@ -229,9 +251,12 @@ void bulk_apply_modifier_to_provinces(sys::state& state, dcon::modifier_id mod_i
 		auto fixed_offset = prov_values.offsets[i];
 		auto modifier_amount = prov_values.values[i];
 
+		const auto& metadata = sys::province_modifier_metadata[fixed_offset.index()];
+
 		state.world.execute_serial_over_province([&](auto ids) {
 			auto old_value = state.world.province_get_modifier_values(ids, fixed_offset);
-			state.world.province_set_modifier_values(ids, fixed_offset, old_value + modifier_amount);
+			auto new_val = (metadata.op == sys::modifier_operation::add ? old_value + modifier_amount : old_value * modifier_amount);
+			state.world.province_set_modifier_values(ids, fixed_offset, new_val);
 		});
 	}
 }
@@ -247,10 +272,13 @@ void bulk_apply_scaled_modifier_to_provinces(sys::state& state, dcon::modifier_i
 		auto fixed_offset = prov_values.offsets[i];
 		auto modifier_amount = prov_values.values[i];
 
+		const auto& metadata = sys::province_modifier_metadata[fixed_offset.index()];
+
 		state.world.execute_serial_over_province([&](auto ids) {
 			auto scale = scale_functor(ids);
 			auto old_value = state.world.province_get_modifier_values(ids, fixed_offset);
-			state.world.province_set_modifier_values(ids, fixed_offset, old_value + modifier_amount * scale);
+			auto new_val = (metadata.op == sys::modifier_operation::add ? old_value + modifier_amount * scale : old_value * modifier_amount * scale);
+			state.world.province_set_modifier_values(ids, fixed_offset, new_val);
 		});
 	}
 
@@ -263,12 +291,15 @@ void bulk_apply_scaled_modifier_to_provinces(sys::state& state, dcon::modifier_i
 		auto fixed_offset = nat_values.offsets[i];
 		auto modifier_amount = nat_values.values[i];
 
+		const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
+
 		province::ve_for_each_land_province(state, [&](auto ids) {
 			auto owners = state.world.province_get_nation_from_province_ownership(ids);
 			auto scale = ve::select(owners != dcon::nation_id{}, scale_functor(ids), 0.0f);
 
 			auto old_value = state.world.nation_get_modifier_values(owners, fixed_offset);
-			state.world.nation_set_modifier_values(owners, fixed_offset, old_value + modifier_amount * scale);
+			auto new_val = (metadata.op == sys::modifier_operation::add ? old_value + modifier_amount * scale : old_value * modifier_amount * scale);
+			state.world.nation_set_modifier_values(owners, fixed_offset, new_val);
 		});
 	}
 }
@@ -276,7 +307,10 @@ void bulk_apply_scaled_modifier_to_provinces(sys::state& state, dcon::modifier_i
 void recreate_national_modifiers(sys::state& state) {
 	concurrency::parallel_for(uint32_t(0), sys::national_mod_offsets::count, [&](uint32_t i) {
 		dcon::national_modifier_value mid{dcon::national_modifier_value::value_base_t(i)};
-		state.world.execute_serial_over_nation([&](auto ids) { state.world.nation_set_modifier_values(ids, mid, ve::fp_vector{}); });
+		state.world.execute_serial_over_nation([&](auto ids) {
+			float start_val = sys::national_modifier_metadata[mid.index()].start_value;
+			state.world.nation_set_modifier_values(ids, mid, start_val);
+		});
 	});
 
 	for(auto n : state.world.in_nation) {
@@ -473,7 +507,8 @@ void update_single_nation_modifiers(sys::state& state, dcon::nation_id n) {
 
 	for(uint32_t i = uint32_t(0); i < sys::national_mod_offsets::count; ++i) {
 		dcon::national_modifier_value mid{dcon::national_modifier_value::value_base_t(i)};
-		state.world.nation_set_modifier_values(n, mid, 0.0f);
+		float start_val = sys::national_modifier_metadata[mid.index()].start_value;
+		state.world.nation_set_modifier_values(n, mid, start_val);
 	}
 
 	if(auto ts = state.world.nation_get_tech_school(n); ts)
@@ -623,8 +658,10 @@ void recreate_province_modifiers(sys::state& state) {
 	
 	concurrency::parallel_for(uint32_t(0), sys::provincial_mod_offsets::count, [&](uint32_t i) {
 		dcon::provincial_modifier_value mid{dcon::provincial_modifier_value::value_base_t(i)};
-		state.world.execute_serial_over_province(
-				[&](auto ids) { state.world.province_set_modifier_values(ids, mid, ve::fp_vector{}); });
+		state.world.execute_serial_over_province([&](auto ids) {
+			float start_val = sys::province_modifier_metadata[mid.index()].start_value;
+			state.world.province_set_modifier_values(ids, mid, start_val);
+		});
 	});
 	if(state.national_definitions.province_base) {
 		bulk_apply_modifier_to_provinces(state, state.national_definitions.province_base);
@@ -763,9 +800,15 @@ void repopulate_modifier_effects(sys::state& state) {
 // this is ran on update
 void update_modifier_effects(sys::state& state) {
 	purge_expired_national_province_modifiers(state);
+	auto begin = std::chrono::steady_clock::now();
 	recreate_national_modifiers(state);
+	auto end = std::chrono::steady_clock::now();
+	state.console_log(std::string("national mods time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
 	purge_expired_province_modifiers(state);
+	begin = std::chrono::steady_clock::now();
 	recreate_province_modifiers(state);
+	end = std::chrono::steady_clock::now();
+	state.console_log(std::string("province mods time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
 	for(auto n : state.world.in_nation) {
 		economy::bound_budget_settings(state, n);
 	}
