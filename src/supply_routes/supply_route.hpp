@@ -27,6 +27,16 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_cons
 float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as);
 float land_supply_speed(const sys::state& state, dcon::nation_id nation_as);
 
+template<concepts::dcon_id_ve_type<dcon::nation_id> nation_ids>
+ve::value_to_vector_type<float> naval_supply_speed(const sys::state& state, nation_ids nation_as) {
+	return ve::max(state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_add) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_mul) * (state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_percent) + 1.0f), 0.0f);
+};
+
+template<concepts::dcon_id_ve_type<dcon::nation_id> nation_ids>
+ve::value_to_vector_type<float> land_supply_speed(const sys::state& state, nation_ids nation_as) {
+	return ve::max(state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_add) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_mul) * (state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_percent) + 1.0f), 0.0f);
+};
+
 float port_supply_capacity_base_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
 float port_supply_capacity_naval_base_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);

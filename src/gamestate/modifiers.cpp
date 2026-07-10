@@ -22,6 +22,16 @@ void apply_hardcoded_modifier_values_to_nation(sys::state& state, dcon::nation_i
 	float cur_naval_throughput = fat_nation.get_modifier_values(sys::national_mod_offsets::national_naval_supply_throughput_add);
 	fat_nation.set_modifier_values(sys::national_mod_offsets::national_naval_supply_throughput_add, cur_naval_throughput + naval_supply_speed * supply_routes::supply_throughput_per_km_naval_supply_speed);
 }
+template<concepts::dcon_id_ve_type<dcon::nation_id> nation_ids>
+void ve_apply_hardcoded_modifier_values_to_nation(sys::state& state, nation_ids target_nations, ve::mask_vector apply_mask) {
+	auto land_supply_speed = supply_routes::land_supply_speed(state, target_nations);
+	auto cur_land_throughput = state.world.nation_get_modifier_values(target_nations, sys::national_mod_offsets::national_land_supply_throughput_add);
+	state.world.nation_set_modifier_values(target_nations, sys::national_mod_offsets::national_land_supply_throughput_add, ve::select(apply_mask, cur_land_throughput + land_supply_speed * supply_routes::supply_throughput_per_km_land_supply_speed, cur_land_throughput));
+
+	auto naval_supply_speed = supply_routes::naval_supply_speed(state, target_nations);
+	auto cur_naval_throughput = state.world.nation_get_modifier_values(target_nations, sys::national_mod_offsets::national_naval_supply_throughput_add);
+	state.world.nation_set_modifier_values(target_nations, sys::national_mod_offsets::national_naval_supply_throughput_add, ve::select(apply_mask, cur_naval_throughput + naval_supply_speed * supply_routes::supply_throughput_per_km_naval_supply_speed, cur_naval_throughput));
+}
 
 void apply_hardcoded_modifier_values_to_province(sys::state& state, dcon::province_id prov) {
 	auto fat_prov = fatten(state.world, prov);
@@ -29,6 +39,13 @@ void apply_hardcoded_modifier_values_to_province(sys::state& state, dcon::provin
 	auto movement_cost = province::movement_cost(state, prov);
 	float current = fat_prov.get_modifier_values(sys::provincial_mod_offsets::supply_throughput_percent);
 	fat_prov.set_modifier_values(sys::provincial_mod_offsets::supply_throughput_percent, current + ((1.0f / movement_cost) - 1.0f));
+}
+template<concepts::dcon_id_ve_type<dcon::province_id> province_ids>
+void ve_apply_hardcoded_modifier_values_to_province(sys::state& state, province_ids provs, ve::mask_vector apply_mask) {
+	// Apply supply throughput modifiers from movement cost
+	auto movement_cost = province::movement_cost(state, provs);
+	float current = state.world.province_get_modifier_values(provs, sys::provincial_mod_offsets::supply_throughput_percent);
+	state.world.province_set_modifier_values(provs, sys::provincial_mod_offsets::supply_throughput_percent, ve::select(apply_mask, current + ((1.0f / movement_cost) - 1.0f), current));
 }
 
 
@@ -48,6 +65,38 @@ void apply_modifier_values_to_nation(sys::state& state, dcon::nation_id target_n
 	}
 }
 
+template<concepts::dcon_id_ve_type<dcon::nation_id> nation_ids>
+void ve_apply_modifier_values_to_nation(sys::state& state, nation_ids target_nations, dcon::modifier_id mod_id) {
+	auto& nat_values = state.world.modifier_get_national_values(mod_id);
+	for(uint32_t i = 0; i < sys::national_modifier_definition::modifier_definition_size; ++i) {
+		if(!(nat_values.offsets[i]))
+			break; // no more modifier values
+
+		auto fixed_offset = nat_values.offsets[i];
+		auto modifier_amount = nat_values.values[i];
+		const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
+		auto current_val = state.world.nation_get_modifier_values(target_nations, fixed_offset);
+		auto new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount);
+		state.world.nation_set_modifier_values(target_nations, fixed_offset, new_val);
+	}
+}
+template<typename F, concepts::dcon_id_ve_type<dcon::nation_id> nation_ids>
+void ve_apply_masked_modifier_values_to_nation(sys::state& state, nation_ids target_nations, dcon::modifier_id mod_id, F&& mask_func) {
+	auto& nat_values = state.world.modifier_get_national_values(mod_id);
+	ve::mask_vector mask = mask_func(target_nations);
+	for(uint32_t i = 0; i < sys::national_modifier_definition::modifier_definition_size; ++i) {
+		if(!(nat_values.offsets[i]))
+			break; // no more modifier values
+
+		auto fixed_offset = nat_values.offsets[i];
+		auto modifier_amount = nat_values.values[i];
+		const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
+		auto current_val = state.world.nation_get_modifier_values(target_nations, fixed_offset);
+		state.world.nation_set_modifier_values(target_nations, fixed_offset, ve::select(mask, (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount),  current_val));
+	}
+}
+
+
 void apply_scaled_modifier_values_to_nation(sys::state& state, dcon::nation_id target_nation, dcon::modifier_id mod_id,
 		float scale) {
 	auto& nat_values = state.world.modifier_get_national_values(mod_id);
@@ -63,6 +112,22 @@ void apply_scaled_modifier_values_to_nation(sys::state& state, dcon::nation_id t
 		state.world.nation_set_modifier_values(target_nation, fixed_offset, new_val);
 	}
 }
+template<typename F, concepts::dcon_id_ve_type<dcon::nation_id> nation_ids>
+void ve_apply_scaled_modifier_values_to_nation(sys::state& state, nation_ids target_nations, dcon::modifier_id mod_id, ve::mask_vector apply_mask, F&& scale_func) {
+	auto& nat_values = state.world.modifier_get_national_values(mod_id);
+	auto scaling_factor = scale_func(target_nations);
+	for(uint32_t i = 0; i < sys::national_modifier_definition::modifier_definition_size; ++i) {
+		if(!(nat_values.offsets[i]))
+			break; // no more modifier values
+
+		auto fixed_offset = nat_values.offsets[i];
+		auto modifier_amount = nat_values.values[i];
+		const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
+		auto current_val = state.world.nation_get_modifier_values(target_nations, fixed_offset);
+		state.world.nation_set_modifier_values(target_nations, fixed_offset, ve::select(apply_mask, (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount * scaling_factor : current_val * modifier_amount * scaling_factor), current_val));
+	}
+}
+
 
 void apply_modifier_values_to_province(sys::state& state, dcon::province_id target_prov, dcon::modifier_id mod_id) {
 	auto& prov_values = state.world.modifier_get_province_values(mod_id);
@@ -78,22 +143,86 @@ void apply_modifier_values_to_province(sys::state& state, dcon::province_id targ
 		float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount);
 		state.world.province_set_modifier_values(target_prov, fixed_offset, new_val);
 	}
-	if(owner) {
-		auto& nat_values = state.world.modifier_get_national_values(mod_id);
-		for(uint32_t i = 0; i < sys::national_modifier_definition::modifier_definition_size; ++i) {
-			if(!(nat_values.offsets[i]))
-				break; // no more modifier values
+	//if(owner) {
+	//	auto& nat_values = state.world.modifier_get_national_values(mod_id);
+	//	for(uint32_t i = 0; i < sys::national_modifier_definition::modifier_definition_size; ++i) {
+	//		if(!(nat_values.offsets[i]))
+	//			break; // no more modifier values
 
-			auto fixed_offset = nat_values.offsets[i];
-			auto modifier_amount = nat_values.values[i];
-			const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
-			auto current_val = state.world.nation_get_modifier_values(owner, fixed_offset);
+	//		auto fixed_offset = nat_values.offsets[i];
+	//		auto modifier_amount = nat_values.values[i];
+	//		const auto& metadata = sys::national_modifier_metadata[fixed_offset.index()];
+	//		auto current_val = state.world.nation_get_modifier_values(owner, fixed_offset);
 
-			float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount);
-			state.world.nation_set_modifier_values(owner, fixed_offset, new_val);
-		}
+	//		float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount);
+	//		state.world.nation_set_modifier_values(owner, fixed_offset, new_val);
+	//	}
+	//}
+}
+
+template<concepts::dcon_id_ve_type<dcon::province_id> prov_ids>
+void ve_apply_modifier_values_to_province(sys::state& state, prov_ids target_provs, dcon::modifier_id mod_id) {
+	auto& prov_values = state.world.modifier_get_province_values(mod_id);
+	for(uint32_t i = 0; i < sys::provincial_modifier_definition::modifier_definition_size; ++i) {
+		if(!(prov_values.offsets[i]))
+			break; // no more modifier values
+
+		auto fixed_offset = prov_values.offsets[i];
+		auto modifier_amount = prov_values.values[i];
+		const auto& metadata = sys::province_modifier_metadata[fixed_offset.index()];
+		auto current_val = state.world.province_get_modifier_values(target_provs, fixed_offset);
+		float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount);
+		state.world.province_set_modifier_values(target_provs, fixed_offset, new_val);
 	}
 }
+template<typename F, concepts::dcon_id_ve_type<dcon::province_id> prov_ids>
+void ve_apply_masked_modifier_values_to_province(sys::state& state, prov_ids target_provs, dcon::modifier_id mod_id, ve::mask_vector apply_mask) {
+	auto& prov_values = state.world.modifier_get_province_values(mod_id);
+	for(uint32_t i = 0; i < sys::provincial_modifier_definition::modifier_definition_size; ++i) {
+		if(!(prov_values.offsets[i]))
+			break; // no more modifier values
+
+		auto fixed_offset = prov_values.offsets[i];
+		auto modifier_amount = prov_values.values[i];
+		const auto& metadata = sys::province_modifier_metadata[fixed_offset.index()];
+		auto current_val = state.world.province_get_modifier_values(target_provs, fixed_offset);
+		float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount);
+		state.world.province_set_modifier_values(target_provs, fixed_offset, ve::select(apply_mask, (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount), current_val));
+	}
+}
+template<typename F, concepts::dcon_id_ve_type<dcon::province_id> prov_ids>
+void ve_apply_scaled_modifier_values_to_province(sys::state& state, prov_ids target_provs, dcon::modifier_id mod_id, ve::mask_vector apply_mask, F&& scaling_func) {
+	auto& prov_values = state.world.modifier_get_province_values(mod_id);
+	auto scaling_factor = mask_func(target_provs);
+	for(uint32_t i = 0; i < sys::provincial_modifier_definition::modifier_definition_size; ++i) {
+		if(!(prov_values.offsets[i]))
+			break; // no more modifier values
+
+		auto fixed_offset = prov_values.offsets[i];
+		auto modifier_amount = prov_values.values[i];
+		const auto& metadata = sys::province_modifier_metadata[fixed_offset.index()];
+		auto current_val = state.world.province_get_modifier_values(target_provs, fixed_offset);
+		float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount : current_val * modifier_amount);
+		state.world.province_set_modifier_values(target_provs, fixed_offset, ve::select(apply_mask, (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount * scaling_factor : current_val * modifier_amount * scaling_factor), current_val));
+	}
+}
+
+
+void apply_scaled_modifier_values_to_province(sys::state& state, dcon::province_id target_prov, dcon::modifier_id mod_id, float scale) {
+	auto& prov_values = state.world.modifier_get_province_values(mod_id);
+	for(uint32_t i = 0; i < sys::provincial_modifier_definition::modifier_definition_size; ++i) {
+		if(!(prov_values.offsets[i]))
+			break; // no more modifier values
+
+		auto fixed_offset = prov_values.offsets[i];
+		auto modifier_amount = prov_values.values[i];
+		const auto& metadata = sys::province_modifier_metadata[fixed_offset.index()];
+		auto current_val = state.world.province_get_modifier_values(target_prov, fixed_offset);
+		float new_val = (metadata.op == sys::modifier_operation::add ? current_val + modifier_amount * scale : current_val * modifier_amount * scale);
+		state.world.province_set_modifier_values(target_prov, fixed_offset, new_val);
+	}
+}
+
 
 void add_modifier_to_nation(sys::state& state, dcon::nation_id target_nation, dcon::modifier_id mod_id, sys::date expiration) {
 	assert(state.world.nation_is_valid(target_nation) && "Invalid write incoming!");
@@ -305,201 +434,180 @@ void bulk_apply_scaled_modifier_to_provinces(sys::state& state, dcon::modifier_i
 }
 
 void recreate_national_modifiers(sys::state& state) {
-	concurrency::parallel_for(uint32_t(0), sys::national_mod_offsets::count, [&](uint32_t i) {
-		dcon::national_modifier_value mid{dcon::national_modifier_value::value_base_t(i)};
-		state.world.execute_serial_over_nation([&](auto ids) {
-			float start_val = sys::national_modifier_metadata[mid.index()].start_value;
-			state.world.nation_set_modifier_values(ids, mid, start_val);
-		});
-	});
 
-	for(auto n : state.world.in_nation) {
-		if(auto ts = n.get_tech_school(); ts)
-			apply_modifier_values_to_nation(state, n, ts);
-	}
-	for(auto n : state.world.in_nation) {
-		if(auto nv = n.get_national_value(); nv)
-			apply_modifier_values_to_nation(state, n, nv);
-	}
-	for(auto n : state.world.in_nation) {
-		if(auto rgmd = n.get_religion().get_nation_modifier(); rgmd) {
-			// Apply only when state religion is majority religion. The function is called once per month
-			if(state.world.nation_get_dominant_religion(n) == state.world.nation_get_religion(n)) {
-				apply_modifier_values_to_nation(state, n, rgmd);
+	ve::execute_parallel<dcon::nation_id>(state.world.nation_size(), [&](auto nations) {
+
+		ve::mask_vector nations_valid = ve::apply([&](dcon::nation_id nation) {
+			return state.world.nation_is_valid(nation);
+		}, nations);
+
+		for(uint32_t i = 0; i < sys::national_mod_offsets::count; i++) {
+			dcon::national_modifier_value mid{ dcon::national_modifier_value::value_base_t(i) };
+			float prev_val = state.world.nation_get_modifier_values(nations, mid);
+			float start_val = sys::national_modifier_metadata[mid.index()].start_value;
+			state.world.nation_set_modifier_values(nations, mid, ve::select(nations_valid, start_val, prev_val));
+		}
+
+
+		ve::apply([&](dcon::nation_id nation, bool is_valid) {
+			if(is_valid) {
+				for(auto mpr : state.world.nation_get_current_modifiers(nation)) {
+					apply_modifier_values_to_nation(state, nation, mpr.mod_id);
+				}
+				if(auto ts = state.world.nation_get_tech_school(nation); ts) {
+					apply_modifier_values_to_nation(state, nation, ts);
+				}
+				if(auto nv = state.world.nation_get_national_value(nation); nv) {
+					apply_modifier_values_to_nation(state, nation, nv);
+				}
+				if(auto rgmd = state.world.religion_get_nation_modifier(state.world.nation_get_religion(nation)); rgmd) {
+					// Apply only when state religion is majority religion. The function is called once per month
+					if(state.world.nation_get_dominant_religion(nation) == state.world.nation_get_religion(nation)) {
+						apply_modifier_values_to_nation(state, nation, rgmd);
+					}
+				}
+				state.world.for_each_issue([&](dcon::issue_id i) {
+					auto iopt = state.world.nation_get_issues(nation, i);
+					auto imod = state.world.issue_option_get_modifier(iopt);
+					if(imod && (state.world.nation_get_is_civilized(nation) || state.world.issue_get_issue_type(i) == uint8_t(culture::issue_type::party))) {
+						apply_modifier_values_to_nation(state, nation, imod);
+					}
+				});
+				state.world.for_each_reform([&](dcon::reform_id i) {
+					auto iopt = state.world.nation_get_reforms(nation, i);
+					auto imod = state.world.reform_option_get_modifier(iopt);
+					if(imod && !state.world.nation_get_is_civilized(nation)) {
+						apply_modifier_values_to_nation(state, nation, imod);
+					}
+				});
+
+				if(state.national_definitions.fastest_land_unit_speed) {
+					auto fastest_land_unit = state.world.nation_get_fastest_unlocked_land_unit(nation);
+					auto spd = state.world.nation_get_unit_stats(nation, fastest_land_unit).maximum_speed;
+					apply_scaled_modifier_values_to_nation(state, nation, state.national_definitions.fastest_land_unit_speed, spd);
+				}
+				if(state.national_definitions.fastest_transport_unit_speed) {
+					auto fastest_transport_unit = state.world.nation_get_fastest_unlocked_transport_unit(nation);
+					auto spd = state.world.nation_get_unit_stats(nation, fastest_transport_unit).maximum_speed;
+					apply_scaled_modifier_values_to_nation(state, nation, state.national_definitions.fastest_transport_unit_speed, spd);
+				}
+				if(state.national_definitions.disarming) {
+					if(bool(state.world.nation_get_disarmed_until(nation)) && state.world.nation_get_disarmed_until(nation) > state.current_date) {
+						apply_modifier_values_to_nation(state, nation, state.national_definitions.disarming);
+					}
+				}
+
 			}
-		}
-	}
-	for(auto n : state.world.in_nation) {
-		for(auto mpr : state.world.nation_get_current_modifiers(n)) {
-			apply_modifier_values_to_nation(state, n, mpr.mod_id);
-		}
-	}
-	state.world.for_each_technology([&](dcon::technology_id t) {
-		auto tmod = state.world.technology_get_modifier(t);
-		if(tmod) {
-			bulk_apply_masked_modifier_to_nations(state, tmod,
-					[&](auto ids) { return state.world.nation_get_active_technologies(ids, t); });
-		}
-	});
-	state.world.for_each_invention([&](dcon::invention_id i) {
-		auto tmod = state.world.invention_get_modifier(i);
-		if(tmod) {
-			bulk_apply_masked_modifier_to_nations(state, tmod,
-					[&](auto ids) { return state.world.nation_get_active_inventions(ids, i); });
-		}
-	});
-	state.world.for_each_issue([&](dcon::issue_id i) {
-		for(auto n : state.world.in_nation) {
-			auto iopt = state.world.nation_get_issues(n, i);
-			auto imod = state.world.issue_option_get_modifier(iopt);
-			if(imod && (n.get_is_civilized() || state.world.issue_get_issue_type(i) == uint8_t(culture::issue_type::party))) {
-				apply_modifier_values_to_nation(state, n, imod);
+
+		}, nations, nations_valid);
+
+		state.world.for_each_technology([&](dcon::technology_id tech) {
+			auto tmod = state.world.technology_get_modifier(tech);
+			if(tmod) {
+				ve_apply_masked_modifier_values_to_nation(state, nations, tmod, [&](auto ids) {  return nations_valid && state.world.nation_get_active_technologies(ids, tech); });
 			}
-		}
-	});
-	state.world.for_each_reform([&](dcon::reform_id i) {
-		for(auto n : state.world.in_nation) {
-			auto iopt = state.world.nation_get_reforms(n, i);
-			auto imod = state.world.reform_option_get_modifier(iopt);
-			if(imod && !n.get_is_civilized()) {
-				apply_modifier_values_to_nation(state, n, imod);
+		});
+
+		state.world.for_each_invention([&](dcon::invention_id invention) {
+			auto imod = state.world.invention_get_modifier(invention);
+			if(imod) {
+				ve_apply_masked_modifier_values_to_nation(state, nations, imod, [&](auto ids) {  return nations_valid && state.world.nation_get_active_inventions(ids, invention); });
 			}
+		});
+
+		if(state.national_definitions.war) {
+			ve_apply_masked_modifier_values_to_nation(state, nations, state.national_definitions.war, [&](auto ids) { return nations_valid && state.world.nation_get_is_at_war(ids); });
 		}
-	});
-	for(auto n : state.world.in_nation) {
-		auto in_wars = n.get_war_participant();
-		if(in_wars.begin() != in_wars.end()) {
-			if(state.national_definitions.war)
-				apply_modifier_values_to_nation(state, n, state.national_definitions.war);
-		} else {
-			if(state.national_definitions.peace)
-				apply_modifier_values_to_nation(state, n, state.national_definitions.peace);
+
+		if(state.national_definitions.peace) {
+			ve_apply_masked_modifier_values_to_nation(state, nations, state.national_definitions.peace, [&](auto ids) { return nations_valid && !state.world.nation_get_is_at_war(ids); });
 		}
 
 		if(state.national_definitions.nation_base) {
-			apply_modifier_values_to_nation(state, n, state.national_definitions.nation_base);
+			ve_apply_masked_modifier_values_to_nation(state, nations, state.national_definitions.nation_base, [&](auto ids) { return nations_valid; });
 		}
-	}
+		if(state.national_definitions.badboy) {
+			ve_apply_scaled_modifier_values_to_nation(state, nations, state.national_definitions.badboy, nations_valid , [&](auto ids) { return state.world.nation_get_infamy(ids); });
+		}
+		if(state.national_definitions.plurality) {
+			ve_apply_scaled_modifier_values_to_nation(state, nations, state.national_definitions.plurality, nations_valid,[&](auto ids) { return state.world.nation_get_plurality(ids); });
+		}
+		if(state.national_definitions.war_exhaustion) {
+			ve_apply_scaled_modifier_values_to_nation(state, nations, state.national_definitions.war_exhaustion, nations_valid,[&](auto ids) { return state.world.nation_get_war_exhaustion(ids); });
+		}
+		if(state.national_definitions.average_literacy) {
+			ve_apply_scaled_modifier_values_to_nation(state, nations, state.national_definitions.average_literacy, nations_valid, [&](auto ids) {
+				auto total = state.world.nation_get_demographics(ids, demographics::non_colonial_total);
+				return ve::select(total > 0, state.world.nation_get_demographics(ids, demographics::non_colonial_literacy) / total, 0.0f);
+			});
+		}
+		if(state.national_definitions.total_blockaded) {
+			ve_apply_scaled_modifier_values_to_nation(state, nations, state.national_definitions.total_blockaded, nations_valid, [&](auto ids) {
+				auto bc = ve::to_float(state.world.nation_get_central_blockaded(ids));
+				auto c = ve::to_float(state.world.nation_get_central_ports(ids));
+				return ve::select(c > 0.0f, bc / c, 0.0f);
+			});
+		}
 
-	if(state.national_definitions.badboy) {
-		bulk_apply_scaled_modifier_to_nations(state, state.national_definitions.badboy,
-				[&](auto ids) { return state.world.nation_get_infamy(ids); });
-	}
-	if(state.national_definitions.plurality) {
-		bulk_apply_scaled_modifier_to_nations(state, state.national_definitions.plurality,
-				[&](auto ids) { return state.world.nation_get_plurality(ids); });
-	}
-	if(state.national_definitions.war_exhaustion) {
-		bulk_apply_scaled_modifier_to_nations(state, state.national_definitions.war_exhaustion,
-				[&](auto ids) { return state.world.nation_get_war_exhaustion(ids); });
-	}
-	if(state.national_definitions.average_literacy) {
-		bulk_apply_scaled_modifier_to_nations(state, state.national_definitions.average_literacy, [&](auto ids) {
-			auto total = state.world.nation_get_demographics(ids, demographics::non_colonial_total);
-			return ve::select(total > 0, state.world.nation_get_demographics(ids, demographics::non_colonial_literacy) / total, 0.0f);
-		});
-	}
-	if(state.national_definitions.total_blockaded) {
-		bulk_apply_scaled_modifier_to_nations(state, state.national_definitions.total_blockaded, [&](auto ids) {
-			auto bc = ve::to_float(state.world.nation_get_central_blockaded(ids));
-			auto c = ve::to_float(state.world.nation_get_central_ports(ids));
-			return ve::select(c > 0.0f, bc / c, 0.0f);
-		});
-	}
-	if(state.national_definitions.total_occupation) {
-		bulk_apply_scaled_modifier_to_nations(state, state.national_definitions.total_occupation, [&](auto ids) {
-			return ve::apply(
-					[&](dcon::nation_id nid) {
-						auto n = fatten(state.world, nid);
-						auto cap_continent = n.get_capital().get_continent();
-						float total = 0.0f;
-						float occupied = 0.0f;
-						for(auto owned : n.get_province_ownership()) {
-							if(owned.get_province().get_continent() == cap_continent) {
-								total += 1.0f;
-								if(auto c = owned.get_province().get_nation_from_province_control().id; c && c != n.id) {
-									occupied += 1.0f;
+		if(state.national_definitions.total_occupation) {
+			ve_apply_scaled_modifier_values_to_nation(state, nations, state.national_definitions.total_occupation, nations_valid, [&](auto ids) {
+				return ve::apply(
+						[&](dcon::nation_id nid) {
+								auto n = fatten(state.world, nid);
+								auto cap_continent = n.get_capital().get_continent();
+								float total = 0.0f;
+								float occupied = 0.0f;
+								for(auto owned : n.get_province_ownership()) {
+									if(owned.get_province().get_continent() == cap_continent) {
+										total += 1.0f;
+										if(auto c = owned.get_province().get_nation_from_province_control().id; c && c != n.id) {
+											occupied += 1.0f;
+										}
+									}
 								}
-							}
-						}
-						if(total > 0.0f)
-							return 100.0f * occupied / total;
-						else
-							return 0.0f;
-					},
-					ids);
-		});
-	}
-	for(auto n : state.world.in_nation) {
-		if(n.get_is_civilized() == false) {
-			if(state.national_definitions.unciv_nation) {
-				apply_modifier_values_to_nation(state, n, state.national_definitions.unciv_nation);
-			}
-		} else if(nations::is_great_power(state, n)) {
-			if(state.national_definitions.great_power)
-				apply_modifier_values_to_nation(state, n, state.national_definitions.great_power);
-		} else if(n.get_rank() <= uint16_t(state.defines.colonial_rank)) {
-			if(state.national_definitions.second_power)
-				apply_modifier_values_to_nation(state, n, state.national_definitions.second_power);
-		} else {
-			if(state.national_definitions.civ_nation)
-				apply_modifier_values_to_nation(state, n, state.national_definitions.civ_nation);
+								if(total > 0.0f)
+									return 100.0f * occupied / total;
+								else
+									return 0.0f;
+						},
+						ids);
+			});
 		}
 
-		if(state.national_definitions.fastest_land_unit_speed) {
-			auto fastest_land_unit = state.world.nation_get_fastest_unlocked_land_unit(n);
-			auto spd = state.world.nation_get_unit_stats(n, fastest_land_unit).maximum_speed;
-			apply_scaled_modifier_values_to_nation(state, n, state.national_definitions.fastest_land_unit_speed, spd);
+		if(state.national_definitions.unciv_nation) {
+			ve_apply_masked_modifier_values_to_nation(state, nations, state.national_definitions.unciv_nation, [&](auto ids) { return nations_valid && !state.world.nation_get_is_civilized(ids); });
 		}
-		if(state.national_definitions.fastest_transport_unit_speed) {
-			auto fastest_transport_unit = state.world.nation_get_fastest_unlocked_transport_unit(n);
-			auto spd = state.world.nation_get_unit_stats(n, fastest_transport_unit).maximum_speed;
-			apply_scaled_modifier_values_to_nation(state, n, state.national_definitions.fastest_transport_unit_speed, spd);
+		if(state.national_definitions.great_power) {
+			ve_apply_masked_modifier_values_to_nation(state, nations, state.national_definitions.great_power, [&](auto ids) { return nations_valid && state.world.nation_get_is_great_power(ids); });
+		}
+		if(state.national_definitions.second_power) {
+			ve_apply_masked_modifier_values_to_nation(state, nations, state.national_definitions.second_power, [&](auto ids) { return nations_valid && state.world.nation_get_rank(ids) <= uint16_t(state.defines.colonial_rank) && !state.world.nation_get_is_great_power(ids); });
+		}
+		if(state.national_definitions.civ_nation) {
+			ve_apply_masked_modifier_values_to_nation(state, nations, state.national_definitions.civ_nation, [&](auto ids) {
+				return nations_valid && state.world.nation_get_rank(ids) > uint16_t(state.defines.colonial_rank) && state.world.nation_get_is_civilized(ids);
+			});
+		}
+		if(state.national_definitions.in_bankrupcy) {
+			ve_apply_masked_modifier_values_to_nation(state, nations, state.national_definitions.in_bankrupcy,
+					[&](auto ids) { return nations_valid && state.world.nation_get_is_bankrupt(ids); });
 		}
 
-	}
-	if(state.national_definitions.disarming) {
-		for(auto n : state.world.in_nation) {
-			if(bool(n.get_disarmed_until()) && n.get_disarmed_until() > state.current_date) {
-				apply_modifier_values_to_nation(state, n, state.national_definitions.disarming);
-			}
-		}
-	}
-	if(state.national_definitions.in_bankrupcy) {
-		bulk_apply_masked_modifier_to_nations(state, state.national_definitions.in_bankrupcy,
-				[&](auto ids) { return state.world.nation_get_is_bankrupt(ids); });
-	}
-	// TODO: debt
+		for(auto tm : state.national_definitions.triggered_modifiers) {
+			if(tm.trigger_condition && tm.linked_modifier) {
 
-	for(auto tm : state.national_definitions.triggered_modifiers) {
-		if(tm.trigger_condition && tm.linked_modifier) {
-			auto& nat_values = state.world.modifier_get_national_values(tm.linked_modifier);
-			auto size_used = state.world.nation_size();
-			ve::execute_serial_fast<dcon::nation_id>(size_used, [&](auto nids) {
 				auto trigger_condition_satisfied =
-						trigger::evaluate(state, tm.trigger_condition, trigger::to_generic(nids), trigger::to_generic(nids), 0) &&
-						ve::apply([size_used](auto n) { return n.index() < int32_t(size_used); }, nids);
+					nations_valid && trigger::evaluate(state, tm.trigger_condition, trigger::to_generic(nations), trigger::to_generic(nations), 0);
 				auto compressed_res = ve::compress_mask(trigger_condition_satisfied);
 				if(compressed_res.v == ve::vbitfield_type::storage(0)) {
 					return;
 				} else {
-					for(uint32_t i = 0; i < sys::national_modifier_definition::modifier_definition_size; ++i) {
-						if(!(nat_values.offsets[i]))
-							break; // no more modifier values attached
-
-						auto fixed_offset = nat_values.offsets[i];
-						auto modifier_amount = nat_values.values[i];
-						auto old_mod_value = state.world.nation_get_modifier_values(nids, fixed_offset);
-						state.world.nation_set_modifier_values(nids, fixed_offset,
-								ve::select(trigger_condition_satisfied, old_mod_value + modifier_amount, old_mod_value));
-					}
+					ve_apply_masked_modifier_values_to_nation(state, nations, tm.linked_modifier, [&](auto ids) { return nations_valid && trigger_condition_satisfied; });
 				}
-			});
+			}
 		}
-	}
-	for(auto nation : state.world.in_nation) {
-		apply_hardcoded_modifier_values_to_nation(state, nation);
-	}
+		ve_apply_hardcoded_modifier_values_to_nation(state, nations, nations_valid);
+	});
 
 }
 
@@ -653,6 +761,128 @@ void update_single_nation_modifiers(sys::state& state, dcon::nation_id n) {
 
 	apply_hardcoded_modifier_values_to_nation(state, n);
 }
+template<typename T>
+void recreate_single_shared_province_modifiers(sys::state& state, dcon::province_id province) {
+
+	auto owner = state.world.province_get_nation_from_province_ownership(province);
+
+	if constexpr(std::is_same_v<T, dcon::national_modifier_value>) {
+		if(!owner) {
+			return;
+		}
+	}
+
+	auto add_modifier = [&](dcon::modifier_id modifier) {
+		if constexpr(std::is_same_v<T, dcon::provincial_modifier_value>) {
+			apply_modifier_values_to_province(state, province, modifier);
+		}
+		else if constexpr(std::is_same_v<T, dcon::national_modifier_value>) {
+			apply_modifier_values_to_nation(state, owner, modifier);
+		}
+	};
+
+
+	for(auto mpr : state.world.province_get_current_modifiers(province)) {
+		add_modifier(mpr.mod_id);
+	}
+	if(auto m = state.world.province_get_terrain(province); m) {
+		add_modifier(m);
+	}
+	if(auto m = state.world.province_get_climate(province); m) {
+		add_modifier(m);
+	}
+	if(auto m = state.world.province_get_continent(province); m) {
+		add_modifier(m);
+	}
+	
+
+	if(state.national_definitions.province_base) {
+		add_modifier(state.national_definitions.province_base);
+	}
+	apply_hardcoded_modifier_values_to_province(state, provinces, provinces_valid);
+}
+
+template<typename T>
+void recreate_single_land_province_modifiers(sys::state& state, dcon::province_id province) {
+
+	auto owner = state.world.province_get_nation_from_province_ownership(province);
+
+	auto add_modifier = [&](dcon::modifier_id modifier) {
+		if constexpr(std::is_same_v<T, dcon::provincial_modifier_value>) {
+			apply_modifier_values_to_province(state, province, modifier);
+		} else if constexpr(std::is_same_v<T, dcon::national_modifier_value>) {
+			apply_modifier_values_to_nation(state, owner, modifier);
+		}
+	};
+
+	if(state.national_definitions.land_province) {
+		add_modifier(state.national_definitions.land_province);
+	}
+	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
+		if(state.economy_definitions.building_definitions[int32_t(t)].province_modifier) {
+			apply_scaled_modifier_values_to_province(state, province, state.economy_definitions.building_definitions[int32_t(t)].province_modifier, state.world.province_get_building_level(ids, uint8_t(t)));
+			apply_scaled_modifier_values_to_nation()
+		}
+	}
+	if(state.national_definitions.infrastructure) {
+		ve_apply_scaled_modifier_values_to_province(state, provinces, state.national_definitions.infrastructure, [&](auto ids) {
+			return ve::to_float(state.world.province_get_building_level(ids, uint8_t(economy::province_building_type::railroad))) *
+				state.economy_definitions.building_definitions[int32_t(economy::province_building_type::railroad)].infrastructure;
+		});
+	}
+
+	if(state.national_definitions.nationalism) {
+		ve_apply_scaled_modifier_values_to_province(state, provinces, state.national_definitions.nationalism, provinces_valid, [&](auto ids) {
+			return ve::select(state.world.province_get_is_owner_core(ids), 0.0f, state.world.province_get_nationalism(ids));
+		});
+	}
+	if(state.national_definitions.non_coastal) {
+		ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.non_coastal, provinces_valid && !state.world.province_get_is_coast(provinces));
+	}
+	if(state.national_definitions.coastal) {
+		ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.coastal, provinces_valid && state.world.province_get_is_coast(provinces));
+	}
+	if(state.national_definitions.overseas) {
+		ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.overseas, provinces_valid && province::is_overseas(state, ids));
+	}
+	if(state.national_definitions.core) {
+		ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.core, provinces_valid && state.world.province_get_is_owner_core(ids));
+	}
+	if(state.national_definitions.has_siege) {
+		ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.has_siege, provinces_valid && military::province_is_under_siege(state, ids));
+	}
+	if(state.national_definitions.blockaded) {
+		ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.blockaded, provinces_valid && military::province_is_blockaded(state, ids));
+	}
+	if(state.national_definitions.province_militancy) {
+		ve_apply_scaled_modifier_values_to_province(state, provinces, state.national_definitions.province_militancy, provinces_valid, [&](auto ids) {
+			auto total_militancy = state.world.province_get_demographics(ids, demographics::militancy);
+			auto total_pop = state.world.province_get_demographics(ids, demographics::total);
+			return ve::select(total_pop == 0.0f, 0.0f, (total_militancy / total_pop) / 10.0f);
+
+		});
+	}
+	if(state.national_definitions.province_control) {
+		ve_apply_scaled_modifier_values_to_province(state, provinces, state.national_definitions.province_control, provinces_valid, [&](auto ids) {
+			auto control_level = state.world.province_get_control_ratio(ids);
+			return control_level / 1.0f;
+		});
+	}
+
+	ve::apply([&](dcon::province_id prov, bool is_valid) {
+		if(is_valid) {
+			if(auto m = state.world.province_get_state_membership(prov).get_owner_focus(); m) {
+				apply_modifier_values_to_province(state, p, m.get_modifier());
+			}
+			if(auto c = state.world.province_get_crime(prov); c) {
+				if(auto m = state.culture_definitions.crimes[c].modifier; m) {
+					apply_modifier_values_to_province(state, prov, m);
+				}
+			}
+		}
+	});
+
+}
 
 void recreate_province_modifiers(sys::state& state) {
 	
@@ -663,7 +893,112 @@ void recreate_province_modifiers(sys::state& state) {
 			state.world.province_set_modifier_values(ids, mid, start_val);
 		});
 	});
-	if(state.national_definitions.province_base) {
+
+	// First, do modifier types which affect both sea and land provs
+	state.world.execute_parallel_over_province([&](auto provinces) {
+		ve::mask_vector provinces_valid = ve::apply([&](dcon::province_id prov) {
+			return state.world.province_is_valid(prov);
+		}, provinces);
+
+		ve::apply([&](dcon::province_id prov, bool is_valid) {
+			if(is_valid) {
+				for(auto mpr : state.world.province_get_current_modifiers(prov)) {
+					apply_modifier_values_to_province(state, prov, mpr.mod_id);
+				}
+				if(auto m = state.world.province_get_terrain(prov); m) {
+					apply_modifier_values_to_province(state, prov, m);
+				}
+				if(auto m = state.world.province_get_climate(prov); m) {
+					apply_modifier_values_to_province(state, prov, m);
+				}
+				if(auto m = state.world.province_get_continent(prov); m) {
+					apply_modifier_values_to_province(state, prov, m);
+				}		
+
+			}
+		}, provinces, provinces_valid);
+
+		if(state.national_definitions.province_base) {
+			ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.province_base, provinces_valid);
+		}
+		ve_apply_hardcoded_modifier_values_to_province(state, provinces, provinces_valid);
+
+	});
+	// Then modifiers for land-only provinces
+	province::ve_parallel_for_each_land_province(state, [&](auto provinces) {
+		ve::mask_vector provinces_valid = ve::apply([&](dcon::province_id prov) {
+			return state.world.province_is_valid(prov);
+		}, provinces);
+		if(state.national_definitions.land_province) {
+			ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.land_province, provinces_valid);
+		}
+		for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
+			if(state.economy_definitions.building_definitions[int32_t(t)].province_modifier) {
+				ve_apply_scaled_modifier_values_to_province(state, provinces, state.economy_definitions.building_definitions[int32_t(t)].province_modifier, provinces_valid, [&](auto ids) { return ve::to_float(state.world.province_get_building_level(ids, uint8_t(t))); });
+			}
+		}
+		if(state.national_definitions.infrastructure) {
+			ve_apply_scaled_modifier_values_to_province(state, provinces, state.national_definitions.infrastructure, [&](auto ids) {
+				return ve::to_float(state.world.province_get_building_level(ids, uint8_t(economy::province_building_type::railroad))) *
+					state.economy_definitions.building_definitions[int32_t(economy::province_building_type::railroad)].infrastructure;
+			});
+		}
+
+		if(state.national_definitions.nationalism) {
+			ve_apply_scaled_modifier_values_to_province(state, provinces, state.national_definitions.nationalism, provinces_valid, [&](auto ids) {
+				return ve::select(state.world.province_get_is_owner_core(ids), 0.0f, state.world.province_get_nationalism(ids));
+			});
+		}
+		if(state.national_definitions.non_coastal) {
+			ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.non_coastal, provinces_valid && !state.world.province_get_is_coast(provinces));
+		}
+		if(state.national_definitions.coastal) {
+			ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.coastal, provinces_valid && state.world.province_get_is_coast(provinces));
+		}
+		if(state.national_definitions.overseas) {
+			ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.overseas, provinces_valid && province::is_overseas(state, ids));
+		}
+		if(state.national_definitions.core) {
+			ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.core, provinces_valid && state.world.province_get_is_owner_core(ids));
+		}
+		if(state.national_definitions.has_siege) {
+			ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.has_siege, provinces_valid && military::province_is_under_siege(state, ids));
+		}
+		if(state.national_definitions.blockaded) {
+			ve_apply_masked_modifier_values_to_province(state, provinces, state.national_definitions.blockaded, provinces_valid && military::province_is_blockaded(state, ids));
+		}
+		if(state.national_definitions.province_militancy) {
+			ve_apply_scaled_modifier_values_to_province(state, provinces, state.national_definitions.province_militancy, provinces_valid, [&](auto ids) {
+				auto total_militancy = state.world.province_get_demographics(ids, demographics::militancy);
+				auto total_pop = state.world.province_get_demographics(ids, demographics::total);
+				return ve::select(total_pop == 0.0f, 0.0f, (total_militancy / total_pop) / 10.0f);
+
+			});
+		}
+		if(state.national_definitions.province_control) {
+			ve_apply_scaled_modifier_values_to_province(state, provinces, state.national_definitions.province_control, provinces_valid, [&](auto ids) {
+				auto control_level = state.world.province_get_control_ratio(ids);
+				return control_level / 1.0f;
+			});
+		}
+
+		ve::apply([&](dcon::province_id prov, bool is_valid) {
+			if(is_valid) {
+				if(auto m = state.world.province_get_state_membership(prov).get_owner_focus(); m) {
+					apply_modifier_values_to_province(state, p, m.get_modifier());
+				}
+				if(auto c = state.world.province_get_crime(prov); c) {
+					if(auto m = state.culture_definitions.crimes[c].modifier; m) {
+						apply_modifier_values_to_province(state, prov, m);
+					}
+				}
+			}
+		});
+	});
+
+
+
+	/*if(state.national_definitions.province_base) {
 		bulk_apply_modifier_to_provinces(state, state.national_definitions.province_base);
 	}
 	if(state.national_definitions.land_province) {
@@ -763,7 +1098,7 @@ void recreate_province_modifiers(sys::state& state) {
 	}
 	state.world.for_each_province([&](dcon::province_id p) {
 		apply_hardcoded_modifier_values_to_province(state, p);
-	});
+	});*/
 }
 
 // removes province modifiers which has expired, should be used on daily update
