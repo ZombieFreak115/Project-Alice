@@ -54,7 +54,10 @@ constexpr float militancy_supply_loss = 2.0f; // the supply loss  when the provi
 constexpr float hostile_army_supply_loss = 0.0f; // the supply loss  per POP_SIZE_PER_REGIMENT enemy strength present in the land province
 constexpr float convoy_raiding_supply_loss = 0.0f; // the supply loss per effective convoy_raiding stats present in the sea province
 
-constexpr float max_supply_route_loss = 0.5f; // the maximum total supply loss % a route may incur. 
+constexpr float max_supply_route_loss = 0.5f; // the maximum total supply loss % a route may incur.
+
+constexpr float base_port_supply_capacity = 0.1f;
+constexpr float naval_base_port_supply_capacity = 5.0f;
 
 }
 

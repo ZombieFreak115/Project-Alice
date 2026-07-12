@@ -121,58 +121,60 @@ float get_enemy_convoy_raiding_power(const sys::state& state, dcon::province_id 
 
 
 float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
-	return std::max( state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_add) * (state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_percent) + 1.0f), 0.0f);
+	return std::max(state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_add) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_mul) * (state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_percent) + 1.0f), 0.0f);
 }
 
 
 float land_supply_speed(const sys::state& state, dcon::nation_id nation_as) {
-	return std::max(state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_add) * (state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_percent) + 1.0f), 0.0f);
+	return std::max(state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_add) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_mul) * (state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_percent) + 1.0f), 0.0f);
 }
 
-float port_supply_capacity_base_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
-	constexpr float base_port_supply_throughput = 0.1f;
-	assert(province::is_port(state, port_prov)); // Should always be a port prov
-	return base_port_supply_throughput;
-}
-
-float port_supply_capacity_naval_base_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
-	constexpr float port_supply_throughput_per_naval_base = 10.0f;
-	assert(province::is_port(state, port_prov)); // Should always be a port prov
-	auto naval_base_id = uint8_t(economy::province_building_type::naval_base);
-	auto size = state.world.province_get_building_level(port_prov, naval_base_id);
-	return port_supply_throughput_per_naval_base * size;
-}
-
-
-float port_supply_capacity_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
-	return port_supply_capacity_naval_base_modifier(state, port_prov, nation_as) + port_supply_capacity_base_modifier(state, port_prov, nation_as);
-}
-
-float port_supply_capacity_percentage_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
+float port_supply_capacity_mult_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
 	assert(province::is_port(state, port_prov));
 	auto port_to_prov = state.world.province_get_port_to(port_prov);
 	auto enemy_blockade_power = get_enemy_blockade_power(state, port_to_prov, nation_as);
 	return navy_port_supply_capacity_blockade_threshold > 0.0f ? std::max((navy_port_supply_capacity_blockade_threshold - enemy_blockade_power) / navy_port_supply_capacity_blockade_threshold, 0.f) : 1.0f;
 }
-
-float port_supply_capacity_percentage_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
-	return port_supply_capacity_percentage_blockaded_modifier(state, port_prov, nation_as) * 1.0f;
+float port_supply_capacity_mult_supply_access_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
+	assert(province::is_port(state, port_prov));
+	bool has_access = province::has_supply_access_to_province(state, nation_as, port_prov);
+	return has_access ? 1.0f : 0.0f;
 }
 
-float port_supply_capacity_combined_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
-	return port_supply_capacity_modifier(state, port_prov, nation_as) * port_supply_capacity_percentage_modifier(state, port_prov, nation_as);
+
+float port_supply_capacity_in_province(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
+	assert(province::is_port(state, port_prov));
+	float access_mult = port_supply_capacity_mult_supply_access_modifier(state, port_prov, nation_as);
+	if(access_mult == 0.0f) {
+		return 0.0f;
+	}
+	float capacity_add = state.world.province_get_modifier_values(port_prov, sys::provincial_mod_offsets::port_supply_capacity_add) + state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_port_supply_capacity_add);
+	float capacity_percent = state.world.province_get_modifier_values(port_prov, sys::provincial_mod_offsets::port_supply_capacity_percent) + state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_port_supply_capacity_percent) + 1.0f;
+	float capacity_mul = state.world.province_get_modifier_values(port_prov, sys::provincial_mod_offsets::port_supply_capacity_mul) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_port_supply_capacity_mul) * port_supply_capacity_mult_blockaded_modifier(state, port_prov, nation_as) * access_mult;
+	return std::max(capacity_add * capacity_percent * capacity_mul, 0.0f);
 }
+
 
 float port_supply_capacity_efficiency(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
 	float used_capacity = state.world.province_get_used_port_supply_capacity(port_prov);
-	return (used_capacity == 0.0f ? 1.0f : std::min(port_supply_capacity_combined_modifier(state, port_prov, nation_as) / used_capacity, 1.0f)); 
+	float available_capacity = port_supply_capacity_in_province(state, port_prov, nation_as);
+	if(used_capacity == 0.0f) {
+		if(available_capacity == 0.0f) {
+			return 0.0f;
+		}
+		else {
+			return 1.0f;
+		}
+	}
+	else {
+		return std::min(available_capacity / used_capacity, 1.0f);
+	}
 }
 
 
 float supply_throughput_mult_access_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 	bool has_access = province::has_supply_access_to_province(state, nation_as, province);
-	float siege_progress = state.world.province_get_siege_progress(province);
-	return has_access ? 1.0f - siege_progress : 0.0f;
+	return has_access ? 1.0f : 0.0f;
 }
 
 float supply_throughput_mult_hostile_troops_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
@@ -190,13 +192,17 @@ float supply_throughput_mult_hostile_troops_modifier(const sys::state& state, dc
 
 float supply_throughput_in_province(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 
+	float access_mul_mod = supply_throughput_mult_access_modifier(state, province, nation_as);
+	if(access_mul_mod == 0.0f) {
+		return 0.0f;
+	}
 	bool is_sea = province::is_sea(state, province);
 	auto nation_add_mod = (is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_throughput_add) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_throughput_add));
 	auto nation_percent_mod = (is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_throughput_percent) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_throughput_percent));
 	auto nation_mul_mod = (is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_throughput_mul) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_throughput_mul));
 	float add_modifiers = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_throughput_add) + nation_add_mod;
 	float percent_modifiers = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_throughput_percent) + nation_percent_mod + 1.0f;
-	float mult_modifiers = supply_throughput_mult_access_modifier(state, province, nation_as) * supply_throughput_mult_hostile_troops_modifier(state, province, nation_as) * state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_throughput_mul) * nation_mul_mod;
+	float mult_modifiers = access_mul_mod * supply_throughput_mult_hostile_troops_modifier(state, province, nation_as) * state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_throughput_mul) * nation_mul_mod;
 	return std::max(add_modifiers * percent_modifiers * mult_modifiers, 0.0f);
 }
 
@@ -206,8 +212,15 @@ float supply_throughput_efficiency(const sys::state& state, dcon::province_id pr
 	assert(nation_as);
 	float used_supply_throughput = state.world.province_get_used_supply_throughput(prov);
 	float throughput = supply_throughput_in_province(state, prov, nation_as);
-	float effective_throughput_rate = std::min(throughput / (used_supply_throughput == 0.0f ? 1.0f : used_supply_throughput), 1.0f);
-	return effective_throughput_rate;
+	if(used_supply_throughput == 0.0f) {
+		if(throughput == 0.0f) {
+			return 0.0f;
+		} else {
+			return 1.0f;
+		}
+	} else {
+		return std::min(throughput / used_supply_throughput, 1.0f);
+	}
 }
 
 float supply_throughput_efficiency_with_extra_weight(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as, float extra_used_throughput) {
@@ -1205,6 +1218,7 @@ void update_supply_routes_daily(sys::state& state) {
 	[&]() {
 		state.world.execute_serial_over_province([&](auto provs) {
 			state.world.province_set_used_supply_throughput(provs, 0.0f);
+			state.world.province_set_used_port_supply_capacity(provs, 0.0f);
 		});
 	}
 	);

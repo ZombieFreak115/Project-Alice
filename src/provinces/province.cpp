@@ -3045,8 +3045,8 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 	auto start = state.world.state_instance_get_capital(origin);
 
 	auto adjacency_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, iteration_data data) {
-		// Most of the checks were done in the province func already
-		return !is_adjacency_impassable(state, nation_as, adj);
+		// Most of the checks were done in the province func already. We do have to check supply throughput again, since it may change in the adjacency init func if its a port
+		return data.supply_throughput > 0.0 && !is_adjacency_impassable(state, nation_as, adj);
 	};
 	auto province_func = [&](dcon::province_id to, iteration_data data) {
 		return data.supply_throughput > 0.0; // No point if the throughput is zero anyway

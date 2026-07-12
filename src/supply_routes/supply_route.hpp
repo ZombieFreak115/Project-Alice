@@ -27,18 +27,11 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_cons
 float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as);
 float land_supply_speed(const sys::state& state, dcon::nation_id nation_as);
 
-float port_supply_capacity_base_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+float port_supply_capacity_in_province(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
-float port_supply_capacity_naval_base_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+float port_supply_capacity_mult_supply_access_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
-
-float port_supply_capacity_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
-
-float port_supply_capacity_percentage_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
-
-float port_supply_capacity_percentage_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
-
-float port_supply_capacity_combined_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+float port_supply_capacity_mult_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
 float port_supply_capacity_efficiency(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 

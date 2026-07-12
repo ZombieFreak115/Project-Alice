@@ -152,6 +152,24 @@ void building_file::result(std::string_view name, building_definition&& res, err
 	}
 }
 
+void building_file::finish(scenario_building_context& context) {
+	// Add port supply capacity to naval base modifier if define says so
+	auto& naval_base_mod = context.state.economy_definitions.building_definitions[uint8_t(economy::province_building_type::naval_base)].province_modifier;
+	auto naval_base_name = context.state.economy_definitions.building_definitions[uint8_t(economy::province_building_type::naval_base)].name;
+	if(supply_routes::naval_base_port_supply_capacity != 0.0f) {
+		if(!naval_base_mod) {
+			naval_base_mod = context.state.world.create_modifier();
+			auto& mod_def = context.state.world.modifier_get_province_values(naval_base_mod);
+			mod_def.add_manual_modifier(sys::provincial_mod_offsets::port_supply_capacity_add, supply_routes::naval_base_port_supply_capacity);
+			context.state.world.modifier_set_icon(naval_base_mod, 0);
+			context.state.world.modifier_set_name(naval_base_mod, naval_base_name);
+		};
+		// Add
+		auto& mod_def = context.state.world.modifier_get_province_values(naval_base_mod);
+		mod_def.add_manual_modifier(sys::provincial_mod_offsets::port_supply_capacity_add, supply_routes::base_port_supply_capacity);
+	}
+}
+
 dcon::trigger_key make_production_bonus_trigger(token_generator& gen, error_handler& err, production_context& context) {
 	trigger_building_context t_context{context.outer_context, trigger::slot_contents::state, trigger::slot_contents::nation,
 			trigger::slot_contents::empty};

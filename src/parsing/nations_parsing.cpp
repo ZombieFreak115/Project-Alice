@@ -871,6 +871,14 @@ void static_modifiers_file::finish(scenario_building_context& context) {
 		auto& mod_def = context.state.world.modifier_get_province_values(context.state.national_definitions.province_control);
 		mod_def.add_manual_modifier(sys::provincial_mod_offsets::supply_loss_add, supply_routes::control_level_supply_loss);
 	}
+	if(supply_routes::base_port_supply_capacity != 0.0f) {
+		if(!context.state.national_definitions.coastal) {
+			context.state.national_definitions.coastal = create_static_modifier(context, 0, "coastal");
+		};
+		// Add
+		auto& mod_def = context.state.world.modifier_get_province_values(context.state.national_definitions.coastal);
+		mod_def.add_manual_modifier(sys::provincial_mod_offsets::port_supply_capacity_add, supply_routes::base_port_supply_capacity);
+	}
 }
 
 
