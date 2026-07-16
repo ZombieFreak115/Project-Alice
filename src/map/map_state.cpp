@@ -1115,6 +1115,9 @@ void update_supply_route_arrows(sys::state& state, display_data& map_data) {
 	map_data.strategy_unit_arrow_starts.clear();
 	for(auto selected_army : state.selected_armies) {
 		for(auto route : state.world.army_get_army_supply_route(selected_army)) {
+			if(!route.get_is_active()) {
+				continue;
+			}
 			// make a copy of the path so that there arent the possibilty of the path being modified while the renderer reads from it
 			auto path = route.get_path();
 			if(path.size() > 0) {
@@ -1128,6 +1131,9 @@ void update_supply_route_arrows(sys::state& state, display_data& map_data) {
 	}
 	for(auto selected_navy : state.selected_navies) {
 		for(auto route : state.world.navy_get_navy_supply_route(selected_navy)) {
+			if(!route.get_is_active()) {
+				continue;
+			}
 			// make a copy of the path so that there arent the possibilty of the path being modified while the renderer reads from it
 			auto path = route.get_path();
 			if(path.size() > 0) {

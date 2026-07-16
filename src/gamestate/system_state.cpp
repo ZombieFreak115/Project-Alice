@@ -4497,15 +4497,23 @@ void state::single_game_tick() {
 
 		event::update_events(*this);
 
+		// weekly updates
+		auto day_of_week = current_date.to_raw_value() % 7;
+		switch(day_of_week) {
+		case 6:
+			sys::update_modifier_effects(*this);
+			break;
+		}
+
 		// Once per month updates, spread out over the month
 		switch(ymd_date.day) {
 		case 1:
 			nations::update_monthly_points(*this);
 			economy::prune_factories(*this);
+			military::schedule_all_supply_paths_update(*this); // The actual update will happen on the 2nd day of the month, this just schedules it
 			break;
 		case 2:
 			province::update_blockaded_cache(*this);
-			sys::update_modifier_effects(*this);
 			break;
 		case 3:
 			military::monthly_leaders_update(*this);

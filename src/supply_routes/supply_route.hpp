@@ -24,6 +24,9 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::navy_suppl
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::land_construction_supply_route_id route);
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_construction_supply_route_id route);
 
+// Computes the efficiency of a construct with has consumed vs available. Eg supply throughput
+float compute_efficiency(float consumed, float available);
+
 float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as);
 float land_supply_speed(const sys::state& state, dcon::nation_id nation_as);
 
@@ -43,11 +46,8 @@ float supply_throughput_mult_hostile_troops_modifier(const sys::state& state, dc
 // Gets the max supply throughput modifier in goods volume for the specified nation in the specified province, with percentage-based modifiers taken into account
 float supply_throughput_in_province(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
 
-// Gets the current effective efficency percentage in moving supplies for a nation in the specified provincce (0.0-1.0)
+// Gets the current effective efficency percentage in moving supplies for a nation in the specified provincce
 float supply_throughput_efficiency(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
-
-// Gets the current effective efficency percentage in moving supplies for a nation in the specified provincce WITH some extra used throughput added (0.0-1.0)
-float supply_throughput_efficiency_with_extra_weight(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as, float extra_used_throughput);
 
 float supply_loss_add_convoy_raiding(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 float supply_loss_add_hostile_armies(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);

@@ -159,14 +159,12 @@ void building_file::finish(scenario_building_context& context) {
 	if(supply_routes::naval_base_port_supply_capacity != 0.0f) {
 		if(!naval_base_mod) {
 			naval_base_mod = context.state.world.create_modifier();
-			auto& mod_def = context.state.world.modifier_get_province_values(naval_base_mod);
-			mod_def.add_manual_modifier(sys::provincial_mod_offsets::port_supply_capacity_add, supply_routes::naval_base_port_supply_capacity);
 			context.state.world.modifier_set_icon(naval_base_mod, 0);
 			context.state.world.modifier_set_name(naval_base_mod, naval_base_name);
 		};
 		// Add
 		auto& mod_def = context.state.world.modifier_get_province_values(naval_base_mod);
-		mod_def.add_manual_modifier(sys::provincial_mod_offsets::port_supply_capacity_add, supply_routes::base_port_supply_capacity);
+		mod_def.add_manual_modifier(sys::provincial_mod_offsets::port_supply_capacity_add, supply_routes::naval_base_port_supply_capacity);
 	}
 }
 

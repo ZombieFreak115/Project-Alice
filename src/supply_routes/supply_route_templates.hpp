@@ -3,12 +3,23 @@
 
 namespace supply_routes {
 
+
 template<typename F>
-void for_each_supply_route(sys::state& state, F&& functor) {
+void for_each_unit_supply_route(sys::state& state, F&& functor) {
 	state.world.for_each_army_supply_route(functor);
 	state.world.for_each_navy_supply_route(functor);
+}
+
+template<typename F>
+void for_each_construction_supply_route(sys::state& state, F&& functor) {
 	state.world.for_each_land_construction_supply_route(functor);
 	state.world.for_each_naval_construction_supply_route(functor);
+}
+
+template<typename F>
+void for_each_supply_route(sys::state& state, F&& functor) {
+	for_each_unit_supply_route(state, functor);
+	for_each_construction_supply_route(state, functor);
 }
 template<typename F, typename army_container_type, typename navy_container_type, typename land_construction_container_type, typename naval_construction_container_type>
 void for_each_supply_route_container(sys::state& state, F&& functor, army_container_type& army_container, navy_container_type& navy_container, land_construction_container_type& land_construction_container, naval_construction_container_type& naval_construction_container) {

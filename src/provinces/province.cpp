@@ -3035,10 +3035,16 @@ std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& st
 }
 
 
+constexpr float supply_loss_path_factor = 10000.0f;
+constexpr float excess_supply_throughput_path_factor = 0.01f;
+constexpr float lacking_supply_throughput_path_factor = 100.0f;
+
 // Creates a military supply path, but will actively try to find the path with good supply thoughput and supply attrition. Path is inserted into the passed-in buffer. Buffer must be cleared first
-void make_military_supply_path(const sys::state& state, dcon::state_instance_id origin, dcon::province_id end, dcon::nation_id nation_as, std::vector<dcon::province_id>& path_result) {
+void make_military_supply_path(const sys::state& state, dcon::state_instance_id origin, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result) {
 	struct iteration_data {
-		float supply_throughput{};
+		float total_supply_throughput{};
+		float free_supply_throughput{};
+		float supply_efficiency{};
 		float supply_loss{};
 	};
 
@@ -3046,38 +3052,63 @@ void make_military_supply_path(const sys::state& state, dcon::state_instance_id 
 
 	auto adjacency_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, iteration_data data) {
 		// Most of the checks were done in the province func already. We do have to check supply throughput again, since it may change in the adjacency init func if its a port
-		return data.supply_throughput > 0.0 && !is_adjacency_impassable(state, nation_as, adj);
+		bool land_to_sea = (state.world.province_adjacency_get_type(adj) & province::border::coastal_bit) != 0;
+		// If the adjacency is coastal (ie land-to-sea or sea-to-land connection), then the sea province must be connected to the port
+		if(land_to_sea && !is_port_connected_to(state, from, to) && !is_port_connected_to(state, to, from)) {
+			return false;
+		}
+		return data.total_supply_throughput > 0.0 && !is_adjacency_impassable(state, nation_as, adj);
 	};
 	auto province_func = [&](dcon::province_id to, iteration_data data) {
-		return data.supply_throughput > 0.0; // No point if the throughput is zero anyway
+		return data.total_supply_throughput > 0.0; // No point if the throughput is zero anyway
 
 	};
 	auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data data) {
-		// Take into account the expected supply throughput, and supply loss
-		assert(data.supply_throughput > 0.0f);
+		// Take into account the expected supply throughput, and supply loss. Increase perceived distance based on them to nudge the pathfinding to find a better path
+		assert(data.total_supply_throughput > 0.0f);
+		assert(data.supply_efficiency > 0.0f);
 		assert(data.supply_loss > 0.0f);
-		return (distance / data.supply_loss) / data.supply_throughput;
-		
+		/*float supply_loss_factor = (1.0f - data.supply_loss) * supply_loss_path_factor + 1.0f;
+		float supply_throughput_factor = (1.0f - data.supply_throughput) * supply_throughput_path_factor + 1.0f;
+		return distance * supply_loss_factor * supply_throughput_factor;*/
+
+		float supply_loss_factor = (1.0f - data.supply_loss) * supply_loss_path_factor + 1.0f;
+		// if there is free supply throughput, the percived distance will be reduced. If there is no free throughput, then the percieved distance will be increased the lower the supply efficiency is (0.0-1.0)
+		float supply_throughput_factor = (data.free_supply_throughput > 0.0f ? data.free_supply_throughput * excess_supply_throughput_path_factor + 1.0f : data.supply_efficiency / lacking_supply_throughput_path_factor);
+		//float supply_throughput_factor = (data.supply_efficiency == 1.0f ? 1.0f : data.supply_efficiency / lacking_supply_throughput_path_factor);
+		/*return distance * supply_loss_factor / supply_throughput_factor;*/
+		return distance * supply_loss_factor / supply_throughput_factor;
 
 	};
 	auto province_init_func = [&](dcon::province_id to, iteration_data& data) {
-		data.supply_throughput = supply_routes::supply_throughput_efficiency(state, to, nation_as);
+		float used_throughput = state.world.province_get_used_supply_throughput(to) + expected_volume;
+		float available_throughput = supply_routes::supply_throughput_in_province(state, to, nation_as);
+		data.total_supply_throughput = available_throughput;
+		data.free_supply_throughput = available_throughput - used_throughput;
+		data.supply_efficiency = supply_routes::compute_efficiency(used_throughput, available_throughput);
 
 	};
 	auto adj_init_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data& data) {
 		float supply_loss = 1.0f - supply_routes::adjacency_avg_supply_loss(state, to, from, nation_as) / state.map_state.map_data.world_circumference; // Get the supply loss measured in loss per km
 		data.supply_loss = std::max(supply_loss, 0.00000001f); // Clamp so that it cannot be zero, but is allowed to be a very small value
 		if(province::is_port_connected_to(state, from, to)) {
-			data.supply_throughput = std::min(data.supply_throughput, supply_routes::port_supply_capacity_efficiency(state, from, nation_as));
+			float used_capacity = state.world.province_get_used_port_supply_capacity(from) + expected_volume;
+			float capacity = supply_routes::port_supply_capacity_in_province(state, from, nation_as);
+			data.total_supply_throughput = std::min(data.total_supply_throughput, capacity);
+			data.free_supply_throughput = std::min(data.free_supply_throughput, capacity - used_capacity);
+			data.supply_efficiency = std::min(data.supply_efficiency, supply_routes::compute_efficiency(used_capacity, capacity));
 		} else if(province::is_port_connected_to(state, to, from)) {
-			data.supply_throughput = std::min(data.supply_throughput, supply_routes::port_supply_capacity_efficiency(state, to, nation_as));
+			float used_capacity = state.world.province_get_used_port_supply_capacity(to) + expected_volume;
+			float capacity = supply_routes::port_supply_capacity_in_province(state, to, nation_as);
+			data.total_supply_throughput = std::min(data.total_supply_throughput, capacity);
+			data.free_supply_throughput = std::min(data.free_supply_throughput, capacity - used_capacity);
+			data.supply_efficiency = std::min(data.supply_efficiency, supply_routes::compute_efficiency(used_capacity, capacity));
 		}
 
 	};
 	// We are passing "start" province as end, and "end" as start. This is because creating the path in reverse has some desired effects. For example it means the province the army is on will not be path of the path (so that you wont lose supply instantly when adjacen to a friendly province)
 	// And will enable faster early-exits if units are deep in enemy territory
 	make_path_to_prov<1.0f, iteration_data>(state, end, start, path_result, adjacency_func, province_func, modifier_func, province_init_func, adj_init_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
-
 }
 
 

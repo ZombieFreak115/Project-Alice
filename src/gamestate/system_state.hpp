@@ -41,10 +41,10 @@ constexpr float fastest_land_unit_supply_speed_mult = 1.0f; // land supply speed
 constexpr float fastest_transport_unit_supply_speed_mult = 1.0f; // naval supply speed gained from the fastest transport unit (eg. if 1.0f, then if the fastest unit is 4 km/h then naval supply speed is increased by 4
 
 constexpr float sea_base_supply_thoughput = 1000.0f;
-constexpr float land_base_supply_thoughput = 0.5f;
-constexpr float supply_throughput_per_km_land_supply_speed = 10.0f; // Supply throughput in land provinces per 1 km/h land supply speed. Eg if set to 100 and a nation has a speed of 4 km/h, then the base is 400
-constexpr float supply_throughput_per_km_naval_supply_speed = 10.0f; // Supply throughput in naval provinces per 1 km/h naval supply speed. Eg if set to 100 and a nation has a speed of 4 km/h, then the base is 400
-constexpr float supply_throughput_infrastructure = 6.0f; // Extra supply throughput per 1% of infrastructure
+constexpr float land_base_supply_thoughput = 0.1f;
+constexpr float supply_throughput_per_km_land_supply_speed = 1.0f; // Supply throughput in land provinces per 1 km/h land supply speed. Eg if set to 100 and a nation has a speed of 4 km/h, then the base is 400
+constexpr float supply_throughput_per_km_naval_supply_speed = 1.0f; // Supply throughput in naval provinces per 1 km/h naval supply speed. Eg if set to 100 and a nation has a speed of 4 km/h, then the base is 400
+constexpr float supply_throughput_infrastructure = 30.0f; // Extra supply throughput at 100% infrastrucure (scales linearly)
 constexpr float army_supply_throughput_blockade_threshold = 0.9f; // This amount of POP_SIZE_PER_REGIMENT army strength is required to fully block enemy throughput in a land province. Throughput scales linearly with the amount of strength present. Also includes strength in battles. Set to zero or negative number to disable
 constexpr float navy_port_supply_capacity_blockade_threshold = 10.0f; // This amount of blockade power (unit stat) is required to to fully block enemy port capacity throughput in a port province. Throughput scales linearly with the amount of strength present. Also includes strength in battles. Set to zero or negative number to disable
 constexpr float base_land_supply_loss = 4.0f; // Base supply loss for all land provinces
@@ -54,10 +54,10 @@ constexpr float militancy_supply_loss = 2.0f; // the supply loss  when the provi
 constexpr float hostile_army_supply_loss = 0.0f; // the supply loss  per POP_SIZE_PER_REGIMENT enemy strength present in the land province
 constexpr float convoy_raiding_supply_loss = 0.0f; // the supply loss per effective convoy_raiding stats present in the sea province
 
-constexpr float max_supply_route_loss = 0.5f; // the maximum total supply loss % a route may incur.
+constexpr float max_supply_route_loss = 0.75f; // the maximum total supply loss % a route may incur.
 
 constexpr float base_port_supply_capacity = 0.1f;
-constexpr float naval_base_port_supply_capacity = 5.0f;
+constexpr float naval_base_port_supply_capacity = 6.0f;
 
 }
 

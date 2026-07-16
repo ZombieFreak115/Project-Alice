@@ -2216,15 +2216,16 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 	auto routes = military::unit_get_supply_routes(state, unit);
 
 	for(auto route : routes) {
-		const commodity_amounts_type& buffered_goods = supply_routes::military_route_get_buffered_goods<commodity_amounts_type>(state, route.id);
-		for(uint32_t i = 0; i < commodity_types.size(); i++) {
-			dcon::commodity_id com_id = commodity_types[i];
-			assert(com_id);
-			commodities_actual_satisfied[i] += (buffered_goods[i] * route.get_throughput() * route.get_supply_loss());
-			commodities_satisfied_no_loss[i] += buffered_goods[i];
-			commodities_satisfied_w_throughput[i] += (buffered_goods[i] * route.get_throughput());
-			commodities_satisfied_w_loss[i] += (buffered_goods[i] * route.get_supply_loss());
-
+		if(route.get_is_active()) {
+			const commodity_amounts_type& buffered_goods = supply_routes::military_route_get_buffered_goods<commodity_amounts_type>(state, route.id);
+			for(uint32_t i = 0; i < commodity_types.size(); i++) {
+				dcon::commodity_id com_id = commodity_types[i];
+				assert(com_id);
+				commodities_actual_satisfied[i] += (buffered_goods[i] * route.get_throughput() * route.get_supply_loss());
+				commodities_satisfied_no_loss[i] += buffered_goods[i];
+				commodities_satisfied_w_throughput[i] += (buffered_goods[i] * route.get_throughput());
+				commodities_satisfied_w_loss[i] += (buffered_goods[i] * route.get_supply_loss());
+			}
 		}
 	}
 	for(uint32_t i = 0; i < commodity_types.size(); i++) {

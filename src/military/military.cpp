@@ -218,6 +218,21 @@ void schedule_nation_supply_paths_update(sys::state& state, dcon::nation_id nati
 	state.world.nation_set_supply_routes_requires_path_update(nation, true);
 }
 
+void schedule_all_supply_paths_update(sys::state& state) {
+	for(auto route : state.world.in_army_supply_route) {
+		route.set_path_out_of_date(true);
+	}
+	for(auto route : state.world.in_navy_supply_route) {
+		route.set_path_out_of_date(true);
+	}
+	for(auto route : state.world.in_land_construction_supply_route) {
+		route.set_path_out_of_date(true);
+	}
+	for(auto route : state.world.in_naval_construction_supply_route) {
+		route.set_path_out_of_date(true);
+	}
+}
+
 
 void set_siege_progress(sys::state& state, dcon::province_id prov, float new_val) {
 	float old_val = state.world.province_get_siege_progress(prov);
