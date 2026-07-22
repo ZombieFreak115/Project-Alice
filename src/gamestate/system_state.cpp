@@ -3982,6 +3982,7 @@ void state::fill_unsaved_data() { // reconstructs derived values that are not di
 
 	world.nation_resize_temp_total_stockpiles_buffer(world.commodity_size());
 	world.market_resize_govt_stockpile_satisfaction_buffer(world.commodity_size());
+	world.nation_resize_govt_stockpile_weights_buffer(world.commodity_size());
 
 	province::restore_distances(*this);
 

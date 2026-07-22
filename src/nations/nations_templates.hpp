@@ -73,4 +73,15 @@ dcon::nation_id get_random_nation(const sys::state& state, uint32_t random_hi, u
 	}
 	return dcon::nation_id{};
 }
+
+template<concepts::dcon_id_ve_type<dcon::nation_id> ve_id_type>
+ve::mask_vector exists(sys::state& state, ve_id_type nations) {
+	return state.world.nation_get_owned_province_count(nations) > 0;
+}
+
+template<concepts::dcon_id_ve_type<dcon::nation_id> ve_id_type>
+ve::mask_vector exists_or_is_utility_tag(sys::state& state, ve_id_type nations) {
+	return exists(state, nations) || state.world.nation_get_utility_tag(nations);
+}
+
 } // namespace nations

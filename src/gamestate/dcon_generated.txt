@@ -4587,6 +4587,11 @@ object {
 		type{ array{production_directive_id}{bitfield} }
 		tag{ save }
 	}
+	property {
+		name{ govt_stockpile_weights_buffer } 
+		type{ array{commodity_id}{float} }
+		tag { mp_checksum_excluded }
+	}
 }
 
 object{

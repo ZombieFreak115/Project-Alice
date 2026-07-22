@@ -28,6 +28,7 @@
 #include "economy_templates.hpp"
 #include "military_templates.hpp"
 #include "economy_templates.hpp"
+#include "nations_templates.hpp"
 
 namespace economy {
 
@@ -505,49 +506,61 @@ float consume_from_government_stockpiles(sys::state& state, economy::commodity_s
 
 void update_government_stockpile_market_demand_weights(sys::state& state) {
 
-	//constexpr float base_market_demand_weight = 0.0001f; // Even if it dosent have any supply of the commodity, still spread the demand abit
 
-	concurrency::parallel_for(uint32_t(0), state.world.nation_size(), [&](uint32_t i) {
-		dcon::nation_id nation = dcon::nation_id{ dcon::nation_id::value_base_t(i) };
-		if(!nations::exists(state, nation)) {
-			return;
-		}
+	auto begin = std::chrono::steady_clock::now();
+
+	state.world.execute_serial_over_nation([&](auto nations) {
 		economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
-			float total_commodity_weights = 0;
-			state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
-				dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
-				auto market = state.world.state_instance_get_market_from_local_market(state_instance);
-				auto state_name = text::produce_simple_string(state, state.world.state_definition_get_name( state.world.state_instance_get_definition(state_instance)));
-				auto com_name = text::produce_simple_string(state, state.world.commodity_get_name(commodity));
-				auto sat_weight = state.world.market_get_actual_probability_to_buy(market, commodity);
-				//auto sat_importance = std::min(1.f, 1.f / (price(state, market, commodity) + 0.001f));
-				auto price_weight = 1.0f / (price(state, market, commodity) + 0.001f);
-				//auto sat_coefficient = (sat_importance + (1.f - sat_importance) * sat);
-
-				float raw_weight = state.world.market_get_supply(market, commodity) * price_weight * sat_weight;
-				state.world.market_set_government_stockpile_demand_weights(market, commodity, raw_weight);
-				total_commodity_weights += raw_weight;
-
-			});
-			if(total_commodity_weights == 0) {
-				uint32_t states_count = uint32_t(state.world.nation_get_state_control(nation).end() - state.world.nation_get_state_control(nation).begin());
-				float demand_split = 1.0f / float(states_count);
-				state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
-					dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
-					auto market = state.world.state_instance_get_market_from_local_market(state_instance);
-					state.world.market_set_government_stockpile_demand_weights(market, commodity, demand_split);
-				});
-			}
-			else {
-				state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
-					dcon::state_instance_id state_instance = state.world.state_control_get_state(sc);
-					auto market = state.world.state_instance_get_market_from_local_market(state_instance);
-					float percentage_weight = std::min(state.world.market_get_government_stockpile_demand_weights(market, commodity) / total_commodity_weights, 1.0f); // clamp to prevent a weight over 1 due to rounding
-					state.world.market_set_government_stockpile_demand_weights(market, commodity, percentage_weight);
-				});
-			}
+			state.world.nation_set_govt_stockpile_weights_buffer(nations, commodity, 0.0f);
 		});
 	});
+
+	state.world.execute_parallel_over_market([&](auto markets) {
+		auto states = state.world.market_get_zone_from_local_market(markets);
+		auto controllers = state.world.state_instance_get_nation_from_state_control(states);
+		auto controller_valid = (controllers != dcon::nation_id{ } && nations::exists(state, controllers));
+		economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
+			auto sat_weight = state.world.market_get_actual_probability_to_buy(markets, commodity);
+			auto price_weight = 1.0f / (state.world.market_get_price(markets, commodity) + 0.001f);
+			auto raw_weight = state.world.market_get_supply(markets, commodity) * price_weight * sat_weight;
+			state.world.market_set_government_stockpile_demand_weights(markets, commodity, ve::select(controller_valid, raw_weight, 0.0f));
+
+		});
+	});
+
+	state.world.for_each_market([&](dcon::market_id market) {
+		auto state_inst = state.world.market_get_zone_from_local_market(market);
+		auto controller = state.world.state_instance_get_nation_from_state_control(state_inst);
+		if(controller) {
+			economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
+				float amount = state.world.market_get_government_stockpile_demand_weights(market, commodity);
+				state.world.nation_set_govt_stockpile_weights_buffer(controller, commodity, state.world.nation_get_govt_stockpile_weights_buffer(controller, commodity) + amount);
+			});
+		}
+	});
+
+
+	state.world.execute_parallel_over_market([&](auto markets) {
+		auto states = state.world.market_get_zone_from_local_market(markets);
+		auto controllers = state.world.state_instance_get_nation_from_state_control(states);
+		auto controller_valid = (controllers != dcon::nation_id{ } && nations::exists(state, controllers));
+		ve::fp_vector state_count = ve::apply([&](dcon::nation_id nation) {
+			return float(state.world.nation_get_state_control(nation).end() - state.world.nation_get_state_control(nation).begin());
+		}, controllers);
+		economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
+			auto total_nation_weights = state.world.nation_get_govt_stockpile_weights_buffer(controllers, commodity);
+			auto controller_has_weight = (controller_valid && total_nation_weights > 0.0f);
+			auto raw_weight = state.world.market_get_government_stockpile_demand_weights(markets, commodity);
+			auto equally_split_demand = 1.0f / state_count;
+			auto percentage_weight = ve::select(controller_has_weight, raw_weight / total_nation_weights, equally_split_demand);
+			percentage_weight = ve::select(controller_valid, percentage_weight, 0.0f);
+			state.world.market_set_government_stockpile_demand_weights(markets, commodity, percentage_weight);
+
+		});
+	});
+
+	auto end = std::chrono::steady_clock::now();
+	state.console_log(std::string("AFDFSG time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
 
 }
 template<price_estimation price_est>
