@@ -120,7 +120,7 @@ budget_spending_details estimate_budget_detailed(sys::state& state, dcon::nation
 	auto overseas_budget = economy::estimate_overseas_penalty_spending(state, n) * priority.overseas_penalty;
 	auto subsidy_budget = state.world.nation_get_subsidy_token_total(n) == 0.f ? 0.f : budget_ratio(available_funds, priority.subsidy);
 	auto construction_budget = economy::estimate_construction_spending_from_budget(state, n, budget_ratio(available_funds, priority.construction_supplies));
-	auto total_stockpiles_spending = economy::estimate_total_stockpile_spendings(state, n, budget_ratio(available_funds, priority.military_construction_supplies), budget_ratio(available_funds, priority.stockpile));
+	auto total_stockpiles_spending = economy::estimate_total_stockpile_spendings(state, n, budget_ratio(available_funds, priority.military_construction_supplies), budget_ratio(available_funds, priority.stockpile), budget_ratio(available_funds, priority.military_supplies_land), budget_ratio(available_funds, priority.military_supplies_navy));
 
 	float land_budget = total_stockpiles_spending.army_stockpile_spendings;
 	float naval_budget = total_stockpiles_spending.navy_stockpile_spendings;

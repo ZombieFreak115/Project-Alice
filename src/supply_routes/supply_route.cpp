@@ -687,8 +687,8 @@ bool should_delete_route(const sys::state& state, route_type route) {
 	dcon::nation_id route_owner = supply_route_get_owner(state, route);
 	dcon::province_id route_origin = supply_route_get_origin(state, route);
 	dcon::nation_id route_origin_controller = state.world.province_get_nation_from_province_control(route_origin);
-	// A supply route shall be deleted if it has been inactive for 5 days or more, OR if the route owner does not control the stockpile the route is connected to
-	return fat_route.get_inactive_days() >= 5 || route_owner != route_origin_controller;
+	// A supply route shall be deleted if it has been inactive for 230 days or more, OR if the route owner does not control the stockpile the route is connected to
+	return fat_route.get_inactive_days() >= 230 || route_owner != route_origin_controller;
 }
 
 

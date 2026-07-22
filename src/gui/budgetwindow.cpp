@@ -1176,7 +1176,9 @@ void  budgetwindow_main_espenses_table_t::update(sys::state& state, layout_windo
 	float next_budget = economy::estimate_next_budget(state, state.local_player_nation);
 	auto mil_construction_spending = (float)state.world.nation_get_military_construction_spending(state.local_player_nation) / 100.0f;
 	auto stockpile_spending = (float)state.world.nation_get_stockpile_spending(state.local_player_nation) / 100.0f;
-	auto stockpile_spendings = economy::estimate_total_stockpile_spendings_by_commodity(state, state.local_player_nation, next_budget * mil_construction_spending, next_budget * stockpile_spending);
+	auto army_supplies_spending = (float)state.world.nation_get_land_spending(state.local_player_nation) / 100.0f;
+	auto navy_supplies_spending = (float)state.world.nation_get_naval_spending(state.local_player_nation) / 100.0f;
+	auto stockpile_spendings = economy::estimate_total_stockpile_spendings_by_commodity(state, state.local_player_nation, next_budget * mil_construction_spending, next_budget * stockpile_spending, next_budget * army_supplies_spending, next_budget * navy_supplies_spending);
 	values.clear();
 	add_section_header(budget_categories::construction);
 	if(budget_categories::expanded[budget_categories::construction]) {

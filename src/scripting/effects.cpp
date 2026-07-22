@@ -20,7 +20,7 @@
 namespace effect {
 
 #define EFFECT_PARAMTERS                                                                                                         \
-	uint16_t const *tval, sys::state &ws, int32_t primary_slot, int32_t this_slot, int32_t from_slot, uint32_t r_hi, uint32_t r_lo, bool& els
+	uint16_t const *tval, sys::state &ws, int32_t primary_slot, int32_t this_slot, int32_t from_slot, uint32_t r_lo, uint32_t r_hi, bool& els
 
 uint32_t internal_execute_effect(EFFECT_PARAMTERS);
 
@@ -328,22 +328,19 @@ uint32_t es_x_country_scope_nation(EFFECT_PARAMTERS) {
 }
 uint32_t es_x_event_country_scope_nation(EFFECT_PARAMTERS) {
 	if((tval[0] & effect::is_random_scope) != 0) {
-		std::vector<dcon::nation_id> rlist;
+		dcon::nation_id affected_nation;
 		if((tval[0] & effect::scope_has_limit) != 0) {
 			auto limit = trigger::payload(tval[2]).tr_id;
-			for(auto n : ws.world.in_nation) {
-				if(n != trigger::to_nation(primary_slot) && trigger::evaluate(ws, limit, trigger::to_generic(n.id), this_slot, from_slot))
-					rlist.push_back(n.id);
-			}
+			affected_nation = nations::get_random_nation(ws, r_hi, r_lo, [&](dcon::nation_id n) {
+				return nations::exists(ws, n) && n != trigger::to_nation(primary_slot) && trigger::evaluate(ws, limit, trigger::to_generic(n), this_slot, from_slot);
+			});
 		} else {
-			for(auto n : ws.world.in_nation) {
-				if(n != trigger::to_nation(primary_slot))
-					rlist.push_back(n.id);
-			}
+			affected_nation = nations::get_random_nation(ws, r_hi, r_lo, [&](dcon::nation_id n) {
+				return nations::exists(ws, n) && n != trigger::to_nation(primary_slot);
+			});
 		}
-		if(rlist.size() != 0) {
-			auto r = rng::get_random(ws, r_hi, r_lo) % rlist.size();
-			return 1 + apply_subeffects(tval, ws, trigger::to_generic(rlist[r]), this_slot, from_slot, r_hi, r_lo + 1, els);
+		if(affected_nation) {
+			return 1 + apply_subeffects(tval, ws, trigger::to_generic(affected_nation), this_slot, from_slot, r_hi, r_lo + 1, els);
 		}
 		return 0;
 	} else {
@@ -351,12 +348,12 @@ uint32_t es_x_event_country_scope_nation(EFFECT_PARAMTERS) {
 		if((tval[0] & effect::scope_has_limit) != 0) {
 			auto limit = trigger::payload(tval[2]).tr_id;
 			for(auto n : ws.world.in_nation) {
-				if(n != trigger::to_nation(primary_slot) && trigger::evaluate(ws, limit, trigger::to_generic(n.id), this_slot, from_slot))
+				if(nations::exists(ws, n) && n != trigger::to_nation(primary_slot) && trigger::evaluate(ws, limit, trigger::to_generic(n.id), this_slot, from_slot))
 					i += apply_subeffects(tval, ws, trigger::to_generic(n.id), this_slot, from_slot, r_hi, r_lo + i, els);
 			}
 		} else {
 			for(auto n : ws.world.in_nation) {
-				if(n != trigger::to_nation(primary_slot))
+				if(nations::exists(ws, n) && n != trigger::to_nation(primary_slot))
 					i += apply_subeffects(tval, ws, trigger::to_generic(n.id), this_slot, from_slot, r_hi, r_lo + i, els);
 			}
 		}
@@ -4788,7 +4785,7 @@ uint32_t ef_variable_good_name(EFFECT_PARAMTERS) {
 
 		economy::commodity_set to_consume{ };
 		to_consume.commodity_type[0] = commodity;
-		to_consume.commodity_amounts[0] = -amount;
+		to_consume.commodity_amounts[0] = std::abs(amount);
 		economy::consume_from_government_stockpiles(ws, to_consume, closest_stockpiles, capital_prov, nation);
 	}
 

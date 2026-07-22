@@ -9951,20 +9951,26 @@ void recover_org(sys::state& state) {
 	concurrency::parallel_invoke(
 
 	[&](){
-			for(auto regiment : state.world.in_regiment) {
-				auto org_regain = calculate_regiment_org_regain<supply_estimation::based_on_satisfaction, false>(state, regiment);
-				assert(std::isfinite(org_regain));
-				regiment.set_org(regiment.get_org() + org_regain);
-			}
+			state.world.for_each_regiment([&](dcon::regiment_id reg) {
+				auto regiment = fatten(state.world, reg);
+				if(regiment.is_valid()) {
+					auto org_regain = calculate_regiment_org_regain<supply_estimation::based_on_satisfaction, false>(state, regiment);
+					assert(std::isfinite(org_regain));
+					regiment.set_org(regiment.get_org() + org_regain);
+				}
+			});
+			
 		},
 
 		// US17
 	[&](){
-			for(auto ship : state.world.in_ship) {
+			state.world.for_each_ship([&](dcon::ship_id shp) {
+				auto ship = fatten(state.world, shp);
 				auto org_regain = calculate_ship_org_regain<supply_estimation::based_on_satisfaction, false>(state, ship);
 				assert(std::isfinite(org_regain));
 				ship.set_org(ship.get_org() + org_regain);
-			}
+
+			});
 		}
 	);
 }
@@ -11137,19 +11143,23 @@ void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id) {
 	auto base_pop = state.world.regiment_get_pop_from_regiment_source(reg_id);
 	auto army = state.world.regiment_get_army_from_army_membership(reg_id);
 	auto controller = state.world.army_get_controller_from_army_control(army);
-	if(!controller && base_pop) {
-		// When a rebel regiment is destroyed, divide the militancy of the backing pop by define:REDUCTION_AFTER_DEFEAT.
-		auto mil = pop_demographics::get_militancy(state, base_pop) / state.defines.reduction_after_defeat;
-		pop_demographics::set_militancy(state, base_pop, mil);
-	}
-	else if(controller) {
+	if(controller) {
 		// give war exhaustion for the losses
 		auto& current_war_ex = state.world.nation_get_war_exhaustion(controller);
 		float extra_war_ex = get_war_exhaustion_from_land_losses<damage_source>(state, state.world.regiment_get_strength(reg_id), controller);
 		state.world.nation_set_war_exhaustion(controller, std::min(current_war_ex + extra_war_ex, state.world.nation_get_modifier_values(controller, sys::national_mod_offsets::max_war_exhaustion)));
 
 	}
-	demographics::reduce_pop_size_safe(state, base_pop, int32_t(state.world.regiment_get_strength(reg_id) * state.defines.pop_size_per_regiment * state.defines.soldier_to_pop_damage));
+	// Only modify the pop if there is a pop connected to the regiment
+	if(base_pop) {
+		if(!controller) {
+			// When a rebel regiment is destroyed, divide the militancy of the backing pop by define:REDUCTION_AFTER_DEFEAT.
+			auto mil = pop_demographics::get_militancy(state, base_pop) / state.defines.reduction_after_defeat;
+			pop_demographics::set_militancy(state, base_pop, mil);
+		}
+		demographics::reduce_pop_size_safe(state, base_pop, int32_t(state.world.regiment_get_strength(reg_id) * state.defines.pop_size_per_regiment * state.defines.soldier_to_pop_damage));
+	} 
+	
 	military::delete_regiment_safe_wrapper(state, reg_id);
 }
 

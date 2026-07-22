@@ -766,14 +766,14 @@ economy::build_cost_union_commodity_amount_array estimate_nation_military_constr
 float estimate_military_construction_stockpile_spending(const sys::state& state, dcon::nation_id nation, float budget) {
 	auto goods_consumption = estimate_nation_military_construction_consumption(state, nation);
 	float total_expected_price = get_estimated_stockpile_total_purchase_price<price_estimation::capped_by_availability>(state, nation, goods_consumption);
-	float can_afford_mult = (total_expected_price == 0 ? 1.5f : std::min(budget / total_expected_price, 1.5f));
+	float can_afford_mult = (total_expected_price == 0 ? max_mil_con_required_spend : std::min(budget / total_expected_price, max_mil_con_required_spend));
 	return total_expected_price * can_afford_mult;
 }
 economy::build_cost_union_commodity_amount_array estimate_military_construction_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation, float budget) {
 	auto goods_consumption = estimate_nation_military_construction_consumption(state, nation);
 	float total_expected_price = get_estimated_stockpile_total_purchase_price<price_estimation::capped_by_availability>(state, nation, goods_consumption);
 	auto total_expected_prices = get_estimated_stockpile_purchase_price_by_commodity<price_estimation::capped_by_availability>(state, nation, goods_consumption);
-	float can_afford_mult = (total_expected_price == 0 ? 1.5f : std::min(budget / total_expected_price, 1.5f));
+	float can_afford_mult = (total_expected_price == 0 ? max_mil_con_required_spend : std::min(budget / total_expected_price, max_mil_con_required_spend));
 	for(auto& price : total_expected_prices) {
 		price = price * can_afford_mult;
 	}
@@ -840,12 +840,11 @@ void populate_military_construction_consumption(sys::state& state) {
 
 		float total_expected_price = get_estimated_stockpile_total_purchase_price<price_estimation::theoretical_max>(state, nation, unit_commodity_demand_buffer[nation]);
 		// Set the demand mult to match what our budget can afford at most, and reduce demand if we can't afford it all. Demand multiplier may demand extra and go all the way up to 1.5.
-		// This is to take into account potential route attrition, so we buy up to 50% extra if the budget allows for it
-		float can_afford_mult = (total_expected_price == 0 ? 1.5f : std::min(budget/ total_expected_price, 1.5f));
+		float can_afford_mult = (total_expected_price == 0 ? max_mil_con_required_spend : std::min(budget/ total_expected_price, max_mil_con_required_spend));
 		const auto& commodity_ids = military::get_military_commodities_union<economy::build_cost_union_commodity_id_array>(state);
 		for(uint32_t i = 0; i < commodity_ids.size(); i++) {
 			auto com_id = commodity_ids[i];
-			float stockpile_target_balance = government_stockpile_target_balance(state, nation, com_id);
+			//float stockpile_target_balance = government_stockpile_target_balance(state, nation, com_id);
 			state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
 				auto state_inst = state.world.state_control_get_state(sc);
 				auto market = state.world.state_instance_get_market_from_local_market(state_inst);

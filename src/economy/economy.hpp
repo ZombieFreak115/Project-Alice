@@ -82,8 +82,8 @@ tagged_vector<float, dcon::commodity_id> get_estimated_stockpile_purchase_price_
 template< price_estimation price_est, concepts::commodity_amount_military_union_array_type commodity_amounts_type>
 commodity_amounts_type get_estimated_stockpile_purchase_price_by_commodity(const sys::state& state, dcon::nation_id for_nation, const commodity_amounts_type& goods);
 
-total_stockpile_spendings estimate_total_stockpile_spendings(const sys::state& state, dcon::nation_id nation_as, float military_construction_budget, float stockpile_filling_budget);
-total_stockpile_spendings_by_commodity estimate_total_stockpile_spendings_by_commodity(const sys::state& state, dcon::nation_id nation_as, float military_construction_budget, float stockpile_filling_budget);
+total_stockpile_spendings estimate_total_stockpile_spendings(const sys::state& state, dcon::nation_id nation_as, float military_construction_budget, float stockpile_filling_budget, float army_budget, float navy_budget);
+total_stockpile_spendings_by_commodity estimate_total_stockpile_spendings_by_commodity(const sys::state& state, dcon::nation_id nation_as, float military_construction_budget, float stockpile_filling_budget, float army_supplies_budget, float navy_supplies_budget);
 
 economy::supply_and_build_cost_union_commodity_amount_array estimate_nation_army_consumption(const sys::state& state, dcon::nation_id nation);
 economy::supply_and_build_cost_union_commodity_amount_array estimate_nation_navy_consumption(const sys::state& state, dcon::nation_id nation);

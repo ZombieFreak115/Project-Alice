@@ -733,37 +733,63 @@ void update_budget(sys::state& state, bool presim) {
 		// and stabilize economy faster
 		// not to allow it to hoard money
 
-		float land_budget_ratio = 0.15f;
-		float sea_budget_ratio = 0.05f;
+		float land_budget_ratio = 0.10f;
+		float sea_budget_ratio;
+		float land_supply_consumption = 0.1f;
+		float land_reinf_consumption = 0.1f;
+		float naval_supply_consumption;
+		float naval_reinf_consumption;
+		if(n.get_navy_control().begin() != n.get_navy_control().end()) {
+			sea_budget_ratio = 0.05f;
+			naval_supply_consumption = 0.1f;
+			naval_reinf_consumption = 0.1f;
+		}
+		else {
+			sea_budget_ratio = 0.0f;
+			naval_supply_consumption = 0.0f;
+			naval_reinf_consumption = 0.0f;
+		}
 		uint32_t total_military_constructions = uint32_t(n.get_province_land_construction().end() - n.get_province_land_construction().begin()) + uint32_t(n.get_province_naval_construction().end() - n.get_province_naval_construction().begin());
 		if(presim) {
 			// set military supply sliders high in presim to simulate demand
-			land_budget_ratio = 1.0f;
-			sea_budget_ratio = 0.5f;
+			land_budget_ratio = 0.3f;
+			sea_budget_ratio = 0.3f;
 			
 		}
 		float education_budget_ratio = 0.30f;
 		float investments_budget_ratio = 0.15f;
-		float soldiers_budget_ratio = 0.30f;
+		float soldiers_budget_ratio = 0.1f;
 		float construction_budget_ratio = 0.45f;
 		float mil_construction_budget_ratio = 0.0f;
 		float stockpile_budget_ratio = 0.0f;
 		float overseas_maintenance_budget_ratio = 0.10f;
 
 		if(n.get_is_at_war()) {
-			land_budget_ratio *= 1.75f;
-			sea_budget_ratio *= 1.75f;
+			land_budget_ratio *= 3.0f;
+			sea_budget_ratio *= 3.0f;
 			education_budget_ratio *= 0.75f;
 			overseas_maintenance_budget_ratio *= 0.15f;
-			// If at war and we are constructing mil units, spend a fifth of the budget on it
+
+			land_supply_consumption *= 9.0f;
+			land_reinf_consumption *= 9.0f;
+			naval_supply_consumption *= 6.0f;
+			naval_reinf_consumption *= 6.0f;
+
+			// If at war and we are constructing mil units, spend some of the budget on it
 			if(total_military_constructions > 0) {
-				mil_construction_budget_ratio += 0.2f;
+				mil_construction_budget_ratio += 0.15f;
 			}
 
 		} else if(n.get_ai_is_threatened()) {
-			land_budget_ratio *= 1.25f;
-			sea_budget_ratio *= 1.25f;
+			land_budget_ratio *= 1.5f;
+			sea_budget_ratio *= 1.5f;
 			overseas_maintenance_budget_ratio *= 0.75f;
+
+			land_supply_consumption *= 3.0f;
+			land_reinf_consumption *= 3.0f;
+			naval_supply_consumption *= 2.0f;
+			naval_reinf_consumption *= 2.0f;
+
 			if(total_military_constructions > 0) {
 				// If threatened and has unit constructions, then spend some money to complete them
 				mil_construction_budget_ratio += 0.1f;
@@ -771,7 +797,20 @@ void update_budget(sys::state& state, bool presim) {
 			// spend some money on stockpiling important goods while threatened in peacetime
 			stockpile_budget_ratio += 0.10f;
 			
-		} else {
+		}
+		else if(future_rebels_in_nation(state, n) > 0) {
+
+			land_budget_ratio *= 1.4f;
+
+			land_supply_consumption *= 2.5f;
+			land_reinf_consumption *= 2.5f;
+
+			if(total_military_constructions > 0) {
+				// If threatened and has unit constructions, then spend some money to complete them
+				mil_construction_budget_ratio += 0.5f;
+			}
+		}
+		else {
 			if(total_military_constructions > 0) {
 				// If any constructions and we arent at war or threatened, only spend a small amount
 				mil_construction_budget_ratio += 0.05f;
@@ -779,28 +818,16 @@ void update_budget(sys::state& state, bool presim) {
 			// spend some money on stockpiling important goods in peacetime
 			stockpile_budget_ratio += 0.08f;
 		}
-		float land_budget = land_budget_ratio * base_income;
-		float naval_budget = sea_budget_ratio * base_income;
 		float soldiers_budget = soldiers_budget_ratio * base_income;
 		float overseas_budget = overseas_maintenance_budget_ratio * base_income;
 
-		float ratio_land = 100.f * land_budget / (1.f + economy::estimate_today_land_spending(state, n));
-		float ratio_naval = 100.f * naval_budget / (1.f + economy::estimate_today_naval_spending(state, n));
+		n.set_land_spending(int8_t(land_budget_ratio * 100.0f));
+		n.set_land_supply_consumption(int8_t(land_supply_consumption * 100.0f));
+		n.set_land_reinforcement_consumption(int8_t(land_reinf_consumption * 100.0f));
 
-		ratio_land = std::clamp(ratio_land, 0.f, 100.f);
-		ratio_naval = std::clamp(ratio_naval, 0.f, 100.f);
-		// Reduce spending at peace
-		if(!state.world.nation_get_is_at_war(n) && future_rebels_in_nation(state, n) == 0) {
-			ratio_land /= 10.f;
-			ratio_naval /= 10.f;
-		}
-		n.set_land_spending(int8_t(ratio_land));
-		n.set_land_supply_consumption(int8_t(ratio_land));
-		n.set_land_reinforcement_consumption(int8_t(ratio_land));
-
-		n.set_naval_spending(int8_t(ratio_naval));
-		n.set_naval_supply_consumption(int8_t(ratio_naval));
-		n.set_naval_reinforcement_consumption(int8_t(ratio_naval));
+		n.set_naval_spending(int8_t(sea_budget_ratio * 100.0f));
+		n.set_naval_supply_consumption(int8_t(naval_supply_consumption * 100.0f));
+		n.set_naval_reinforcement_consumption(int8_t(naval_supply_consumption * 100.0f));
 
 		n.set_administrative_spending(15);
 		n.set_subsidies_spending(3);

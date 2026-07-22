@@ -58,4 +58,19 @@ auto occupied_provinces_fraction(sys::state const& state, T ids) {
 	auto occ_count = ve::to_float(state.world.nation_get_occupied_count(ids));
 	return ve::select(cpc != 0.0f, occ_count / cpc, decltype(cpc)());
 }
+template<typename F>
+dcon::nation_id get_random_nation(const sys::state& state, uint32_t random_hi, uint32_t random_lo, F&& condition_func) {
+	static thread_local std::vector<dcon::nation_id> rlist;
+	rlist.clear();
+	state.world.for_each_nation([&](dcon::nation_id nation) {
+		if(condition_func(nation)) {
+			rlist.push_back(nation);
+		}
+	});
+	if(rlist.size() != 0) {
+		auto r = rng::get_random(state, random_hi, random_lo) % rlist.size();
+		return rlist[r];
+	}
+	return dcon::nation_id{};
+}
 } // namespace nations
