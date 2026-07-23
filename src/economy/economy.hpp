@@ -39,6 +39,11 @@ dcon::province_id construction_get_location(const sys::state& state, dcon::provi
 dcon::province_id construction_get_location(const sys::state& state, dcon::province_building_construction_id con);
 dcon::province_id construction_get_location(const sys::state& state, dcon::factory_construction_id con);
 
+dcon::unit_type_id construction_get_type(const sys::state& state, dcon::province_land_construction_id con);
+dcon::unit_type_id construction_get_type(const sys::state& state, dcon::province_naval_construction_id con);
+uint8_t construction_get_type(const sys::state& state, dcon::province_building_construction_id con);
+dcon::factory_type_id construction_get_type(const sys::state& state, dcon::factory_construction_id con);
+
 
 dcon::nation_id construction_get_controller(const sys::state& state, dcon::province_land_construction_id con);
 dcon::nation_id construction_get_controller(const sys::state& state, dcon::province_naval_construction_id con);

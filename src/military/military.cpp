@@ -9733,7 +9733,7 @@ void increase_dig_in(sys::state& state) {
 
 
 template<concepts::commodity_amount_military_supply_or_build_union_array_type commodity_array_type, concepts::military_unit unit_type>
-commodity_array_type get_last_required_supply(const sys::state& state, unit_type unit) {
+tagged_vector<float, dcon::unit_supply_commodity_id>  get_last_required_supply(const sys::state& state, unit_type unit) {
 	using commodity_ids_type = concepts::military_commodity_amount_to_id_union<commodity_array_type>::type;
 	const auto& commodity_types = military::get_military_commodities_union<commodity_ids_type>(state);
 	commodity_array_type commodities(commodity_types.size());

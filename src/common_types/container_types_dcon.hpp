@@ -328,10 +328,9 @@ static_assert(sizeof(player_password_raw) == sizeof(player_password_raw::data));
 
 struct default_tag {};
 // A fixed-size array wrapper which implements a vector-like interface for keeping track of size.
-// The "custom_tag" template does nothing on its own, but allows strong-typing of diffrent specializations of the fixed size vector, despite having the same capacity and data type
-template<typename data_type, uint32_t capacity, typename custom_tag = default_tag>
+template<typename data_type, uint32_t capacity>
 class fixed_size_vector {
-private:
+protected:
 	uint32_t storage_size = 0;
 	std::array<data_type, capacity> _storage{};
 
@@ -620,27 +619,6 @@ constexpr uint32_t small_set_size = 6;
 constexpr uint32_t set_size = 8;
 constexpr uint32_t huge_set_size = 32;
 
-struct unit_build_cost_tag { };
-struct unit_supply_cost_tag {};
-struct build_cost_union_tag { };
-struct supply_cost_union_tag {};
-struct supply_and_build_cost_union_tag { };
-
-using unit_build_cost_commodity_amount_array = sys::fixed_size_vector<float, set_size, unit_build_cost_tag>;
-using unit_build_cost_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, set_size, unit_build_cost_tag>;
-
-using unit_supply_cost_commodity_amount_array = sys::fixed_size_vector<float, set_size, unit_supply_cost_tag>;
-using unit_supply_cost_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, set_size, unit_supply_cost_tag>;
-
-using build_cost_union_commodity_amount_array = sys::fixed_size_vector<float, huge_set_size, build_cost_union_tag>;
-using build_cost_union_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, huge_set_size, build_cost_union_tag>;
-
-using supply_cost_union_commodity_amount_array = sys::fixed_size_vector<float, huge_set_size, supply_cost_union_tag>;
-using supply_cost_union_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, huge_set_size, supply_cost_union_tag>;
-
-using supply_and_build_cost_union_commodity_amount_array = sys::fixed_size_vector<float, huge_set_size, supply_and_build_cost_union_tag>;
-using supply_and_build_cost_union_commodity_id_array = sys::fixed_size_vector<dcon::commodity_id, huge_set_size, supply_and_build_cost_union_tag>;
-
 using huge_commodity_set = commodity_set_base<huge_set_size>;
 static_assert(sizeof(huge_commodity_set) ==
 	sizeof(huge_commodity_set::commodity_amounts) +
@@ -659,6 +637,8 @@ static_assert(sizeof(small_commodity_set) ==
 	+ sizeof(small_commodity_set::commodity_type) + 2); // take into account two padding bytes
 
 
+using commodity_amounts = sys::fixed_size_vector<float, set_size>;
+static_assert(sizeof(commodity_amounts) == set_size * sizeof(float) + 4);
 
 struct production_type_bonus {
 	float amount = 0.0f;

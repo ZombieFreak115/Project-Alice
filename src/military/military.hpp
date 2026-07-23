@@ -168,13 +168,13 @@ const economy::commodity_set& unit_type_get_commodity_costs(const sys::state& st
 template<unit_consumption_type consumption_type>
 economy::commodity_set& unit_type_get_commodity_costs(sys::state& state, dcon::unit_type_id type);
 
-// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
-template<concepts::commodity_id_military_union_array_type commodity_id_array_type>
-const commodity_id_array_type& get_military_commodities_union(const sys::state& state);
-
-// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
-template<concepts::commodity_id_military_union_array_type commodity_id_array_type>
-commodity_id_array_type& get_military_commodities_union(sys::state& state);
+//// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
+//template<concepts::commodity_id_military_union_array_type commodity_id_array_type>
+//const commodity_id_array_type& get_military_commodities_union(const sys::state& state);
+//
+//// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
+//template<concepts::commodity_id_military_union_array_type commodity_id_array_type>
+//commodity_id_array_type& get_military_commodities_union(sys::state& state);
 
 
 

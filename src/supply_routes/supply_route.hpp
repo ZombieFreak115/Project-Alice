@@ -57,7 +57,6 @@ float adjacency_net_supply_loss(const sys::state& state, dcon::province_adjacenc
 float adjacency_avg_supply_loss(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as);
 float adjacency_avg_supply_loss(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
 void update_supply_routes_daily(sys::state& state);
-void update_supply_routes_monthly(sys::state& state);
 
 
 }

@@ -45,6 +45,19 @@ dcon::province_id construction_get_location(const sys::state& state, dcon::facto
 	return state.world.factory_construction_get_province(con);
 }
 
+dcon::unit_type_id construction_get_type(const sys::state& state, dcon::province_land_construction_id con) {
+	return state.world.province_land_construction_get_type(con);
+}
+dcon::unit_type_id construction_get_type(const sys::state& state, dcon::province_naval_construction_id con) {
+	return state.world.province_naval_construction_get_type(con);
+}
+uint8_t construction_get_type(const sys::state& state, dcon::province_building_construction_id con) {
+	return state.world.province_building_construction_get_type(con);
+}
+dcon::factory_type_id construction_get_type(const sys::state& state, dcon::factory_construction_id con) {
+	return state.world.factory_construction_get_type(con);
+}
+
 
 dcon::nation_id construction_get_controller(const sys::state& state, dcon::province_land_construction_id con) {
 	return state.world.province_land_construction_get_nation(con);
