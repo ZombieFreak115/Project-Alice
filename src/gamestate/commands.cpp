@@ -29,6 +29,7 @@
 #include "gui_message_settings_window.hpp"
 #include "gui_combat.hpp"
 #include "validation.hpp"
+#include "advanced_province_buildings.hpp"
 
 namespace command {
 

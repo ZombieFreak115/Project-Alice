@@ -13,11 +13,9 @@ dcon::province_id supply_route_get_origin(const sys::state& state, dcon::navy_su
 dcon::province_id supply_route_get_origin(const sys::state& state, dcon::land_construction_supply_route_id route);
 dcon::province_id supply_route_get_origin(const sys::state& state, dcon::naval_construction_supply_route_id route);
 
-template<concepts::commodity_amount_military_supply_or_build_union_array_type commodity_array_type, concepts::military_supply_route_type route_type>
-const commodity_array_type& military_route_get_buffered_goods(const sys::state& state, route_type route);
+template<concepts::unit_supply_or_build_commodity_type commodity_type, concepts::military_supply_route_type route_type>
+float military_route_get_buffered_goods(const sys::state& state, route_type route, commodity_type commodity_id);
 
-template<concepts::commodity_amount_military_supply_or_build_union_array_type commodity_array_type, concepts::military_supply_route_type route_type>
-commodity_array_type& military_route_get_buffered_goods(sys::state& state, route_type route);
 
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::army_supply_route_id route);
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::navy_supply_route_id route);

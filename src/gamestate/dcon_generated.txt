@@ -2382,6 +2382,11 @@ object {
 		type{ array{unit_supply_commodity_id}{float} }
 		tag { mp_checksum_excluded }
 	}
+	property{
+		name{ state_instance_vector_buffer_1 }
+		type{ vector_pool{1000}{state_instance_id} }
+		tag { mp_checksum_excluded }
+	}
 }
 
 relationship{
@@ -2466,6 +2471,11 @@ object {
 	property{
 		name{ unit_supply_commodity_float_buffer_1 }
 		type{ array{unit_supply_commodity_id}{float} }
+		tag { mp_checksum_excluded }
+	}
+	property{
+		name{ state_instance_vector_buffer_1 }
+		type{ vector_pool{1000}{state_instance_id} }
 		tag { mp_checksum_excluded }
 	}
 }
@@ -4433,11 +4443,6 @@ object {
 		tag{ save }
 	}
 	property {
-		name{ temp_total_stockpiles_buffer }
-		type{ array{commodity_id}{float} }
-		tag { mp_checksum_excluded }
-	}
-	property {
 		name{ national_bank }
 		type{ float }
 		tag{ save }
@@ -4655,7 +4660,7 @@ object {
 		tag{ save }
 	}
 	property {
-		name{ govt_stockpile_weights_buffer } 
+		name{ commodity_float_buffer_1 } 
 		type{ array{commodity_id}{float} }
 		tag { mp_checksum_excluded }
 	}
@@ -4675,7 +4680,17 @@ object {
 		tag { mp_checksum_excluded }
 	}
 	property {
+		name{ unit_supply_and_build_commodity_float_buffer_4 } 
+		type{ array{unit_supply_and_build_commodity_id}{float} }
+		tag { mp_checksum_excluded }
+	}
+	property {
 		name{ unit_build_commodity_float_buffer_1 } 
+		type{ array{unit_build_commodity_id}{float} }
+		tag { mp_checksum_excluded }
+	}
+	property {
+		name{ unit_build_commodity_float_buffer_2 } 
 		type{ array{unit_build_commodity_id}{float} }
 		tag { mp_checksum_excluded }
 	}
@@ -4725,11 +4740,6 @@ object{
 		name{ government_stockpile }
 		type{ array{commodity_id}{float} }
 		tag{ save }
-	}
-	property {
-		name{ govt_stockpile_satisfaction_buffer }
-		type{ array{commodity_id}{float} }
-		tag { mp_checksum_excluded }
 	}
 	property {
 		name{ government_stockpile_demand_weights }
@@ -4910,6 +4920,11 @@ object{
 		name{ max_throughput }
 		type{ float }
 		tag{ save }
+	}
+	property {
+		name{ commodity_float_buffer_1 }
+		type{ array{commodity_id}{float} }
+		tag { mp_checksum_excluded }
 	}
 }
 
@@ -5659,6 +5674,11 @@ relationship{
 		type{ economy::commodity_amounts }
 		tag { mp_checksum_excluded }
 	}
+	property{
+		name{ state_instance_vector_buffer_1 }
+		type{ vector_pool{1000}{state_instance_id} }
+		tag { mp_checksum_excluded }
+	}
 }
 
 relationship{
@@ -5708,6 +5728,11 @@ relationship{
 	property{
 		name{ commodity_amounts_buffer_1 }
 		type{ economy::commodity_amounts }
+		tag { mp_checksum_excluded }
+	}
+	property{
+		name{ state_instance_vector_buffer_1 }
+		type{ vector_pool{1000}{state_instance_id} }
 		tag { mp_checksum_excluded }
 	}
 }

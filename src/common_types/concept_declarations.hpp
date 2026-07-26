@@ -40,6 +40,12 @@ concept unit_supply_or_build_commodity_type = std::is_same_v<T, dcon::unit_suppl
 											  std::is_same_v<T, dcon::unit_build_commodity_id>;
 
 template<typename T>
+concept unit_commodity_type = std::is_same_v<T, dcon::unit_supply_commodity_id> || std::is_same_v<T, dcon::unit_build_commodity_id> || std::is_same_v<T, dcon::unit_supply_and_build_commodity_id>;
+
+template<typename T>
+concept any_commodity_type = unit_commodity_type<T> || std::is_same_v<T, dcon::commodity_id>;
+
+template<typename T>
 concept cvref_integral = std::integral<std::remove_cvref_t<T>>;
 
 // Is the type a regular (non-ve) dcon id type?
@@ -70,6 +76,7 @@ concept vector_value_type = std::is_same_v<T, ve::value_to_vector_type<value_typ
 
 template<typename T, typename value_type>
 concept normal_or_vector_value_type = std::is_same_v<T, value_type> || vector_value_type<T, value_type>;
+
 
 
 // This is really ugly and unintuitive. If anyone knows a nicer way of doing this (have a concept that accepts all specializations of a specific template) feel free to chang eit

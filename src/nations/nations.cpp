@@ -2289,8 +2289,6 @@ bool exists_or_is_utility_tag(sys::state& state, dcon::nation_id nation) {
 	return exists(state, nation) || state.world.nation_get_utility_tag(nation);
 }
 
-
-
 void run_gc(sys::state& state) {
 	//cleanup (will set gc pending)
 	for(const auto n : state.world.in_nation) {

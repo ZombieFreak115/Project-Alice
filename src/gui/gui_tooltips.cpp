@@ -1,11 +1,11 @@
 #include "gui_tooltips.hpp"
-
 #include "system_state.hpp"
 #include "text.hpp"
 #include "labour_details.hpp"
 #include "economy_production.hpp"
 #include "construction.hpp"
 #include "supply_route.hpp"
+#include "culture_constants.hpp"
 
 namespace ui {
 

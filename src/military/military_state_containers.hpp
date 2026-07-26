@@ -68,14 +68,6 @@ static_assert(sizeof(unit_definition) ==
 struct global_military_state {
 	tagged_vector<unit_definition, dcon::unit_type_id> unit_base_definitions;
 
-	// Stores the commodity ids  (no amounts!) for the union of all goods used for both supply/build costs for all military units
-	economy::supply_and_build_cost_union_commodity_id_array military_supply_build_goods;
-	// Stores the commodity ids (no amounts!) for the union of all goods used for only build costs for all military units
-	economy::build_cost_union_commodity_id_array military_build_goods;
-	// Stores the commodity ids (no amounts!) for the union of all goods used for only supply costs for all military units
-	economy::supply_cost_union_commodity_id_array military_supply_goods;
-
-
 	dcon::leader_trait_id first_background_trait;
 
 	bool great_wars_enabled = false;

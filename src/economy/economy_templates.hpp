@@ -2,8 +2,6 @@
 #include "system_state.hpp"
 #include "economy_constants.hpp"
 #include "adaptive_ve.hpp"
-#include "advanced_province_buildings.hpp"
-#include "demographics_templates.hpp"
 #include "economy_common_api_containers.hpp"
 
 namespace economy {
@@ -63,6 +61,88 @@ void for_each_commodity_no_money(const sys::state& state, F&& func) {
 	for(uint32_t i = 1; i < total_commodities; ++i) {
 		dcon::commodity_id cid{ dcon::commodity_id::value_base_t(i) };
 		func(cid);
+	}
+}
+template<typename F>
+void for_each_unit_construction(const sys::state& state, F&& func) {
+	state.world.for_each_province_land_construction(func);
+	state.world.for_each_province_naval_construction(func);
+}
+
+template<typename F>
+void parallel_for_each_unit_construction(const sys::state& state, F&& func) {
+	concurrency::parallel_for(uint32_t(0), state.world.province_land_construction_size(), [&](uint32_t i) {
+		dcon::province_land_construction_id construction = dcon::province_land_construction_id{ dcon::province_land_construction_id::value_base_t(i) };
+		if(state.world.province_land_construction_is_valid(construction)) {
+			func(construction);
+		}
+	});
+	concurrency::parallel_for(uint32_t(0), state.world.province_naval_construction_size(), [&](uint32_t i) {
+		dcon::province_naval_construction_id construction = dcon::province_naval_construction_id{ dcon::province_naval_construction_id::value_base_t(i) };
+		if(state.world.province_naval_construction_is_valid(construction)) {
+			func(construction);
+		}
+	});
+}
+
+template<price_estimation price_est, concepts::any_dcon_id_type<dcon::market_id> market_type, concepts::normal_or_vector_value_type<float> float_type>
+auto get_estimated_state_stockpile_purchase_price(const sys::state& state, market_type market, dcon::commodity_id com_id, float_type goods_desired) {
+	auto price = state.world.market_get_price(market, com_id);
+	auto percentage_weight = state.world.market_get_government_stockpile_demand_weights(market, com_id);
+	if constexpr(price_est == price_estimation::theoretical_max) {
+		return price * goods_desired * percentage_weight;
+	} else if constexpr(price_est == price_estimation::capped_by_availability) {
+		return price * goods_desired * percentage_weight * state.world.market_get_actual_probability_to_buy(market, com_id);
+	}
+}
+
+template<price_estimation price_est, typename buf_getter>
+requires std::invocable<buf_getter, dcon::unit_supply_commodity_id> || std::invocable<buf_getter, dcon::unit_build_commodity_id> || std::invocable<buf_getter, dcon::unit_supply_and_build_commodity_id> || std::invocable<buf_getter, dcon::commodity_id>
+float get_estimated_stockpile_total_purchase_price(const sys::state& state, dcon::nation_id for_nation, buf_getter&& getter_func) {
+	auto for_each_func = [&]<typename F>(F && func) {
+		if constexpr(std::is_invocable_r_v<float, buf_getter, dcon::unit_supply_commodity_id>) {
+			state.world.for_each_unit_supply_commodity(func);
+		} else if constexpr(std::is_invocable_r_v<float, buf_getter, dcon::unit_build_commodity_id>) {
+			state.world.for_each_unit_build_commodity(func);
+		} else if constexpr(std::is_invocable_r_v<float, buf_getter, dcon::unit_supply_and_build_commodity_id>) {
+			state.world.for_each_unit_supply_and_build_commodity(func);
+		} else if constexpr(std::is_invocable_r_v<float, buf_getter, dcon::commodity_id>) {
+			economy::for_each_commodity_no_money(state, func);
+		} else {
+			static_assert(false, "Unsupported functor signature");
+		}
+	};
+	float total_expected_price = 0.0f;
+	for_each_func([&](auto com_id) {
+		dcon::commodity_id base_com_id = [&]() {
+			if constexpr(std::is_same_v<decltype(com_id), dcon::commodity_id>) {
+				return com_id; // We already have the base commodity
+			} else {
+				return unit_commodity_get_base_commodity(state, com_id);
+			}
+			}();
+		state.world.nation_for_each_state_control(for_nation, [&](dcon::state_control_id sc) {
+			auto state_inst = state.world.state_control_get_state(sc);
+			auto market = state.world.state_instance_get_market_from_local_market(state_inst);
+			float goods_desired = getter_func(com_id);
+			total_expected_price += get_estimated_state_stockpile_purchase_price<price_est>(state, market, base_com_id, goods_desired);
+		});
+	});
+	return total_expected_price;
+}
+// How many goods do we need (or have in excess) in order to be at exactly the stockpile target? If return is negative, that means we excess commodities over the target. Positive means we need more commodities to reach the target
+template<concepts::any_dcon_id_type<dcon::nation_id> nation_type>
+auto government_stockpile_target_balance(const sys::state& state, nation_type nation, dcon::commodity_id com_id) {
+	return state.world.nation_get_stockpile_targets(nation, com_id) - state.world.nation_get_total_stockpiles(nation, com_id);
+}
+
+// How many goods do we need in order to be at exactly the stockpile target? If we are at the target OR have goods in excess, then the result is 0
+template<concepts::any_dcon_id_type<dcon::nation_id> nation_type>
+auto government_stockpile_desired_commodity_amount(const sys::state& state, nation_type nation, dcon::commodity_id com_id) {
+	if constexpr(std::is_same_v<nation_type, dcon::nation_id>) {
+		return std::max(government_stockpile_target_balance(state, nation, com_id), 0.0f);
+	} else {
+		return ve::max(government_stockpile_target_balance(state, nation, com_id), 0.0f);
 	}
 }
 

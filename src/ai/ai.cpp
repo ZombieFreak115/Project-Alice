@@ -17,6 +17,7 @@
 #include "triggers.hpp"
 #include "province.hpp"
 #include "commands.hpp"
+#include "nations_templates.hpp"
 
 
 namespace ai {

@@ -430,6 +430,28 @@ float estimate_reinforcement(const sys::state& state, dcon::navy_id navy) {
 
 }
 
+template<typename F>
+void for_each_unit(const sys::state& state, F&& func) {
+	state.world.for_each_army(func);
+	state.world.for_each_navy(func);
+}
+
+template<typename F>
+void parallel_for_each_unit(const sys::state& state, F&& func) {
+	concurrency::parallel_for(uint32_t(0), state.world.army_size(), [&](uint32_t i) {
+		dcon::army_id army{ dcon::army_id::value_base_t(i) };
+		if(state.world.army_is_valid(army)) {
+			func(army);
+		}
+	});
+	concurrency::parallel_for(uint32_t(0), state.world.navy_size(), [&](uint32_t i) {
+		dcon::navy_id navy{ dcon::navy_id::value_base_t(i) };
+		if(state.world.navy_is_valid(navy)) {
+			func(navy);
+		}
+	});
+}
+
 
 
 

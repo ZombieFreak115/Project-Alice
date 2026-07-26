@@ -213,9 +213,6 @@ uint8_t const* read_handwritten_scenario_section(uint8_t const* ptr_in, uint8_t 
 	{ // military definitions
 		ptr_in = memcpy_deserialize(ptr_in, state.military_definitions.first_background_trait);
 		ptr_in = deserialize(ptr_in, state.military_definitions.unit_base_definitions);
-		ptr_in = memcpy_deserialize(ptr_in, state.military_definitions.military_supply_build_goods);
-		ptr_in = memcpy_deserialize(ptr_in, state.military_definitions.military_build_goods);
-		ptr_in = memcpy_deserialize(ptr_in, state.military_definitions.military_supply_goods);
 		ptr_in = memcpy_deserialize(ptr_in, state.military_definitions.base_army_unit);
 		ptr_in = memcpy_deserialize(ptr_in, state.military_definitions.base_naval_unit);
 		ptr_in = memcpy_deserialize(ptr_in, state.military_definitions.standard_civil_war);
@@ -427,9 +424,6 @@ uint8_t* write_handwritten_scenario_section(uint8_t* ptr_in, sys::state& state, 
 	{ // military definitions
 		ptr_in = memcpy_serialize(ptr_in, state.military_definitions.first_background_trait);
 		ptr_in = serialize(ptr_in, state.military_definitions.unit_base_definitions);
-		ptr_in = memcpy_serialize(ptr_in, state.military_definitions.military_supply_build_goods);
-		ptr_in = memcpy_serialize(ptr_in, state.military_definitions.military_build_goods);
-		ptr_in = memcpy_serialize(ptr_in, state.military_definitions.military_supply_goods);
 		ptr_in = memcpy_serialize(ptr_in, state.military_definitions.base_army_unit);
 		ptr_in = memcpy_serialize(ptr_in, state.military_definitions.base_naval_unit);
 		ptr_in = memcpy_serialize(ptr_in, state.military_definitions.standard_civil_war);
@@ -639,9 +633,6 @@ size_t sizeof_handwritten_scenario_section(sys::state& state, bool exclude_local
 	{ // military definitions
 		sz += sizeof(state.military_definitions.first_background_trait);
 		sz += serialize_size(state.military_definitions.unit_base_definitions);
-		sz += sizeof(state.military_definitions.military_supply_build_goods);
-		sz += sizeof(state.military_definitions.military_build_goods);
-		sz += sizeof(state.military_definitions.military_supply_goods);
 		sz += sizeof(state.military_definitions.base_army_unit);
 		sz += sizeof(state.military_definitions.base_naval_unit);
 		sz += sizeof(state.military_definitions.standard_civil_war);

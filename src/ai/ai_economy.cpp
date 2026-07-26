@@ -705,14 +705,13 @@ void update_stockpile_targets(sys::state& state) {
 		if(state.world.nation_get_is_player_controlled(nid) || !nations::exists(state, nid)) {
 			return;
 		}
-		const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
 		auto army_navy_consumption = economy::estimate_nation_army_and_navy_consumption(state, nid);
-		for(uint32_t j = 0; j < commodity_ids.size(); j++) {
-			auto commodity = commodity_ids[j];
-			assert(commodity);
-			float expected_consume = army_navy_consumption[j];
-			state.world.nation_set_stockpile_targets(nid, commodity, expected_consume * days_of_reserve_goods);
-		}
+		state.world.for_each_unit_supply_and_build_commodity([&](dcon::unit_supply_and_build_commodity_id com_id) {
+			auto base_com_id = economy::unit_commodity_get_base_commodity(state, com_id);
+			float expected_consume = army_navy_consumption[com_id];
+			state.world.nation_set_stockpile_targets(nid, base_com_id, expected_consume * days_of_reserve_goods);
+
+		});
 	});
 }
 

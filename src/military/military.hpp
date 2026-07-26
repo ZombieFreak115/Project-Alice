@@ -515,11 +515,20 @@ battle_regiment get_land_combat_target(const sys::state& state, dcon::regiment_i
 void apply_attrition_to_army(sys::state& state, dcon::army_id army);
 void apply_attrition(sys::state& state);
 void increase_dig_in(sys::state& state);
-template<concepts::commodity_amount_military_supply_or_build_union_array_type commodity_array_type, concepts::military_unit unit_type>
-commodity_array_type get_last_required_supply(const sys::state& state, unit_type unit);
+template<concepts::military_unit unit_type>
+tagged_vector<float, dcon::unit_build_commodity_id> get_last_fufilled_reinforcement(const sys::state& state, unit_type unit);
 
-template<concepts::commodity_amount_military_supply_or_build_union_array_type commodity_array_type, concepts::military_unit unit_type>
-commodity_array_type get_last_fufilled_supply(const sys::state& state, unit_type u);
+template<concepts::military_unit unit_type>
+tagged_vector<float, dcon::unit_supply_commodity_id> get_last_fufilled_supply(const sys::state& state, unit_type unit);
+
+template<concepts::military_unit unit_type>
+tagged_vector<float, dcon::unit_build_commodity_id> get_last_required_reinforcement(const sys::state& state, unit_type unit);
+
+template<concepts::military_unit unit_type>
+tagged_vector<float, dcon::unit_supply_commodity_id> get_last_required_supply(const sys::state& state, unit_type unit);
+
+
+
 
 void recover_org(sys::state& state);
 float calculate_location_reinforce_modifier_battle(const sys::state& state, dcon::province_id location, dcon::nation_id in_nation);
