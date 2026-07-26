@@ -562,7 +562,7 @@ void update_government_stockpile_market_demand_weights(sys::state& state) {
 		auto controllers = state.world.state_instance_get_nation_from_state_control(states);
 		auto controller_valid = (controllers != dcon::nation_id{ } && nations::exists(state, controllers));
 		economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
-			auto sat_weight = state.world.market_get_actual_probability_to_buy(markets, commodity) + 1.0f;
+			auto sat_weight = state.world.market_get_expected_probability_to_buy(markets, commodity) + 0.001f;
 			auto price_weight = 1.0f / (state.world.market_get_price(markets, commodity) + 0.001f);
 			auto raw_weight = state.world.market_get_supply(markets, commodity) * price_weight * sat_weight;
 			state.world.market_set_government_stockpile_demand_weights(markets, commodity, ve::select(controller_valid, raw_weight, 0.0f));

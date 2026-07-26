@@ -1455,16 +1455,19 @@ void update_supply_routes_daily(sys::state& state) {
 		parallel_for_each_supply_route(state, [&](auto route) {
 			auto fat_route = fatten(state.world, route);
 			for(dcon::province_id prov : fat_route.get_path()) {
+				// Check if the province is flagged to update ALL routes which pass through it
 				if(state.world.province_get_supply_route_requires_weekly_update(prov)) {
 					fat_route.set_path_out_of_date(true);
 					return; // Leave loop iteration 
 				}
-				auto nations_to_update = state.world.province_get_nation_routes_to_be_updated(prov);
+				// Check if the nation is flagged to have all of its' supply routes updated
 				dcon::nation_id owner = supply_route_get_owner(state, route);
 				if(state.world.nation_get_supply_routes_requires_path_update(owner)) {
-					fat_route.set_path_out_of_date(true);
+ 					fat_route.set_path_out_of_date(true);
 					return;
 				}
+				// Check which nations' routes should be updated. Only routes which belong to one of those nations will be updated
+				auto nations_to_update = state.world.province_get_nation_routes_to_be_updated(prov);
 				if(auto found = std::find(nations_to_update.begin(), nations_to_update.end(), owner); found != nations_to_update.end()) {
 					fat_route.set_path_out_of_date(true);
 					return;
@@ -1472,12 +1475,21 @@ void update_supply_routes_daily(sys::state& state) {
 			}
 
 		});
-		state.world.execute_serial_over_province([&](auto prov_ids) {
-			state.world.province_set_supply_route_requires_daily_update(prov_ids, ve::vbitfield_type{ 0 });
-			state.world.province_set_supply_route_requires_weekly_update(prov_ids, ve::vbitfield_type{ 0 });
-			ve::apply([&](dcon::province_id prov) {
-				state.world.province_get_nation_routes_to_be_updated(prov).clear();
-			}, prov_ids);
+		// Reset all of of the "to-update" values
+		concurrency::parallel_invoke(
+		[&]() {
+			state.world.execute_serial_over_nation([&](auto nations) {
+				state.world.nation_set_supply_routes_requires_path_update(nations, ve::vbitfield_type{ 0 });
+			});
+		},
+		[&]() {
+			state.world.execute_serial_over_province([&](auto prov_ids) {
+				state.world.province_set_supply_route_requires_daily_update(prov_ids, ve::vbitfield_type{ 0 });
+				state.world.province_set_supply_route_requires_weekly_update(prov_ids, ve::vbitfield_type{ 0 });
+				ve::apply([&](dcon::province_id prov) {
+					state.world.province_get_nation_routes_to_be_updated(prov).clear();
+				}, prov_ids);
+			});
 		});
 	}
 	end = std::chrono::steady_clock::now();

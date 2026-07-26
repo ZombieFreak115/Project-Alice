@@ -2678,14 +2678,9 @@ bool can_give_military_access(sys::state& state, dcon::nation_id asker, dcon::na
 	return true;
 }
 void execute_give_military_access(sys::state& state, dcon::nation_id asker, dcon::nation_id target) {
+	military::give_military_access(state, target, asker);
 	auto& current_diplo = state.world.nation_get_diplomatic_points(asker);
 	state.world.nation_set_diplomatic_points(asker, current_diplo - state.defines.givemilaccess_diplomatic_cost);
-
-	auto urel = state.world.get_unilateral_relationship_by_unilateral_pair(asker, target);
-	if(!urel) {
-		urel = state.world.force_create_unilateral_relationship(asker, target);
-	}
-	state.world.unilateral_relationship_set_military_access(urel, true);
 	nations::adjust_relationship(state, asker, target, state.defines.givemilaccess_relation_on_accept);
 }
 
@@ -3262,10 +3257,7 @@ bool can_cancel_military_access(sys::state& state, dcon::nation_id source, dcon:
 		return false;
 }
 void execute_cancel_military_access(sys::state& state, dcon::nation_id source, dcon::nation_id target) {
-	auto rel = state.world.get_unilateral_relationship_by_unilateral_pair(target, source);
-	if(rel)
-		state.world.unilateral_relationship_set_military_access(rel, false);
-
+	military::remove_military_access(state, source, target);
 	auto& current_diplo = state.world.nation_get_diplomatic_points(source);
 	state.world.nation_set_diplomatic_points(source, current_diplo - state.defines.cancelaskmilaccess_diplomatic_cost);
 	nations::adjust_relationship(state, source, target, state.defines.cancelaskmilaccess_relation_on_accept);
@@ -3313,10 +3305,7 @@ bool can_cancel_given_military_access(sys::state& state, dcon::nation_id source,
 
 }
 void execute_cancel_given_military_access(sys::state& state, dcon::nation_id source, dcon::nation_id target) {
-	auto rel = state.world.get_unilateral_relationship_by_unilateral_pair(source, target);
-	if(rel)
-		state.world.unilateral_relationship_set_military_access(rel, false);
-
+	military::remove_military_access(state, target, source);
 	auto& current_diplo = state.world.nation_get_diplomatic_points(source);
 	state.world.nation_set_diplomatic_points(source, current_diplo - state.defines.cancelgivemilaccess_diplomatic_cost);
 	nations::adjust_relationship(state, source, target, state.defines.cancelgivemilaccess_relation_on_accept);
@@ -7622,7 +7611,7 @@ void execute_command(sys::state& state, command_data& c) {
 	case command_type::cancel_given_military_access:
 	{
 		auto& data = c.get_payload<diplo_action_data>();
-		execute_cancel_military_access(state, source_nation, data.target);
+		execute_cancel_given_military_access(state, source_nation, data.target);
 		break;
 	}
 	case command_type::declare_war:
