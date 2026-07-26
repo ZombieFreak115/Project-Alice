@@ -168,13 +168,13 @@ const economy::commodity_set& unit_type_get_commodity_costs(const sys::state& st
 template<unit_consumption_type consumption_type>
 economy::commodity_set& unit_type_get_commodity_costs(sys::state& state, dcon::unit_type_id type);
 
-// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
-template<concepts::commodity_id_military_union_array_type commodity_id_array_type>
-const commodity_id_array_type& get_military_commodities_union(const sys::state& state);
-
-// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
-template<concepts::commodity_id_military_union_array_type commodity_id_array_type>
-commodity_id_array_type& get_military_commodities_union(sys::state& state);
+//// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
+//template<concepts::commodity_id_military_union_array_type commodity_id_array_type>
+//const commodity_id_array_type& get_military_commodities_union(const sys::state& state);
+//
+//// Gets the union of all IDs required by all units for either supply, reinforcement (build goods) or both.
+//template<concepts::commodity_id_military_union_array_type commodity_id_array_type>
+//commodity_id_array_type& get_military_commodities_union(sys::state& state);
 
 
 
@@ -295,6 +295,8 @@ void schedule_prov_common_war_supply_paths_update(sys::state& state, dcon::provi
 void schedule_prov_specific_nation_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation);
 // Schedules a path update on all supply routes owned by the nation
 void schedule_nation_supply_paths_update(sys::state& state, dcon::nation_id nation);
+// Schedules ALL supply paths to be updated. Can be expensive
+void schedule_all_supply_paths_update(sys::state& state);
 
 
 
@@ -513,11 +515,20 @@ battle_regiment get_land_combat_target(const sys::state& state, dcon::regiment_i
 void apply_attrition_to_army(sys::state& state, dcon::army_id army);
 void apply_attrition(sys::state& state);
 void increase_dig_in(sys::state& state);
-template<concepts::commodity_amount_military_supply_or_build_union_array_type commodity_array_type, concepts::military_unit unit_type>
-commodity_array_type get_last_required_supply(const sys::state& state, unit_type unit);
+template<concepts::military_unit unit_type>
+tagged_vector<float, dcon::unit_build_commodity_id> get_last_fufilled_reinforcement(const sys::state& state, unit_type unit);
 
-template<concepts::commodity_amount_military_supply_or_build_union_array_type commodity_array_type, concepts::military_unit unit_type>
-commodity_array_type get_last_fufilled_supply(const sys::state& state, unit_type u);
+template<concepts::military_unit unit_type>
+tagged_vector<float, dcon::unit_supply_commodity_id> get_last_fufilled_supply(const sys::state& state, unit_type unit);
+
+template<concepts::military_unit unit_type>
+tagged_vector<float, dcon::unit_build_commodity_id> get_last_required_reinforcement(const sys::state& state, unit_type unit);
+
+template<concepts::military_unit unit_type>
+tagged_vector<float, dcon::unit_supply_commodity_id> get_last_required_supply(const sys::state& state, unit_type unit);
+
+
+
 
 void recover_org(sys::state& state);
 float calculate_location_reinforce_modifier_battle(const sys::state& state, dcon::province_id location, dcon::nation_id in_nation);

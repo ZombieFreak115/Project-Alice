@@ -1135,15 +1135,9 @@ void repopulate_modifier_effects(sys::state& state) {
 // this is ran on update
 void update_modifier_effects(sys::state& state) {
 	purge_expired_national_province_modifiers(state);
-	auto begin = std::chrono::steady_clock::now();
 	recreate_national_modifiers(state);
-	auto end = std::chrono::steady_clock::now();
-	state.console_log(std::string("national mods time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
 	purge_expired_province_modifiers(state);
-	begin = std::chrono::steady_clock::now();
 	recreate_province_modifiers(state);
-	end = std::chrono::steady_clock::now();
-	state.console_log(std::string("province mods time: " + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())));
 	for(auto n : state.world.in_nation) {
 		economy::bound_budget_settings(state, n);
 	}

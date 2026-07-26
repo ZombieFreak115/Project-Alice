@@ -3089,6 +3089,11 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	world.commodity_resize_price_record(economy::price_history_length);
 	world.nation_resize_gdp_record(economy::gdp_history_length);
 
+	world.army_supply_route_resize_buffered_reinforcement_goods(world.unit_build_commodity_size());
+	world.army_supply_route_resize_buffered_supply_goods(world.unit_supply_commodity_size());
+	world.navy_supply_route_resize_buffered_reinforcement_goods(world.unit_build_commodity_size());
+	world.navy_supply_route_resize_buffered_supply_goods(world.unit_supply_commodity_size());
+
 	nations_by_rank.resize(2000); // TODO: take this value directly from the data container: max number of nations
 	nations_by_industrial_score.resize(2000);
 	nations_by_military_score.resize(2000);
@@ -3980,8 +3985,20 @@ void state::fill_unsaved_data() { // reconstructs derived values that are not di
 	world.state_instance_resize_demographics_alt(demographics::size(*this));
 	world.province_resize_demographics_alt(demographics::size(*this));
 
-	world.nation_resize_temp_total_stockpiles_buffer(world.commodity_size());
-	world.market_resize_govt_stockpile_satisfaction_buffer(world.commodity_size());
+	world.market_resize_commodity_float_buffer_1(world.commodity_size());
+	world.nation_resize_commodity_float_buffer_1(world.commodity_size());
+	world.nation_resize_unit_supply_and_build_commodity_float_buffer_1(world.unit_supply_and_build_commodity_size());
+	world.nation_resize_unit_supply_and_build_commodity_float_buffer_2(world.unit_supply_and_build_commodity_size());
+	world.nation_resize_unit_supply_and_build_commodity_float_buffer_3(world.unit_supply_and_build_commodity_size());
+	world.nation_resize_unit_supply_and_build_commodity_float_buffer_4(world.unit_supply_and_build_commodity_size());
+	world.nation_resize_unit_build_commodity_float_buffer_1(world.unit_build_commodity_size());
+	world.nation_resize_unit_build_commodity_float_buffer_2(world.unit_build_commodity_size());
+
+	world.army_resize_unit_build_commodity_float_buffer_1(world.unit_build_commodity_size());
+	world.army_resize_unit_supply_commodity_float_buffer_1(world.unit_supply_commodity_size());
+
+	world.navy_resize_unit_build_commodity_float_buffer_1(world.unit_build_commodity_size());
+	world.navy_resize_unit_supply_commodity_float_buffer_1(world.unit_supply_commodity_size());
 
 	province::restore_distances(*this);
 
@@ -4497,15 +4514,23 @@ void state::single_game_tick() {
 
 		event::update_events(*this);
 
+		// weekly updates
+		auto day_of_week = current_date.to_raw_value() % 7;
+		switch(day_of_week) {
+		case 6:
+			sys::update_modifier_effects(*this);
+			break;
+		}
+
 		// Once per month updates, spread out over the month
 		switch(ymd_date.day) {
 		case 1:
 			nations::update_monthly_points(*this);
 			economy::prune_factories(*this);
+			military::schedule_all_supply_paths_update(*this); // The actual update will happen on the 2nd day of the month, this just schedules it
 			break;
 		case 2:
 			province::update_blockaded_cache(*this);
-			sys::update_modifier_effects(*this);
 			break;
 		case 3:
 			military::monthly_leaders_update(*this);
@@ -4583,7 +4608,6 @@ void state::single_game_tick() {
 			ai::update_ai_embargoes(*this);
 			break;
 		case 22:
-			supply_routes::update_supply_routes_monthly(*this);
 			ai::take_reforms(*this);
 			break;
 		case 23:

@@ -254,10 +254,9 @@ void create_nation_based_on_template(sys::state& state, dcon::nation_id n, dcon:
 void cleanup_nation(sys::state& state, dcon::nation_id n);
 
 bool exists(sys::state& state, dcon::nation_id nation);
-ve::mask_vector exists(sys::state& state, ve::contiguous_tags<dcon::nation_id> nations);
+
 
 bool exists_or_is_utility_tag(sys::state& state, dcon::nation_id nation);
-ve::mask_vector exists_or_is_utility_tag(sys::state& state, ve::contiguous_tags<dcon::nation_id> nations);
 
 void adjust_prestige(sys::state& state, dcon::nation_id n, float delta);
 void do_embargo(sys::state& state, dcon::unilateral_relationship_id rel, bool notify = true);

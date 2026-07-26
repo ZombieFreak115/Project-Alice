@@ -1296,7 +1296,7 @@ struct building_definition : public modifier_base {
 struct building_file {
 	void result(std::string_view name, building_definition&& res, error_handler& err, int32_t line,
 			scenario_building_context& context);
-	void finish(scenario_building_context& context) { }
+	void finish(scenario_building_context& context);
 };
 
 struct ideology_group_context {

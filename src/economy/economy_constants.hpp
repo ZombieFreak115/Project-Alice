@@ -1,8 +1,21 @@
 #pragma once
 
+#include "culture_constants.hpp"
+
 namespace economy {
 
 constexpr inline float factories_per_state_required_city_size = 60'000.f;
+
+constexpr float stockpile_targets_demand_mult = 0.05f; // Stockpile targets demand will be multplied with this amount
+constexpr float max_army_required_spend = 1.5f; // Max percentage of current required army supplies the army budget will attempt to buy (1.5 = 150% of current required army supplies)
+constexpr float max_navy_required_spend = 1.5f; // Max percentage of current required navy supplies the army budget will attempt to buy (1.5 = 150% of current required navy supplies)
+constexpr float max_mil_con_required_spend = 1.5f; // Max percentage of current required military construction supplies the mil. construction budget will attempt to buy (1.5 = 150% of current required mil. construction supplies)
+
+
+enum class price_estimation : uint8_t {
+	theoretical_max,
+	capped_by_availability
+};
 
 namespace numerical {
 namespace commodity_unit {

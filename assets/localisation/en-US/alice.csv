@@ -2079,3 +2079,6 @@ province_control;Province control
 supply_loss_total_tooltip;Supply loss: ?Y$value$?W
 supply_loss_add_convoy_raiding_modifier;Convoy raiding
 supply_loss_add_hostile_armies_modifier;Hostile armies
+port_supply_capacity_total_tooltip;Total port supply capacity: ?Y$value$?W
+port_supply_capacity_used_tooltip;Used port supply capacity: ?Y$value$?W
+port_supply_capacity_efficiency_tooltip;Net port efficiency: ?Y$value$?W

@@ -718,12 +718,11 @@ void populate_state_construction_demand(
 
 
 
-template<concepts::military_construction_type construction_type>
-void accumulate_military_construction_consumption(const sys::state& state, construction_type c, economy::build_cost_union_commodity_amount_array& buffer_out) {
+template<concepts::military_construction_type construction_type, typename accumulate_func>
+void accumulate_military_construction_consumption(const sys::state& state, construction_type c, accumulate_func& acc_func) {
 	auto construction = fatten(state.world, c);
 	dcon::unit_type_id type = construction.get_type();
-	const auto& base_cost =
-		state.military_definitions.unit_base_definitions[type].build_cost;
+	const auto& base_cost = state.military_definitions.unit_base_definitions[type].build_cost;
 	auto builder = construction_get_controller(state, construction.id);
 
 	const auto& currently_fufilled = construction.get_purchased_goods();
@@ -737,26 +736,28 @@ void accumulate_military_construction_consumption(const sys::state& state, const
 			float fufilled_amount = currently_fufilled.commodity_amounts[i];
 			float goods_left = std::max(total_required - fufilled_amount, 0.0f);
 			float required = std::min(total_required, goods_left);
-			auto index = state.world.commodity_get_unit_build_goods_index(cid);
-			assert(index >= 0);
-			buffer_out[index] += required;
+			acc_func(cid, required);
 		} else {
 			break;
 		}
 	}
 }
 
-economy::build_cost_union_commodity_amount_array estimate_nation_military_construction_consumption(const sys::state& state, dcon::nation_id nation) {
-	auto arr_size = military::get_military_commodities_union<economy::build_cost_union_commodity_id_array>(state).size();
-	economy::build_cost_union_commodity_amount_array consumption(arr_size);
+tagged_vector<float, dcon::unit_build_commodity_id> estimate_nation_military_construction_consumption(const sys::state& state, dcon::nation_id nation) {
+	tagged_vector<float, dcon::unit_build_commodity_id> consumption(state.world.unit_build_commodity_size());
+	auto accumulate_func = [&](dcon::commodity_id com_id, float amount) {
+		auto build_com_id = state.world.commodity_get_unit_build_commodity(com_id);
+		assert(build_com_id);
+		consumption[build_com_id] += amount;
+	};
 	for(auto lc : state.world.nation_get_province_land_construction(nation)) {
 		if(can_advance_construction(state, lc)) {
-			accumulate_military_construction_consumption(state, lc.id, consumption);
+			accumulate_military_construction_consumption(state, lc.id, accumulate_func);
 		}
 	}
 	for(auto nc : state.world.nation_get_province_naval_construction(nation)) {
 		if(can_advance_construction(state, nc)) {
-			accumulate_military_construction_consumption(state, nc.id, consumption);
+			accumulate_military_construction_consumption(state, nc.id, accumulate_func);
 		}
 	}
 	return consumption;
@@ -766,14 +767,14 @@ economy::build_cost_union_commodity_amount_array estimate_nation_military_constr
 float estimate_military_construction_stockpile_spending(const sys::state& state, dcon::nation_id nation, float budget) {
 	auto goods_consumption = estimate_nation_military_construction_consumption(state, nation);
 	float total_expected_price = get_estimated_stockpile_total_purchase_price<price_estimation::capped_by_availability>(state, nation, goods_consumption);
-	float can_afford_mult = (total_expected_price == 0 ? 1.5f : std::min(budget / total_expected_price, 1.5f));
+	float can_afford_mult = (total_expected_price == 0 ? max_mil_con_required_spend : std::min(budget / total_expected_price, max_mil_con_required_spend));
 	return total_expected_price * can_afford_mult;
 }
-economy::build_cost_union_commodity_amount_array estimate_military_construction_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation, float budget) {
+tagged_vector<float, dcon::unit_build_commodity_id> estimate_military_construction_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation, float budget) {
 	auto goods_consumption = estimate_nation_military_construction_consumption(state, nation);
 	float total_expected_price = get_estimated_stockpile_total_purchase_price<price_estimation::capped_by_availability>(state, nation, goods_consumption);
 	auto total_expected_prices = get_estimated_stockpile_purchase_price_by_commodity<price_estimation::capped_by_availability>(state, nation, goods_consumption);
-	float can_afford_mult = (total_expected_price == 0 ? 1.5f : std::min(budget / total_expected_price, 1.5f));
+	float can_afford_mult = (total_expected_price == 0 ? max_mil_con_required_spend : std::min(budget / total_expected_price, max_mil_con_required_spend));
 	for(auto& price : total_expected_prices) {
 		price = price * can_afford_mult;
 	}
@@ -785,81 +786,90 @@ economy::build_cost_union_commodity_amount_array estimate_military_construction_
 
 
 void populate_military_construction_consumption(sys::state& state) {
-	reset_military_construction_demand(state);
+
+	// Nobody should be using this dcon buffer at this time, so we can re-use it.
+	auto demand_buffer_set = [&]<concepts::any_dcon_id_type<dcon::nation_id> nation_type, concepts::normal_or_vector_value_type<float> float_type>(nation_type nation, dcon::unit_build_commodity_id com_id, float_type val) {
+		state.world.nation_set_unit_build_commodity_float_buffer_1(nation, com_id, val);
+	};
+	auto demand_buffer_get = [&]<concepts::any_dcon_id_type<dcon::nation_id> nation_type>(nation_type nation, dcon::unit_build_commodity_id com_id) {
+		return state.world.nation_get_unit_build_commodity_float_buffer_1(nation, com_id);
+	};
 
 	static auto current_budget = ve::vectorizable_buffer<float, dcon::nation_id>(uint32_t(1));
+	static auto expected_total_price = ve::vectorizable_buffer<float, dcon::nation_id>(uint32_t(1));
 	{
 		static uint32_t old_count = 1;
 		auto new_count = state.world.nation_size();
 		if(new_count > old_count) {
 			current_budget = state.world.nation_make_vectorizable_float_buffer();
+			expected_total_price = state.world.nation_make_vectorizable_float_buffer();
 			old_count = new_count;
 		}
 	}
-	// Buffers all the commodites needed for unit constructions per nation, to be applied later
-	static tagged_vector<economy::build_cost_union_commodity_amount_array, dcon::nation_id> unit_commodity_demand_buffer;
-	unit_commodity_demand_buffer.resize(state.world.nation_size());
-	auto arr_size = military::get_military_commodities_union<economy::build_cost_union_commodity_id_array>(state).size();
-	for(auto& commodity_vec : unit_commodity_demand_buffer) {
-		commodity_vec.resize(arr_size);
-		std::fill(commodity_vec.begin(), commodity_vec.end(), 0.0f);
-	}
-	//reset static data
 
+	// Set nation budget values and reset buffer
 	state.world.execute_serial_over_nation([&](auto ids) {
 		auto base_budget = state.world.nation_get_last_base_budget(ids);
 		auto construction_priority = ve::to_float(state.world.nation_get_military_construction_spending(ids)) / 100.f;
 		current_budget.set(ids, ve::max(0.f, base_budget * construction_priority));
+		expected_total_price.set(ids, 0.0f);
+		state.world.for_each_unit_build_commodity([&](dcon::unit_build_commodity_id com_id) {
+			demand_buffer_set(ids, com_id, ve::fp_vector{ 0.0f });
+		});
+	});
+	// Accumulate total potential demand for both land and naval unit constructions. Land regiments can be advanced in parallel in the same province, but naval units can only be constructed serially per province
+	economy::for_each_unit_construction(state, [&](auto con) {
+		if(!can_advance_construction(state, con)) {
+			return;
+		}
+		dcon::nation_id conc_owner = construction_get_controller(state, con);
+		auto accumulate_func = [&](dcon::commodity_id com_id, float amount) {
+			auto build_com_id = state.world.commodity_get_unit_build_commodity(com_id);
+			assert(build_com_id);
+			demand_buffer_set(conc_owner, build_com_id, demand_buffer_get(conc_owner, build_com_id) + amount);
+		};
+		accumulate_military_construction_consumption(state, con, accumulate_func);
 	});
 
-	// Accumulate total potential demand for both land and naval unit constructions. Land regiments can be advanced in parallel in the same province, but naval units can only be constructed serially per province
-	for(auto lc : state.world.in_province_land_construction) {
-		if(!can_advance_construction(state, lc)) {
-			continue;
-		}
-		dcon::nation_id conc_owner = construction_get_controller(state, lc.id);
-		accumulate_military_construction_consumption(state, lc.id, unit_commodity_demand_buffer[conc_owner]);
-	}
-	for(auto nc : state.world.in_province_naval_construction) {
+	// Calculate the total expected price per nation, when taking into account demand weights in their controlled states.
+	// We need to calculate this to be a modifier on demand later
+	state.world.execute_serial_over_market([&](auto markets) {
+		auto states = state.world.market_get_zone_from_local_market(markets);
+		auto controllers = state.world.state_instance_get_nation_from_state_control(states);
+		auto nations_valid = ve::apply([&](dcon::nation_id nation) {
+			return state.world.nation_is_valid(nation);
+		}, controllers);
+		state.world.for_each_unit_build_commodity([&](dcon::unit_build_commodity_id com_id) {
+			auto nations_demand = demand_buffer_get(controllers, com_id);
+			auto base_com_id = economy::unit_commodity_get_base_commodity(state, com_id);
+			auto expected_stockpile_price = get_estimated_state_stockpile_purchase_price<price_estimation::theoretical_max>(state, markets, base_com_id, nations_demand);
+			ve::apply([&](float expected_price, dcon::nation_id nation, bool valid) {
+				if(valid) {
+					expected_total_price.set(nation, expected_total_price.get(nation) + expected_price);
+				}
+			}, expected_stockpile_price, controllers, nations_valid);
+		});
+	});
 
-		auto details = explain_naval_unit_construction(state, nc);
-		if(!can_advance_construction(state, nc.id)) {
-			continue;
-		}
-		dcon::nation_id conc_owner = construction_get_controller(state, nc.id);
-		accumulate_military_construction_consumption(state, nc.id, unit_commodity_demand_buffer[conc_owner]);
-		
-	}
+	// Calculate the actual amount of demand to apply on each market, depending on the nation budget and how much we are expected to be able to afford
+	state.world.execute_serial_over_market([&](auto markets) {
+		auto states = state.world.market_get_zone_from_local_market(markets);
+		auto controllers = state.world.state_instance_get_nation_from_state_control(states);
+		auto controllers_valid = ve::apply([&](dcon::nation_id nation) {
+			return state.world.nation_is_valid(nation);
+		}, controllers);
+		auto total_expected_price = expected_total_price.get(controllers);
+		auto nation_budget = current_budget.get(controllers);
+		auto can_afford_mult = ve::select(total_expected_price == 0, max_mil_con_required_spend, ve::min(nation_budget / total_expected_price, max_mil_con_required_spend));
+		state.world.for_each_unit_build_commodity([&](dcon::unit_build_commodity_id com_id) {
+			dcon::commodity_id base_commodity = economy::unit_commodity_get_base_commodity(state, com_id);
+			auto percentage_weight = state.world.market_get_government_stockpile_demand_weights(markets, base_commodity);
+			auto total_demand = demand_buffer_get(controllers, com_id);
+			auto can_purchase = total_demand * percentage_weight * can_afford_mult;
+			state.world.market_set_unit_construction_demand(markets, base_commodity, ve::select(controllers_valid, can_purchase, 0.0f));
+		});
+	});
 
-	// Then set the demand in each controlled state in accordance with the government stockpile demand weights, which is calculated earlier
-	for(auto nation : state.world.in_nation) {
-		if(!nations::exists(state, nation)) {
-			continue;
-		}
-		float budget = current_budget.get(nation);
-
-		float total_expected_price = get_estimated_stockpile_total_purchase_price<price_estimation::theoretical_max>(state, nation, unit_commodity_demand_buffer[nation]);
-		// Set the demand mult to match what our budget can afford at most, and reduce demand if we can't afford it all. Demand multiplier may demand extra and go all the way up to 1.5.
-		// This is to take into account potential route attrition, so we buy up to 50% extra if the budget allows for it
-		float can_afford_mult = (total_expected_price == 0 ? 1.5f : std::min(budget/ total_expected_price, 1.5f));
-		const auto& commodity_ids = military::get_military_commodities_union<economy::build_cost_union_commodity_id_array>(state);
-		for(uint32_t i = 0; i < commodity_ids.size(); i++) {
-			auto com_id = commodity_ids[i];
-			float stockpile_target_balance = government_stockpile_target_balance(state, nation, com_id);
-			state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
-				auto state_inst = state.world.state_control_get_state(sc);
-				auto market = state.world.state_instance_get_market_from_local_market(state_inst);
-				auto price = economy::price(state, market, com_id);
-				auto total_demand = unit_commodity_demand_buffer[nation][i];
-				auto percentage_weight = state.world.market_get_government_stockpile_demand_weights(market, com_id);
-				assert(price > 0.0f);
-				float can_purchase = total_demand * percentage_weight * can_afford_mult;
-				//float clamped_to_stockpile_target = std::clamp(can_purchase + stockpile_target_balance, 0.0f, can_purchase); // Don't buy more than we need to reach the target. It is allowed to go above the target temporarily to buy the needed goods as they are expected to be consumed immediately.
-				register_military_construction_demand(state, market, com_id, can_purchase);
-
-			});
-		}
-	}
 }
 
 

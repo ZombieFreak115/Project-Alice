@@ -1176,7 +1176,9 @@ void  budgetwindow_main_espenses_table_t::update(sys::state& state, layout_windo
 	float next_budget = economy::estimate_next_budget(state, state.local_player_nation);
 	auto mil_construction_spending = (float)state.world.nation_get_military_construction_spending(state.local_player_nation) / 100.0f;
 	auto stockpile_spending = (float)state.world.nation_get_stockpile_spending(state.local_player_nation) / 100.0f;
-	auto stockpile_spendings = economy::estimate_total_stockpile_spendings_by_commodity(state, state.local_player_nation, next_budget * mil_construction_spending, next_budget * stockpile_spending);
+	auto army_supplies_spending = (float)state.world.nation_get_land_spending(state.local_player_nation) / 100.0f;
+	auto navy_supplies_spending = (float)state.world.nation_get_naval_spending(state.local_player_nation) / 100.0f;
+	auto stockpile_spendings = economy::estimate_total_stockpile_spendings_by_commodity(state, state.local_player_nation, next_budget * mil_construction_spending, next_budget * stockpile_spending, next_budget * army_supplies_spending, next_budget * navy_supplies_spending);
 	values.clear();
 	add_section_header(budget_categories::construction);
 	if(budget_categories::expanded[budget_categories::construction]) {
@@ -1204,14 +1206,13 @@ void  budgetwindow_main_espenses_table_t::update(sys::state& state, layout_windo
 
 	add_section_header(budget_categories::military_construction);
 	if(budget_categories::expanded[budget_categories::military_construction]) {
-		const auto& commodity_ids = military::get_military_commodities_union<economy::build_cost_union_commodity_id_array>(state);
-		for(uint32_t i = 0; i < commodity_ids.size(); i++) {
-			auto com_id = commodity_ids[i];
-			float spending = stockpile_spendings.military_construction_spendings[i];
+		state.world.for_each_unit_build_commodity([&](dcon::unit_build_commodity_id com_id) {
+			auto base_com_id = economy::unit_commodity_get_base_commodity(state, com_id);
+			float spending = stockpile_spendings.military_construction_spendings[com_id];
 			if(spending > 0.0f) {
-				add_budget_row(text::produce_simple_string(state, state.world.commodity_get_name(com_id)), spending);
+				add_budget_row(text::produce_simple_string(state, state.world.commodity_get_name(base_com_id)), spending);
 			}
-		}
+		});
 	} else {
 		add_neutral_spacer();
 	}
@@ -1225,15 +1226,13 @@ void  budgetwindow_main_espenses_table_t::update(sys::state& state, layout_windo
 
 	add_section_header(budget_categories::army_upkeep);
 	if(budget_categories::expanded[budget_categories::army_upkeep]) {
-		const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
-		for(uint32_t i = 0; i < commodity_ids.size();i++) {
-			dcon::commodity_id com_id = commodity_ids[i];
-			assert(com_id);
-			float spending = stockpile_spendings.army_stockpile_spendings[i];
+		state.world.for_each_unit_supply_and_build_commodity([&](dcon::unit_supply_and_build_commodity_id com_id) {
+			auto base_com_id = economy::unit_commodity_get_base_commodity(state, com_id);
+			float spending = stockpile_spendings.army_stockpile_spendings[com_id];
 			if(spending > 0.0f) {
-				add_budget_row(text::produce_simple_string(state, state.world.commodity_get_name(com_id)), spending);
+				add_budget_row(text::produce_simple_string(state, state.world.commodity_get_name(base_com_id)), spending);
 			}
-		}
+		});
 	}
 	else {
 		add_neutral_spacer();
@@ -1241,16 +1240,13 @@ void  budgetwindow_main_espenses_table_t::update(sys::state& state, layout_windo
 
 	add_section_header(budget_categories::navy_upkeep);
 	if(budget_categories::expanded[budget_categories::navy_upkeep]) {
-		const auto& commodity_ids = state.military_definitions.military_supply_build_goods;
-		for(uint32_t i = 0; i < commodity_ids.size(); i++) {
-			dcon::commodity_id com_id = commodity_ids[i];
-			assert(com_id);
-			float spending = stockpile_spendings.navy_stockpile_spendings[i];
+		state.world.for_each_unit_supply_and_build_commodity([&](dcon::unit_supply_and_build_commodity_id com_id) {
+			auto base_com_id = economy::unit_commodity_get_base_commodity(state, com_id);
+			float spending = stockpile_spendings.navy_stockpile_spendings[com_id];
 			if(spending > 0.0f) {
-				add_budget_row(text::produce_simple_string(state, state.world.commodity_get_name(com_id)), spending);
+				add_budget_row(text::produce_simple_string(state, state.world.commodity_get_name(base_com_id)), spending);
 			}
-		}
-		
+		});
 	}
 	add_neutral_spacer();
 

@@ -240,10 +240,6 @@ void good::uses_potentials(association_type, bool b, error_handler& err, int32_t
 void good::finish(good_context& context) {
 	++context.outer_context.number_of_commodities_seen;
 	context.outer_context.state.world.commodity_set_icon(context.id, uint8_t(context.outer_context.number_of_commodities_seen));
-	// Set these indexes to -1 (no index) for now, they may get filled out later when goods required for military units are parsed
-	context.outer_context.state.world.commodity_set_unit_supply_goods_index(context.id, int16_t(-1));
-	context.outer_context.state.world.commodity_set_unit_build_goods_index(context.id, int16_t(-1));
-	context.outer_context.state.world.commodity_set_unit_supply_build_goods_index(context.id, int16_t(-1));
 }
 
 void issue::next_step_only(association_type, bool value, error_handler& err, int32_t line, issue_context& context) {
@@ -444,30 +440,27 @@ void military_supply_commodity_set::any_value(std::string_view name, association
 	auto found_commodity = context.map_of_commodity_names.find(std::string(name));
 	if(found_commodity != context.map_of_commodity_names.end()) {
 		auto com = fatten(context.state.world, found_commodity->second);
-		auto& union_supply_build_goods = context.state.military_definitions.military_supply_build_goods;
-		auto& union_supply_goods = context.state.military_definitions.military_supply_goods;
 		// Have we already added it?
-		if(com.get_unit_supply_build_goods_index() == -1) {
-			bool added = union_supply_build_goods.push_back(com);
-			// If it was not added, then we are out of capacity. Otherwise, store the index as the container size - 1
-			if(added) {
-				com.set_unit_supply_build_goods_index(int16_t(union_supply_build_goods.size() - 1));
-			} else {
-				err.accumulated_errors += "Too many unique commodities in combined military unit supply&build costs (limit is " + std::to_string(context.state.military_definitions.military_supply_build_goods.total_capacity()) + ") . Tried to add " + std::string(name) + " in file " + err.file_name + " line " + std::to_string(line) + "\n";
-			}
+		if(!com.get_unit_supply_and_build_commodity()) {
+			auto supply_build_com_id = fatten(context.state.world, context.state.world.create_unit_supply_and_build_commodity());
+			com.set_unit_supply_and_build_commodity(supply_build_com_id);
+			supply_build_com_id.set_base_commodity(com);
 		}
 		// Have we already added it to the supply-only container?
-		if(com.get_unit_supply_goods_index() == -1) {
-			bool added = union_supply_goods.push_back(com);
-			if(added) {
-				com.set_unit_supply_goods_index(int16_t(union_supply_goods.size() - 1));
-			}
+		if(!com.get_unit_supply_commodity()) {
+			auto supply_com_id = fatten(context.state.world, context.state.world.create_unit_supply_commodity());
+			com.set_unit_supply_commodity(supply_com_id);
+			supply_com_id.set_base_commodity(com);
+
+			// Add the union of supply and build commodities id to be able to retrieve it later
+			auto supply_build_com_id = com.get_unit_supply_and_build_commodity();
+			supply_com_id.set_supply_and_build_commodity(supply_build_com_id);
 		}
+		commodity_set::any_value(name, c, value, err, line, context);
 	} else {
 		err.accumulated_errors += "Unknown commodity " + std::string(name) + " in file " + err.file_name + " line " + std::to_string(line) + "\n";
 		return;
 	}
-	commodity_set::any_value(name, c, value, err, line, context);
 }
 
 
@@ -478,30 +471,27 @@ void military_build_commodity_set::any_value(std::string_view name, association_
 	auto found_commodity = context.map_of_commodity_names.find(std::string(name));
 	if(found_commodity != context.map_of_commodity_names.end()) {
 		auto com = fatten(context.state.world, found_commodity->second);
-		auto& union_supply_build_goods = context.state.military_definitions.military_supply_build_goods;
-		auto& union_build_goods = context.state.military_definitions.military_build_goods;
 		// Have we already added it?
-		if(com.get_unit_supply_build_goods_index() == -1) {
-			auto added = union_supply_build_goods.push_back(com);
-			// If it was not added, then we are out of capacity. Otherwise, store the index as the container size - 1
-			if(added) {
-				com.set_unit_supply_build_goods_index(int16_t(union_supply_build_goods.size() - 1));
-			} else {
-				err.accumulated_errors += "Too many unique commodities in combined military unit supply&build costs (limit is " + std::to_string(context.state.military_definitions.military_supply_build_goods.total_capacity()) + ") . Tried to add " + std::string(name) + " in file " + err.file_name + " line " + std::to_string(line) + "\n";
-			}
+		if(!com.get_unit_supply_and_build_commodity()) {
+			auto supply_build_com_id = fatten(context.state.world, context.state.world.create_unit_supply_and_build_commodity());
+			com.set_unit_supply_and_build_commodity(supply_build_com_id);
+			supply_build_com_id.set_base_commodity(com);
 		}
-		// Have we already added it to the supply-only container?
-		if(com.get_unit_build_goods_index() == -1) {
-			bool added = union_build_goods.push_back(com);
-			if(added) {
-				com.set_unit_build_goods_index(int16_t(union_build_goods.size() - 1));
-			}
+		// Have we already added it to the build-only container?
+		if(!com.get_unit_build_commodity()) {
+			auto build_com_id = fatten(context.state.world, context.state.world.create_unit_build_commodity());
+			com.set_unit_build_commodity(build_com_id);
+			build_com_id.set_base_commodity(com);
+
+			// Add the union of supply and build commodities id to be able to retrieve it later
+			auto supply_build_com_id = com.get_unit_supply_and_build_commodity();
+			build_com_id.set_supply_and_build_commodity(supply_build_com_id);
 		}
+		commodity_set::any_value(name, c, value, err, line, context);
 	} else {
 		err.accumulated_errors += "Unknown commodity " + std::string(name) + " in file " + err.file_name + " line " + std::to_string(line) + "\n";
 		return;
 	}
-	commodity_set::any_value(name, c, value, err, line, context);
 }
 
 void unit_definition::finish(scenario_building_context& context) {
