@@ -9,6 +9,8 @@
 #include "ve_scalar_extensions.hpp"
 #include "economy.hpp"
 #include "supply_route.hpp"
+#include "supply_route_templates.hpp"
+#include "advanced_province_buildings.hpp"
 
 namespace sys {
 
@@ -883,7 +885,10 @@ void recreate_single_land_province_modifiers(sys::state& state, prov_type provin
 		auto control_level = state.world.province_get_control_ratio(province);
 		ve_apply_scaled_modifier(state.national_definitions.province_control, prov_valid_mask, control_level);
 	}
-
+	if(state.national_definitions.civilian_port) {
+		auto civilian_port = state.world.province_get_advanced_province_building_max_private_size(province, advanced_province_buildings::list::civilian_ports) / 1000.0f;
+		ve_apply_scaled_modifier(state.national_definitions.civilian_port, prov_valid_mask, civilian_port);
+	}
 	ve::apply([&](dcon::province_id prov, dcon::nation_id owner, bool prov_valid, bool owner_valid) {
 		bool valid = [&]() {
 			if constexpr(std::is_same_v<T, dcon::provincial_modifier_value>) {

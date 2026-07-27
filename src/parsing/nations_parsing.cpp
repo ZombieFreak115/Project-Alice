@@ -493,6 +493,22 @@ void m_province_base(token_generator& gen, error_handler& err, scenario_building
 	context.state.national_definitions.province_base = new_modifier;
 }
 
+void m_civilian_port(token_generator& gen, error_handler& err, scenario_building_context& context) {
+	auto name_id = text::find_or_add_key(context.state, "civilian_port", true);
+
+	auto parsed_modifier = parse_modifier_base(gen, err, context);
+
+	auto new_modifier = context.state.world.create_modifier();
+
+	context.state.world.modifier_set_icon(new_modifier, uint8_t(parsed_modifier.icon_index));
+	context.state.world.modifier_set_name(new_modifier, name_id);
+	context.state.world.modifier_set_province_values(new_modifier, parsed_modifier.peek_province_mod());
+	context.state.world.modifier_set_national_values(new_modifier, parsed_modifier.peek_national_mod());
+
+	context.map_of_modifiers.insert_or_assign(std::string("civilian_port"), new_modifier);
+	context.state.national_definitions.civilian_port = new_modifier;
+}
+
 void m_base_values(token_generator& gen, error_handler& err, scenario_building_context& context) {
 	auto name_id = text::find_or_add_key(context.state, "base_values", true);
 
@@ -878,6 +894,14 @@ void static_modifiers_file::finish(scenario_building_context& context) {
 		// Add
 		auto& mod_def = context.state.world.modifier_get_province_values(context.state.national_definitions.coastal);
 		mod_def.add_manual_modifier(sys::provincial_mod_offsets::port_supply_capacity_add, supply_routes::base_port_supply_capacity);
+	}
+	if(supply_routes::civilian_port_throughput_capacity != 0.0f) {
+		if(!context.state.national_definitions.civilian_port) {
+			context.state.national_definitions.civilian_port = create_static_modifier(context, 0, "civilian_port");
+		};
+		// Add
+		auto& mod_def = context.state.world.modifier_get_province_values(context.state.national_definitions.civilian_port);
+		mod_def.add_manual_modifier(sys::provincial_mod_offsets::port_supply_capacity_add, supply_routes::civilian_port_throughput_capacity);
 	}
 }
 

@@ -2070,10 +2070,12 @@ modifier_land_supply_speed;Land supply speed
 modifier_supply_throughput;Supply throughput
 modifier_supply_loss;Supply loss
 modifier_port_supply_capacity;Port supply capacity
+modifier_national_land_supply_throughput;National land supply throughput
+modifier_national_land_supply_loss;National land supply loss
+modifier_national_naval_supply_throughput;National naval supply throughput
+modifier_national_naval_supply_loss;National naval supply loss
+modifier_national_port_supply_capacity;National port supply capacity
 nation_base;Nation base
-national_land_supply_throughput_supply_speed_modifier;Land supply speed
-national_naval_supply_throughput_supply_speed_modifier;Naval supply speed
-supply_throughput_percent_movement_cost_modifier;Movement cost
 province_militancy;Province militancy
 province_control;Province control
 supply_loss_total_tooltip;Supply loss: ?Y$value$?W

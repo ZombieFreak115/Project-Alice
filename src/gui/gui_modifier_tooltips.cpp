@@ -8,6 +8,8 @@
 #include "ve_scalar_extensions.hpp"
 #include "province.hpp"
 #include "supply_route.hpp"
+#include "supply_route_templates.hpp"
+#include "advanced_province_buildings.hpp"
 
 namespace ui {
 
@@ -208,11 +210,11 @@ void active_hardcoded_modifiers_description(sys::state& state, text::layout_base
 	auto fat_nation = fatten(state.world, n);
 	if(nmid == sys::national_mod_offsets::national_land_supply_throughput_add) {
 		float land_supply_speed = supply_routes::land_supply_speed(state, n);
-		active_single_hardcoded_modifier_description(state, layout, "national_land_supply_throughput_supply_speed_modifier", land_supply_speed * supply_routes::supply_throughput_per_km_land_supply_speed, identation, header, sys::national_mod_offsets::national_land_supply_throughput_add);
+		active_single_hardcoded_modifier_description(state, layout, "modifier_land_supply_speed", land_supply_speed * supply_routes::supply_throughput_per_km_land_supply_speed, identation, header, sys::national_mod_offsets::national_land_supply_throughput_add);
 	}
 	else if(nmid == sys::national_mod_offsets::national_naval_supply_throughput_add) {
 		float naval_supply_speed = supply_routes::naval_supply_speed(state, n);
-		active_single_hardcoded_modifier_description(state, layout, "national_naval_supply_throughput_supply_speed_modifier", naval_supply_speed * supply_routes::supply_throughput_per_km_naval_supply_speed, identation, header, sys::national_mod_offsets::national_naval_supply_throughput_add);
+		active_single_hardcoded_modifier_description(state, layout, "modifier_naval_supply_speed", naval_supply_speed * supply_routes::supply_throughput_per_km_naval_supply_speed, identation, header, sys::national_mod_offsets::national_naval_supply_throughput_add);
 	}
 }
 
@@ -226,7 +228,7 @@ void active_hardcoded_modifiers_description(sys::state& state, text::layout_base
 		auto movement_cost = province::movement_cost(state, prov);
 		auto percent_mod = (1.0f / movement_cost) - 1.0f;
 		if(percent_mod != 0.0f) {
-			active_single_hardcoded_modifier_description(state, layout, "supply_throughput_percent_movement_cost_modifier", percent_mod, identation, header, sys::provincial_mod_offsets::supply_throughput_percent);
+			active_single_hardcoded_modifier_description(state, layout, "modifier_movement_cost", percent_mod, identation, header, sys::provincial_mod_offsets::supply_throughput_percent);
 		}
 		break;
 	}
@@ -339,8 +341,13 @@ void acting_modifiers_description_province(sys::state& state, text::layout_base&
 		}
 		if(state.national_definitions.province_control) {
 			float control_level = state.world.province_get_control_ratio(p);
-			active_single_modifier_description(state, layout, state.national_definitions.province_control, identation, header, nmid, control_level / 1.0f);
+			active_single_modifier_description(state, layout, state.national_definitions.province_control, identation, header, nmid, control_level);
 		}
+		if(state.national_definitions.civilian_port) {
+			float civilian_port = state.world.province_get_advanced_province_building_max_private_size(p, advanced_province_buildings::list::civilian_ports) / 1000.0f;
+			active_single_modifier_description(state, layout, state.national_definitions.civilian_port, identation, header, nmid, civilian_port);
+		}
+
 	}
 	// sea province-only modifiers
 	else {

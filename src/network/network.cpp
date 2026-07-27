@@ -1506,6 +1506,7 @@ std::string generate_full_oos_report(const sys::state& state_1, const sys::state
 			add_compare_to_oos_report(state_1.national_definitions.infrastructure, state_2.national_definitions.infrastructure, "infrastructure") +
 			add_compare_to_oos_report(state_1.national_definitions.province_militancy, state_2.national_definitions.province_militancy, "province_militancy") +
 			add_compare_to_oos_report(state_1.national_definitions.province_control, state_2.national_definitions.province_control, "province_control") +
+			add_compare_to_oos_report(state_1.national_definitions.civilian_port, state_2.national_definitions.civilian_port, "civilian_port") +
 			add_compare_to_oos_report(state_1.national_definitions.base_values, state_2.national_definitions.base_values, "base_values") +
 			add_compare_to_oos_report(state_1.national_definitions.war, state_2.national_definitions.war, "war") +
 			add_compare_to_oos_report(state_1.national_definitions.peace, state_2.national_definitions.peace, "peace") +

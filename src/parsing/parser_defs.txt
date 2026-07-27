@@ -439,6 +439,7 @@ static_modifiers_file
 	in_bankrupcy             extern   m_in_bankrupcy             discard
 	nation_base             extern   m_nation_base            discard
 	province_base             extern   m_province_base            discard
+	civilian_port            extern   m_civilian_port            discard
 	fastest_land_unit_speed             extern   m_fastest_land_unit_speed           discard
 	fastest_transport_unit_speed             extern   m_fastest_transport_unit_speed           discard
 
