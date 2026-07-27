@@ -24,17 +24,14 @@ template auto is_overseas<ve::tagged_vector<dcon::province_id>>(sys::state const
 template void for_each_province_in_state_instance<std::function<void(dcon::province_id)>>(sys::state const &, dcon::state_instance_id, std::function<void(dcon::province_id)> const&);
 
 bool is_sea(const sys::state& state, dcon::province_id prov) {
-	assert(prov);
 	return state.province_definitions.first_sea_province.index() <= prov.index();
 }
 
 bool is_land(const sys::state& state, dcon::province_id prov) {
-	assert(prov);
 	return !is_sea(state, prov);
 }
 
 bool is_port(const sys::state& state, dcon::province_id prov) {
-	assert(prov);
 	return bool(state.world.province_get_port_to(prov));
 }
 

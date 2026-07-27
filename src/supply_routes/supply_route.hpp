@@ -25,9 +25,6 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_cons
 // Computes the efficiency of a construct with has consumed vs available. Eg supply throughput
 float compute_efficiency(float consumed, float available);
 
-float naval_supply_speed(const sys::state& state, dcon::nation_id nation_as);
-float land_supply_speed(const sys::state& state, dcon::nation_id nation_as);
-
 float port_supply_capacity_in_province(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
 float port_supply_capacity_mult_supply_access_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);

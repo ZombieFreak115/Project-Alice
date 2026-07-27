@@ -43,6 +43,15 @@ void for_each_sea_province(sys::state const& state, F const& func) {
 }
 
 template<typename F>
+void parallel_for_each_sea_province(sys::state const& state, F const& func) {
+	int32_t first = state.province_definitions.first_sea_province.index();
+	concurrency::parallel_for(uint32_t(first), uint32_t(state.world.province_size()), [&](uint32_t i) {
+		dcon::province_id pid{ dcon::province_id::value_base_t(i) };
+		func(pid);
+	});
+}
+
+template<typename F>
 void for_each_province_in_state_instance(sys::state const& state, dcon::state_instance_id s, F const& func) {
 	auto d = state.world.state_instance_get_definition(s);
 	auto o = state.world.state_instance_get_nation_from_state_ownership(s);

@@ -284,18 +284,72 @@ void active_hardcoded_modifiers_description(sys::state& state, text::layout_base
 template<typename T>
 void acting_modifiers_description_province(sys::state& state, text::layout_base& layout, dcon::province_id p, int32_t identation,
 		bool& header, T nmid) {
-	if(state.national_definitions.province_base) {
-		active_single_modifier_description(state, layout, state.national_definitions.province_base, identation, header, nmid);
-	}
+	// Land province-only modifiers
 	if(province::is_land(state, p)) {
 		if(state.national_definitions.land_province) {
 			active_single_modifier_description(state, layout, state.national_definitions.land_province, identation, header, nmid);
 		}
+		if(auto c = state.world.province_get_crime(p); c) {
+			if(auto m = state.culture_definitions.crimes[c].modifier; m)
+				active_single_modifier_description(state, layout, m, identation, header, nmid);
+		}
+		for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
+			if(state.economy_definitions.building_definitions[int32_t(t)].province_modifier) {
+				active_single_modifier_description(state, layout, state.economy_definitions.building_definitions[int32_t(t)].province_modifier, identation,
+						header, nmid, state.world.province_get_building_level(p, uint8_t(t)));
+			}
+		}
+		if(state.national_definitions.infrastructure) {
+			active_single_modifier_description(state, layout, state.national_definitions.infrastructure, identation, header, nmid,
+					state.world.province_get_building_level(p, uint8_t(economy::province_building_type::railroad)) * state.economy_definitions.building_definitions[int32_t(economy::province_building_type::railroad)].infrastructure);
+		}
+		if(state.national_definitions.nationalism) {
+			active_single_modifier_description(state, layout, state.national_definitions.nationalism, identation, header, nmid,
+					(state.world.province_get_is_owner_core(p) ? 1.f : 0.f) * state.world.province_get_nationalism(p));
+		}
+		if(state.national_definitions.non_coastal) {
+			active_single_modifier_description(state, layout, state.national_definitions.non_coastal, identation, header, nmid,
+					!state.world.province_get_is_coast(p) ? 1.f : 0.f);
+		}
+		if(state.national_definitions.coastal) {
+			active_single_modifier_description(state, layout, state.national_definitions.coastal, identation, header, nmid,
+					state.world.province_get_is_coast(p) ? 1.f : 0.f);
+		}
+		if(state.national_definitions.overseas) {
+			active_single_modifier_description(state, layout, state.national_definitions.overseas, identation, header, nmid,
+					province::is_overseas(state, p) ? 1.f : 0.f);
+		}
+		if(state.national_definitions.core) {
+			active_single_modifier_description(state, layout, state.national_definitions.core, identation, header, nmid,
+					state.world.province_get_is_owner_core(p) ? 1.f : 0.f);
+		}
+		if(state.national_definitions.has_siege) {
+			active_single_modifier_description(state, layout, state.national_definitions.has_siege, identation, header, nmid,
+					military::province_is_under_siege(state, p) ? 1.f : 0.f);
+		}
+		if(state.national_definitions.blockaded) {
+			active_single_modifier_description(state, layout, state.national_definitions.blockaded, identation, header, nmid,
+					military::province_is_blockaded(state, p) ? 1.f : 0.f);
+		}
+		if(state.national_definitions.province_militancy) {
+			float total_militancy = state.world.province_get_demographics(p, demographics::militancy);
+			float total_pop = state.world.province_get_demographics(p, demographics::total);
+			float avg_militancy = (total_pop == 0.0f ? 0.0f : total_militancy / total_pop);
+			active_single_modifier_description(state, layout, state.national_definitions.province_militancy, identation, header, nmid, avg_militancy / 10.f);
+		}
+		if(state.national_definitions.province_control) {
+			float control_level = state.world.province_get_control_ratio(p);
+			active_single_modifier_description(state, layout, state.national_definitions.province_control, identation, header, nmid, control_level / 1.0f);
+		}
 	}
+	// sea province-only modifiers
 	else {
 		if(state.national_definitions.sea_zone) {
 			active_single_modifier_description(state, layout, state.national_definitions.sea_zone, identation, header, nmid);
 		}
+	}
+	if(state.national_definitions.province_base) {
+		active_single_modifier_description(state, layout, state.national_definitions.province_base, identation, header, nmid);
 	}
 	for(auto mpr : state.world.province_get_current_modifiers(p))
 		active_single_modifier_description(state, layout, mpr.mod_id, identation, header, nmid);
@@ -305,58 +359,6 @@ void acting_modifiers_description_province(sys::state& state, text::layout_base&
 		active_single_modifier_description(state, layout, m, identation, header, nmid);
 	if(auto m = state.world.province_get_continent(p); m)
 		active_single_modifier_description(state, layout, m, identation, header, nmid);
-	if(auto c = state.world.province_get_crime(p); c) {
-		if(auto m = state.culture_definitions.crimes[c].modifier; m)
-			active_single_modifier_description(state, layout, m, identation, header, nmid);
-	}
-	for(auto t = economy::province_building_type::railroad; t != economy::province_building_type::last; t = economy::province_building_type(uint8_t(t) + 1)) {
-		if(state.economy_definitions.building_definitions[int32_t(t)].province_modifier) {
-			active_single_modifier_description(state, layout, state.economy_definitions.building_definitions[int32_t(t)].province_modifier, identation,
-					header, nmid, state.world.province_get_building_level(p, uint8_t(t)));
-		}
-	}
-	if(state.national_definitions.infrastructure) {
-		active_single_modifier_description(state, layout, state.national_definitions.infrastructure, identation, header, nmid,
-				state.world.province_get_building_level(p, uint8_t(economy::province_building_type::railroad)) * state.economy_definitions.building_definitions[int32_t(economy::province_building_type::railroad)].infrastructure);
-	}
-	if(state.national_definitions.nationalism) {
-		active_single_modifier_description(state, layout, state.national_definitions.nationalism, identation, header, nmid,
-				(state.world.province_get_is_owner_core(p) ? 1.f : 0.f) * state.world.province_get_nationalism(p));
-	}
-	if(state.national_definitions.non_coastal) {
-		active_single_modifier_description(state, layout, state.national_definitions.non_coastal, identation, header, nmid,
-				!state.world.province_get_is_coast(p) ? 1.f : 0.f);
-	}
-	if(state.national_definitions.coastal) {
-		active_single_modifier_description(state, layout, state.national_definitions.coastal, identation, header, nmid,
-				state.world.province_get_is_coast(p) ? 1.f : 0.f);
-	}
-	if(state.national_definitions.overseas) {
-		active_single_modifier_description(state, layout, state.national_definitions.overseas, identation, header, nmid,
-				province::is_overseas(state, p) ? 1.f : 0.f);
-	}
-	if(state.national_definitions.core) {
-		active_single_modifier_description(state, layout, state.national_definitions.core, identation, header, nmid,
-				state.world.province_get_is_owner_core(p) ? 1.f : 0.f);
-	}
-	if(state.national_definitions.has_siege) {
-		active_single_modifier_description(state, layout, state.national_definitions.has_siege, identation, header, nmid,
-				military::province_is_under_siege(state, p) ? 1.f : 0.f);
-	}
-	if(state.national_definitions.blockaded) {
-		active_single_modifier_description(state, layout, state.national_definitions.blockaded, identation, header, nmid,
-				military::province_is_blockaded(state, p) ? 1.f : 0.f);
-	}
-	if(state.national_definitions.province_militancy) {
-		float total_militancy = state.world.province_get_demographics(p, demographics::militancy);
-		float total_pop = state.world.province_get_demographics(p, demographics::total);
-		float avg_militancy = (total_pop == 0.0f ? 0.0f : total_militancy / total_pop);
-		active_single_modifier_description(state, layout, state.national_definitions.province_militancy, identation, header, nmid, avg_militancy / 10.f);
-	}
-	if(state.national_definitions.province_control) {
-		float control_level = state.world.province_get_control_ratio(p);
-		active_single_modifier_description(state, layout, state.national_definitions.province_control, identation, header, nmid, control_level / 1.0f);
-	}
 	if constexpr(std::is_same_v<T, dcon::provincial_modifier_value>) {
 		active_hardcoded_modifiers_description(state, layout, p, identation, nmid, header);
 	}

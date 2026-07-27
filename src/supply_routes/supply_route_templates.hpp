@@ -75,5 +75,24 @@ void parallel_for_each_supply_route_container(sys::state& state, F&& functor, ar
 		functor(route, naval_construction_container);
 	});
 }
+template<concepts::any_dcon_id_type<dcon::nation_id> nation_type>
+auto naval_supply_speed(const sys::state& state, nation_type nation_as) {
+	if constexpr(concepts::dcon_id_type<nation_type>) {
+		return std::max(state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_add) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_mul) * (state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_percent) + 1.0f), 0.0f);
+	}
+	else if constexpr(concepts::dcon_id_ve_type<nation_type, dcon::nation_id>) {
+		return ve::max(state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_add) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_mul) * (state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::naval_supply_speed_percent) + 1.0f), 0.0f);
+	}
+}
+
+template<concepts::any_dcon_id_type<dcon::nation_id> nation_type>
+auto land_supply_speed(const sys::state& state, nation_type nation_as) {
+	if constexpr(concepts::dcon_id_type<nation_type>) {
+		return std::max(state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_add) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_mul) * (state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_percent) + 1.0f), 0.0f);
+	}
+	else if constexpr(concepts::dcon_id_ve_type<nation_type, dcon::nation_id>) {
+		return ve::max(state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_add) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_mul) * (state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::land_supply_speed_percent) + 1.0f), 0.0f);
+	}
+}
 
 }
