@@ -10,6 +10,8 @@
 
 namespace province {
 
+constexpr uint32_t state_cap_move_days_cooldown = 730; // days cooldown for switching state capital
+
 inline constexpr float naval_range_distance_mult = 0.391f; // multiplier applied to regular direct distances to compute the naval range distance. This is so default naval range values match up with the expected values from vic2.
 
 inline constexpr uint16_t to_map_id(dcon::province_id id) {
@@ -188,5 +190,11 @@ std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& st
 void make_military_supply_path(const sys::state& state, dcon::state_instance_id start_si, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result);
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::nation_id n);
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::rebel_faction_id rf);
+
+
+template<command::actor actor>
+bool can_move_state_capital(const sys::state& state, dcon::nation_id source, dcon::province_id move_to);
+template<command::actor actor>
+void move_state_capital(sys::state& state, dcon::nation_id source, dcon::province_id move_to);
 
 } // namespace province

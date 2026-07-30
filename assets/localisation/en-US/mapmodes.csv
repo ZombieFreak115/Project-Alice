@@ -45,7 +45,8 @@ mapmode_43;Workforce
 mapmode_44;Mobilization
 mapmode_45;Supply Loss
 mapmode_46;Supply Throughput
-mapmode_47;Supply Throughput Efficiency
+mapmode_47;Port Supply Capacity
+mapmode_48;Supply Throughput Efficiency
 legend_min_mapmode_8;Low admin
 legend_min_mapmode_19;Uncivilized
 legend_min_mapmode_7;Uncolonized
@@ -72,7 +73,8 @@ legend_min_mapmode_40;Low life rating
 legend_min_mapmode_44;Low regiment count
 legend_min_mapmode_45;High supply loss
 legend_min_mapmode_46;Low supply throughput
-legend_min_mapmode_47;Low efficiency
+legend_min_mapmode_47;Low capacity
+legend_min_mapmode_48;Low efficiency
 legend_max_mapmode_8;High admin
 legend_max_mapmode_19;Civilized
 legend_max_mapmode_7;Colonizable
@@ -99,7 +101,8 @@ legend_max_mapmode_40;High life rating
 legend_max_mapmode_44;High regiment count
 legend_max_mapmode_45;Low supply loss
 legend_max_mapmode_46;High supply throughput
-legend_max_mapmode_47;High efficiency
+legend_max_mapmode_47;High capacity
+legend_max_mapmode_48;High efficiency
 mapmode_tooltip_34;Player: $x$ 
 mapmode_tooltip_34_you_sp;This is you! 
 mapmode_tooltip_34_you;Player: $x$ (This is you!) 

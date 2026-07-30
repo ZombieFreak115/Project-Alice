@@ -498,6 +498,45 @@ public:
 	}
 };
 
+
+class province_move_state_capital_button : public button_element_base {
+public:
+	void on_update(sys::state& state) noexcept override {
+		auto p = retrieve<dcon::province_id>(state, parent);
+		disabled = !province::can_move_state_capital<command::actor::player>(state, state.local_player_nation, p);
+	}
+
+	void button_action(sys::state& state) noexcept override {
+		auto p = retrieve<dcon::province_id>(state, parent);
+		command::move_state_capital(state,  p);
+	}
+
+	tooltip_behavior has_tooltip(sys::state& state) noexcept override {
+		return tooltip_behavior::variable_tooltip;
+	}
+
+	void update_tooltip(sys::state& state, int32_t x, int32_t t, text::columnar_layout& contents) noexcept override {
+		auto source = state.local_player_nation;
+		auto p = retrieve<dcon::province_id>(state, parent);
+		auto state_inst = state.world.province_get_state_membership(p);
+		sys::date last_change = state_inst.get_last_state_capital_change();
+		int32_t cooldown_days_left = std::max(int32_t(last_change.value) + int32_t(province::state_cap_move_days_cooldown) - int32_t(state.current_date.value), 0);
+		bool occupation_siege_check = true;
+
+		province::for_each_province_in_state_instance(state, state_inst, [&](dcon::province_id prov) {
+			if(state.world.province_get_nation_from_province_control(prov) != source || state.world.province_get_siege_progress(prov) > 0.0f) {
+				occupation_siege_check = false;
+			}
+		});
+
+		text::add_line(state, contents, "alice_mvstatecap_1");
+		text::add_line_with_condition(state, contents, "alice_mvstatecap_2", bool(state_inst));
+		text::add_line_with_condition(state, contents, "alice_mvstatecap_3", state.world.state_instance_get_capital(state_inst) != p);
+		text::add_line_with_condition(state, contents, "alice_mvstatecap_4", !(last_change && last_change + province::state_cap_move_days_cooldown > state.current_date), text::variable_type::val, cooldown_days_left);
+		text::add_line_with_condition(state, contents, "alice_mvstatecap_5", occupation_siege_check);
+	}
+};
+
 class province_toggle_administration_button : public button_element_base {
 public:
 	void on_update(sys::state& state) noexcept override {

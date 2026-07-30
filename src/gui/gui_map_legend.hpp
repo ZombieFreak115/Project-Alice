@@ -51,6 +51,7 @@ class map_legend_gradient_image : public image_element_base {
 		case map_mode::mode::clerk_to_craftsmen_ratio:
 		case map_mode::mode::supply_loss:
 		case map_mode::mode::supply_throughput:
+		case map_mode::mode::port_supply_capacity:
 		case map_mode::mode::supply_route_efficiency:
 			return (int16_t)GRADIENT_ICON::RED_TO_GREEN;
 		case map_mode::mode::conciousness:

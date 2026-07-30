@@ -51,9 +51,10 @@ enum class mode : uint8_t {
 	mobilization = 0x2c,
 	supply_loss = 0x2d,
 	supply_throughput = 0x2e,
-	supply_route_efficiency = 0x2f,
-	state_select = 0x30,
-	nation_identity_select = 0x31,
+	port_supply_capacity = 0x2f,
+	supply_route_efficiency = 0x30,
+	state_select = 0x31,
+	nation_identity_select = 0x32,
 
 	handled_from_outside = 0xff
 };

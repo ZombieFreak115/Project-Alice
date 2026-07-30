@@ -5481,9 +5481,15 @@ guiTypes = {
 		quadTextureSprite = "GFX_move_capital"	
 	}
 	guiButtonType = {
-		name = "alice_toggle_administration"
+		name = "alice_move_state_capital"
 		extends = "province_view_header"
 		position = { x = 346 y = 43 }
+		quadTextureSprite = "GFX_move_state_capital"	
+	}
+	guiButtonType = {
+		name = "alice_toggle_administration"
+		extends = "province_view_header"
+		position = { x = 324 y = 43 }
 		quadTextureSprite = "GFX_local_admin"	
 	}
 	
@@ -5491,14 +5497,14 @@ guiTypes = {
 		name ="province_victory_points_icon"
 		extends = "province_view_header"
 		spriteType = "GFX_prestige_icon_2"
-		position = { x = 310 y = 46 }
+		position = { x = 288 y = 46 }
 		Orientation = "UPPER_LEFT"
 	}
 	
 	instantTextBoxType = {
 		name = "province_victory_points"
 		extends = "province_view_header"
-		position = { x = 325 y = 45}
+		position = { x = 303 y = 45}
 		borderSize = { 0 0 }
 		maxsize = { 20 20 }
 		textureFile = ""

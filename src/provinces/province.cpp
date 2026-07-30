@@ -3137,4 +3137,44 @@ void restore_distances(sys::state& state) {
 	}
 }
 
+
+template<command::actor actor>
+bool can_move_state_capital(const sys::state& state, dcon::nation_id source, dcon::province_id move_to) {
+	if constexpr(actor == command::actor::player) {
+		if(!state.current_scene.game_in_progress) {
+			return false;
+		}
+	}
+	auto state_inst = state.world.province_get_state_membership(move_to);
+	if(!state_inst) {
+		return false;
+	}
+	if(state.world.state_instance_get_capital(state_inst) == move_to)
+		return false;
+	sys::date last_change = state_inst.get_last_state_capital_change();
+	if(last_change && last_change + state_cap_move_days_cooldown > state.current_date) {
+		return false;
+	}
+	bool occupation_siege_check = true;
+	// Cannot move state capital if any province in the state is controlled by someone else or is being sieged
+	province::for_each_province_in_state_instance(state, state_inst, [&](dcon::province_id prov) {
+		if(state.world.province_get_nation_from_province_control(prov) != source || state.world.province_get_siege_progress(prov) > 0.0f) {
+			occupation_siege_check = false;
+			return;
+		}
+	});
+	return occupation_siege_check;
+}
+template bool can_move_state_capital<command::actor::ai>(const sys::state& state, dcon::nation_id source, dcon::province_id move_to);
+template bool can_move_state_capital<command::actor::player>(const sys::state& state, dcon::nation_id source, dcon::province_id move_to);
+
+template<command::actor actor>
+void move_state_capital(sys::state& state, dcon::nation_id source, dcon::province_id move_to) {
+	auto state_inst = state.world.province_get_state_membership(move_to);
+	state_inst.set_capital(move_to);
+	state_inst.set_last_state_capital_change(state.current_date);
+}
+template void move_state_capital<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::province_id move_to);
+template void move_state_capital<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::province_id move_to);
+
 } // namespace province

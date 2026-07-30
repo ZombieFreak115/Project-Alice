@@ -923,6 +923,99 @@ std::vector<uint32_t> supply_throughput_map_from(sys::state& state) {
 	return prov_color;
 }
 
+
+std::vector<uint32_t> port_supply_capacity_map_from(sys::state& state) {
+	uint32_t province_size = state.world.province_size();
+	uint32_t texture_size = province_size + 256 - province_size % 256;
+
+	std::vector<uint32_t> prov_color(texture_size * 2);
+
+	auto selected = state.map_state.selected_province;
+	auto for_nation = state.world.province_get_nation_from_province_ownership(selected);
+	if(for_nation) {
+		float mx = 0.0f;
+		float mn = 1.0f;
+		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
+			// Only include ports in the min/max gradient
+			if(province::is_port(state, p.get_province())) {
+				auto v = supply_routes::port_supply_capacity_in_province(state, p.get_province(), state.local_player_nation);
+				mn = std::min(mn, v);
+				mx = std::max(mx, v);
+			}
+		}
+
+		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
+			auto i = province::to_map_id(p.get_province());
+			// Non-port provinces are blacked out
+			if(province::is_port(state, p.get_province())) {
+				auto v = supply_routes::port_supply_capacity_in_province(state, p.get_province(), state.local_player_nation);
+
+				uint32_t color = [&]() {
+					if(mx > mn) {
+						return ogl::color_gradient((v - mn) / (mx - mn),
+						sys::pack_color(46, 247, 15),	// to green
+						sys::pack_color(247, 15, 15)	// from red
+						);
+					} else {
+						return sys::pack_color(46, 247, 15); // return green if all values are the same
+					}
+					}();
+				prov_color[i] = color;
+				prov_color[i + texture_size] = color;
+			}
+			else {
+				prov_color[i] = sys::pack_color(0, 0, 0);
+				prov_color[i + texture_size] = sys::pack_color(0, 0, 0);
+			}
+		}
+
+	} else {
+		float mx = 0.0f;
+		float mn = 1.0f;
+		province::for_each_land_province(state, [&](dcon::province_id prov) {
+			// Only include ports in the min/max gradient
+			if(province::is_port(state, prov)) {
+				auto v = supply_routes::port_supply_capacity_in_province(state, prov, state.local_player_nation);
+				mn = std::min(mn, v);
+				mx = std::max(mx, v);
+			}
+		});
+
+		province::for_each_land_province(state, [&](dcon::province_id prov) {
+			auto i = province::to_map_id(prov);
+			// Non-port provinces are blacked out
+			if(province::is_port(state, prov)) {
+				auto v = supply_routes::supply_throughput_in_province(state, prov, state.local_player_nation);
+				uint32_t color = [&]() {
+					// Non-port provinces are blacked out
+					if(!province::is_port(state, prov)) {
+						return sys::pack_color(0, 0, 0);
+					}
+					if(mx > mn) {
+						return ogl::color_gradient((v - mn) / (mx - mn),
+						sys::pack_color(46, 247, 15),	// to green
+						sys::pack_color(247, 15, 15)	// from red
+						);
+					} else {
+						return sys::pack_color(46, 247, 15); // return green if all values are the same
+					}
+					}();
+				prov_color[i] = color;
+				prov_color[i + texture_size] = color;
+			}
+			else {
+				prov_color[i] = sys::pack_color(0, 0, 0);
+				prov_color[i + texture_size] = sys::pack_color(0, 0, 0);
+			}
+
+
+
+		});
+
+	}
+	return prov_color;
+}
+
 // Province is green when high efficiency, red when low. Color of stripes indicate efficiency of port supply capacity efficiency.
 std::vector<uint32_t> supply_route_efficiency_map_from(sys::state& state) {
 	uint32_t province_size = state.world.province_size();
@@ -1070,6 +1163,7 @@ void set_map_mode(sys::state& state, mode mode) {
 		case map_mode::mode::clerk_to_craftsmen_ratio:
 		case map_mode::mode::supply_loss:
 		case map_mode::mode::supply_throughput:
+		case map_mode::mode::port_supply_capacity:
 		case map_mode::mode::supply_route_efficiency:
 			if(state.ui_state.map_gradient_legend)
 				state.ui_state.map_gradient_legend->set_visible(state, true);
@@ -1274,6 +1368,9 @@ void set_map_mode(sys::state& state, mode mode) {
 		break;
 	case mode::supply_throughput:
 		prov_color = supply_throughput_map_from(state);
+		break;
+	case mode::port_supply_capacity:
+		prov_color = port_supply_capacity_map_from(state);
 		break;
 	case mode::supply_route_efficiency:
 		prov_color = supply_route_efficiency_map_from(state);

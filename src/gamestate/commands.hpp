@@ -130,6 +130,7 @@ enum class command_type : uint8_t {
 		set_army_reinforcement_priority = 118,
 		set_navy_supply_priority = 119,
 		set_navy_reinforcement_priority = 120,
+		move_state_capital = 121,
 
 		// network
 		notify_player_timeout = 233,// Sent to every client in the lobby to notify a client has timed out. Is also sent to the timed-out client socket, incase they get can receive it.
@@ -1148,6 +1149,8 @@ void enable_debt(sys::state& state, dcon::nation_id source, bool debt_is_enabled
 
 void move_capital(sys::state& state, dcon::nation_id source, dcon::province_id p);
 bool can_move_capital(sys::state& state, dcon::nation_id source, dcon::province_id p);
+
+void move_state_capital(sys::state& state, dcon::province_id prov);
 
 void toggle_local_administration(sys::state& state, dcon::nation_id source, dcon::province_id p);
 bool can_toggle_local_administration(sys::state& state, dcon::nation_id source, dcon::province_id p);

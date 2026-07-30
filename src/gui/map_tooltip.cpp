@@ -940,7 +940,7 @@ void supply_route_efficiency_map_tt_box(sys::state& state, text::columnar_layout
 }
 
 void port_supply_capacity_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {
-	if(prov) {
+	if(prov && province::is_port(state, prov)) {
 		auto local_nation = state.local_player_nation;
 		auto is_sea = province::is_sea(state, prov);
 		auto fat = dcon::fatten(state.world, prov);
@@ -1826,6 +1826,9 @@ void populate_map_tooltip(sys::state& state, text::columnar_layout& contents, dc
 		break;
 	case map_mode::mode::supply_throughput:
 		supply_throughput_map_tt_box(state, contents, prov);
+		break;
+	case map_mode::mode::port_supply_capacity:
+		port_supply_capacity_map_tt_box(state, contents, prov);
 		break;
 	case map_mode::mode::supply_route_efficiency:
 		supply_route_efficiency_map_tt_box(state, contents, prov);

@@ -272,7 +272,7 @@ void active_hardcoded_modifiers_description(sys::state& state, text::layout_base
 		}
 		float access_mult = supply_routes::port_supply_capacity_mult_supply_access_modifier(state, prov, local_nation);
 		if(access_mult != 1.0f) {
-			ui::active_single_hardcoded_modifier_description(state, layout, "port_supply_capacity_mul_blockaded_modifier", access_mult, 8, header, sys::provincial_mod_offsets::port_supply_capacity_mul);
+			ui::active_single_hardcoded_modifier_description(state, layout, "port_supply_capacity_mul_access_modifier", access_mult, 8, header, sys::provincial_mod_offsets::port_supply_capacity_mul);
 		}
 		break;
 	}

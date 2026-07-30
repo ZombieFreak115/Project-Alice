@@ -5316,6 +5316,26 @@ void execute_move_capital(sys::state& state, dcon::nation_id source, dcon::provi
 	state.world.nation_set_capital(source, p);
 }
 
+void move_state_capital(sys::state& state, dcon::province_id prov) {
+
+	command_data p{ command_type::move_state_capital, state.local_player_id };
+	auto data = generic_location_data{ prov };
+	p << data;
+	add_to_command_queue(state, p);
+
+}
+
+bool can_move_state_capital(const sys::state& state, dcon::nation_id source, const command_data& command) {
+	const auto& payload = command.get_payload<generic_location_data>();
+	return province::can_move_state_capital<actor::player>(state, source, payload.prov);
+}
+
+void execute_move_state_capital(sys::state& state, dcon::nation_id source, const command_data& command) {
+	const auto& payload = command.get_payload<generic_location_data>();
+	province::move_state_capital<actor::player>(state, source, payload.prov);
+}
+
+
 void toggle_local_administration(sys::state& state, dcon::nation_id source, dcon::province_id prov) {
 
 	command_data p{ command_type::toggle_local_administration, state.local_player_id };
@@ -7045,6 +7065,10 @@ bool can_perform_command(sys::state& state, command_data& c) {
 		auto& data = c.get_payload<command::generic_location_data>();
 		return can_move_capital(state, source, data.prov);
 	}
+	case command_type::move_state_capital:
+	{
+		return can_move_state_capital(state, source, c);
+	}
 
 	case command_type::toggle_local_administration:
 	{
@@ -7833,6 +7857,11 @@ void execute_command(sys::state& state, command_data& c) {
 	{
 		auto& data = c.get_payload<generic_location_data>();
 		execute_move_capital(state, source_nation, data.prov);
+		break;
+	}
+	case command_type::move_state_capital:
+	{
+		execute_move_state_capital(state, source_nation, c);
 		break;
 	}
 	case command_type::toggle_local_administration:

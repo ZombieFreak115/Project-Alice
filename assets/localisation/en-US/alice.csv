@@ -2084,3 +2084,10 @@ supply_loss_add_hostile_armies_modifier;Hostile armies
 port_supply_capacity_total_tooltip;Total port supply capacity: ?Y$value$?W
 port_supply_capacity_used_tooltip;Used port supply capacity: ?Y$value$?W
 port_supply_capacity_efficiency_tooltip;Net port efficiency: ?Y$value$?W
+port_supply_capacity_mul_blockaded_modifier;Port blockaded
+port_supply_capacity_mul_access_modifier;Port access
+alice_mvstatecap_1;Moves the market capital and state government stockpiles to this province
+alice_mvstatecap_2;Province is owned by a nation
+alice_mvstatecap_3;Province is not the market capital
+alice_mvstatecap_4;Cooldown is not active ($val$ days left)
+alice_mvstatecap_5;No provinces in the state are occupied, or being sieged
