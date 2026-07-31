@@ -4,11 +4,6 @@ spriteTypes = {
 		texturefile = "assets\\alice_unit_bottom_bg.dds"
 	}
 	spriteType = {
-		name = "GFX_reinforcement_prio_buttons"
-		texturefile = "assets\\reinforcement_prio_buttons.dds"
-		noOfFrames = 3
-	}
-	spriteType = {
 		name = "GFX_supply_prio_buttons"
 		texturefile = "assets\\supply_prio_buttons.dds"
 		noOfFrames = 3

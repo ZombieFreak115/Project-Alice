@@ -633,18 +633,9 @@ bool can_set_army_supply_priority(const sys::state& state, dcon::nation_id sourc
 template<command::actor Actor>
 void set_army_supply_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
 template<command::actor Actor>
-bool can_set_army_reinforcement_priority(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
-template<command::actor Actor>
-void set_army_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
-template<command::actor Actor>
 bool can_set_navy_supply_priority(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
 template<command::actor Actor>
 void set_navy_supply_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
-template<command::actor Actor>
-bool can_set_navy_reinforcement_priority(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
-template<command::actor Actor>
-void set_navy_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
-
 
 
 template <bool VALIDATE>

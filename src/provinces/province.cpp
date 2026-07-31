@@ -3146,7 +3146,8 @@ bool can_move_state_capital(const sys::state& state, dcon::nation_id source, dco
 		}
 	}
 	auto state_inst = state.world.province_get_state_membership(move_to);
-	if(!state_inst) {
+	auto state_owner = state.world.state_instance_get_nation_from_state_ownership(state_inst);
+	if(state_owner != source) {
 		return false;
 	}
 	if(state.world.state_instance_get_capital(state_inst) == move_to)

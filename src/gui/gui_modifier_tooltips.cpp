@@ -42,6 +42,8 @@ text::text_color get_modifier_value_color(sys::modifier_color_type modifier_colo
 		return (value >= 0.f ? text::text_color::red : text::text_color::green);
 	case sys::modifier_color_type::less_than_one_is_red:
 		return (value >= 1.f ? text::text_color::green : text::text_color::red);
+	default:
+		return text::text_color::black;
 	}
 }
 

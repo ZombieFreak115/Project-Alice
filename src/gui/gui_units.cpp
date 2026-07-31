@@ -2587,97 +2587,6 @@ class strategic_redeployment_order_button : public button_element_base {
 };
 
 
-
-class u_row_reinforcement_priority_button : public button_element_base {
-private:
-	void on_update(sys::state& state) noexcept override {
-		military::unit_priority priority;
-		auto unit = retrieve<unit_var>(state, parent);
-		if (std::holds_alternative<dcon::army_id>(unit)) {
-			auto army = std::get<dcon::army_id>(unit);
-			disabled = !military::can_set_army_reinforcement_priority<command::actor::player>(state, state.local_player_nation, army, military::unit_priority::normal_priority);
-			priority = state.world.army_get_reinforcement_priority(army);
-		} else {
-			auto navy = std::get<dcon::navy_id>(unit);
-			disabled = !military::can_set_navy_reinforcement_priority<command::actor::player>(state, state.local_player_nation, navy, military::unit_priority::normal_priority);
-			priority = state.world.navy_get_reinforcement_priority(navy);
-		}
-		switch(priority) {
-		case military::unit_priority::high_priority:
-			frame = 0;
-			break;
-		case military::unit_priority::low_priority:
-			frame = 1;
-			break;
-		case military::unit_priority::normal_priority:
-			frame = 2;
-			break;
-		}
-	}
-	void button_action(sys::state& state) noexcept override {
-		military::unit_priority current_priority;
-		auto unit = retrieve<unit_var>(state, parent);
-		if(std::holds_alternative<dcon::army_id>(unit)) {
-			auto army = std::get<dcon::army_id>(unit);
-			current_priority = state.world.army_get_reinforcement_priority(army);
-			command::set_army_reinforcement_priority(state, state.local_player_nation, army, military::increment_priority(current_priority));
-		} else {
-			auto navy = std::get<dcon::navy_id>(unit);
-			current_priority = state.world.navy_get_reinforcement_priority(navy);
-			command::set_navy_reinforcement_priority(state, state.local_player_nation, navy, military::increment_priority(current_priority));
-		}
-	}
-	void button_right_action(sys::state& state) noexcept override {
-		military::unit_priority current_priority;
-		auto unit = retrieve<unit_var>(state, parent);
-		if(std::holds_alternative<dcon::army_id>(unit)) {
-			auto army = std::get<dcon::army_id>(unit);
-			current_priority = state.world.army_get_reinforcement_priority(army);
-			command::set_army_reinforcement_priority(state, state.local_player_nation, army, military::decrement_priority(current_priority));
-		} else {
-			auto navy = std::get<dcon::navy_id>(unit);
-			current_priority = state.world.navy_get_reinforcement_priority(navy);
-			command::set_navy_reinforcement_priority(state, state.local_player_nation, navy, military::decrement_priority(current_priority));
-		}
-	}
-
-
-
-
-	tooltip_behavior has_tooltip(sys::state& state) noexcept override {
-		return tooltip_behavior::tooltip;
-	}
-	virtual void update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept override {
-		military::unit_priority priority;
-		auto unit = retrieve<unit_var>(state, parent);
-		if (std::holds_alternative<dcon::army_id>(unit)) {
-			auto army = std::get<dcon::army_id>(unit);
-			priority = state.world.army_get_reinforcement_priority(army);
-		} else {
-			auto navy = std::get<dcon::navy_id>(unit);
-			priority = state.world.navy_get_reinforcement_priority(navy);
-		}
-		switch(priority) {
-		case military::unit_priority::high_priority:
-			text::add_line(state, contents, "unit_reinforcement_priority_high_tooltip_1");
-			break;
-		case military::unit_priority::low_priority:
-			text::add_line(state, contents, "unit_reinforcement_priority_low_tooltip_1");
-			break;
-		case military::unit_priority::normal_priority:
-			text::add_line(state, contents, "unit_reinforcement_priority_normal_tooltip_1");
-			break;
-		}
-		text::add_line(state, contents, "unit_priority_tooltip_2");
-
-	}
-
-};
-
-
-
-
-
 class u_row_supply_priority_button : public button_element_base {
 private:
 	void on_update(sys::state& state) noexcept override {
@@ -2763,111 +2672,6 @@ private:
 	}
 
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-template<typename T>
-class reinforcement_priority_button : public button_element_base {
-private:
-	void on_update(sys::state& state) noexcept override {
-		military::unit_priority priority;
-		if constexpr(std::is_same_v<T, dcon::army_id>) {
-			auto army = retrieve<dcon::army_id>(state, parent);
-			disabled = !military::can_set_army_reinforcement_priority<command::actor::player>(state, state.local_player_nation, army, military::unit_priority::normal_priority);
-			priority = state.world.army_get_reinforcement_priority(army);
-		}
-		else {
-			auto navy = retrieve<dcon::navy_id>(state, parent);
-			disabled = !military::can_set_navy_reinforcement_priority<command::actor::player>(state, state.local_player_nation, navy, military::unit_priority::normal_priority);
-			priority = state.world.navy_get_reinforcement_priority(navy);
-		}
-		switch(priority) {
-		case military::unit_priority::high_priority:
-			frame = 0;
-			break;
-		case military::unit_priority::low_priority:
-			frame = 1;
-			break;
-		case military::unit_priority::normal_priority:
-			frame = 2;
-			break;
-		}
-	}
-	void button_action(sys::state& state) noexcept override {
-		military::unit_priority current_priority;
-		if constexpr(std::is_same_v<T, dcon::army_id>) {
-			auto army = retrieve<dcon::army_id>(state, parent);
-			current_priority = state.world.army_get_reinforcement_priority(army);
-			command::set_army_reinforcement_priority(state, state.local_player_nation, army, military::increment_priority(current_priority));
-		} else {
-			auto navy = retrieve<dcon::navy_id>(state, parent);
-			current_priority = state.world.navy_get_reinforcement_priority(navy);
-			command::set_navy_reinforcement_priority(state, state.local_player_nation, navy, military::increment_priority(current_priority));
-		}
-	}
-	void button_right_action(sys::state& state) noexcept override {
-		military::unit_priority current_priority;
-		if constexpr(std::is_same_v<T, dcon::army_id>) {
-			auto army = retrieve<dcon::army_id>(state, parent);
-			current_priority = state.world.army_get_reinforcement_priority(army);
-			command::set_army_reinforcement_priority(state, state.local_player_nation, army, military::decrement_priority(current_priority));
-		} else {
-			auto navy = retrieve<dcon::navy_id>(state, parent);
-			current_priority = state.world.navy_get_reinforcement_priority(navy);
-			command::set_navy_reinforcement_priority(state, state.local_player_nation, navy, military::decrement_priority(current_priority));
-		}
-	}
-
-
-
-
-	tooltip_behavior has_tooltip(sys::state& state) noexcept override {
-		return tooltip_behavior::tooltip;
-	}
-	virtual void update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept override {
-		military::unit_priority priority;
-		if constexpr(std::is_same_v<T, dcon::army_id>) {
-			auto army = retrieve<dcon::army_id>(state, parent);
-			priority = state.world.army_get_reinforcement_priority(army);
-		}
-		else {
-			auto navy = retrieve<dcon::navy_id>(state, parent);
-			priority = state.world.navy_get_reinforcement_priority(navy);
-		}
-		switch(priority) {
-		case military::unit_priority::high_priority:
-			text::add_line(state, contents, "unit_reinforcement_priority_high_tooltip_1");
-			break;
-		case military::unit_priority::low_priority:
-			text::add_line(state, contents, "unit_reinforcement_priority_low_tooltip_1");
-			break;
-		case military::unit_priority::normal_priority:
-			text::add_line(state, contents, "unit_reinforcement_priority_normal_tooltip_1");
-			break;
-		}
-		text::add_line(state, contents, "unit_priority_tooltip_2");
-
-	}
-
-};
-
-
-
 
 template<typename T>
 class supply_priority_button : public button_element_base {
@@ -3419,8 +3223,6 @@ std::unique_ptr<element_base> unit_details_window<T>::make_child(sys::state& sta
 		return make_element_by_type<image_element_base>(state, id);
 	} else if(name == "reinforcement_status") {
 		return make_element_by_type<unit_reinforcement_bar>(state, id);
-	} else if(name == "reinforcement_prio_button") {
-		return make_element_by_type<reinforcement_priority_button<T>>(state, id);
 	} else if(name == "supply_prio_button") {
 		return make_element_by_type<supply_priority_button<T>>(state, id);
 	} else {
@@ -3551,19 +3353,13 @@ public:
 
 static const int8_t unknown_unit_priority = -128;
 // Tries to get the aggregated priority across all selected units as a int8_t. Returns unknown_priority if no single aggregate was found
-template<military::unit_consumption_type prio_type>
 int8_t selected_units_aggregated_priority(const sys::state& state) {
 	uint32_t low_prio = 0;
 	uint32_t med_prio = 0;
 	uint32_t high_prio = 0;
 	for(auto army : state.selected_armies) {
 		military::unit_priority priority;
-		if constexpr(prio_type == military::unit_consumption_type::reinforcement) {
-			priority = state.world.army_get_reinforcement_priority(army);
-		}
-		else {
-			priority = state.world.army_get_supply_priority(army);
-		}
+		priority = state.world.army_get_supply_priority(army);
 		switch(priority) {
 		case military::unit_priority::low_priority:
 			low_prio++;
@@ -3578,11 +3374,7 @@ int8_t selected_units_aggregated_priority(const sys::state& state) {
 	}
 	for(auto navy : state.selected_navies) {
 		military::unit_priority priority;
-		if constexpr(prio_type == military::unit_consumption_type::reinforcement) {
-			priority = state.world.navy_get_reinforcement_priority(navy);
-		} else {
-			priority = state.world.navy_get_supply_priority(navy);
-		}
+		priority = state.world.navy_get_supply_priority(navy);
 		switch(priority) {
 		case military::unit_priority::low_priority:
 			low_prio++;
@@ -3606,90 +3398,12 @@ int8_t selected_units_aggregated_priority(const sys::state& state) {
 	}
 }
 
-
-class selected_units_reinforcement_priority_button : public button_element_base {
-private:
-
-
-	void on_update(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::reinforcement>(state);
-		switch(priority) {
-		case int8_t(military::unit_priority::high_priority):
-			frame = 0;
-			break;
-		case int8_t(military::unit_priority::low_priority):
-			frame = 1;
-			break;
-		case int8_t(military::unit_priority::normal_priority):
-			frame = 2;
-			break;
-		case unknown_unit_priority:
-			frame = 2;
-			break;
-		}
-	}
-	void button_action(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::reinforcement>(state);
-		military::unit_priority converted_priority = (priority == unknown_unit_priority ? military::unit_priority::normal_priority : military::unit_priority(priority));
-		for(auto army : state.selected_armies) {
-			if(military::can_set_army_reinforcement_priority<command::actor::player>(state, state.local_player_nation, army, military::increment_priority(converted_priority))) {
-				command::set_army_reinforcement_priority(state, state.local_player_nation, army, military::increment_priority(converted_priority));
-			}
-		}
-		for(auto navy : state.selected_navies) {
-			if(military::can_set_navy_reinforcement_priority<command::actor::player>(state, state.local_player_nation, navy, military::increment_priority(converted_priority))) {
-				command::set_navy_reinforcement_priority(state, state.local_player_nation, navy, military::increment_priority(converted_priority));
-			}
-		}
-	}
-	void button_right_action(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::reinforcement>(state);
-		military::unit_priority converted_priority = (priority == unknown_unit_priority ? military::unit_priority::normal_priority : military::unit_priority(priority));
-		for(auto army : state.selected_armies) {
-			if(military::can_set_army_reinforcement_priority<command::actor::player>(state, state.local_player_nation, army, military::decrement_priority(converted_priority))) {
-				command::set_army_reinforcement_priority(state, state.local_player_nation, army, military::decrement_priority(converted_priority));
-			}
-		}
-		for(auto navy : state.selected_navies) {
-			if(military::can_set_navy_reinforcement_priority<command::actor::player>(state, state.local_player_nation, navy, military::decrement_priority(converted_priority))) {
-				command::set_navy_reinforcement_priority(state, state.local_player_nation, navy, military::decrement_priority(converted_priority));
-			}
-		}
-	}
-
-	tooltip_behavior has_tooltip(sys::state& state) noexcept override {
-		return tooltip_behavior::tooltip;
-	}
-	virtual void update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept override {
-		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::reinforcement>(state);
-		switch(priority) {
-		case int8_t(military::unit_priority::high_priority):
-			text::add_line(state, contents, "selected_units_reinforcement_priority_high_tooltip_1");
-			break;
-		case int8_t(military::unit_priority::low_priority):
-			text::add_line(state, contents, "selected_units_reinforcement_priority_low_tooltip_1");
-			break;
-		case int8_t(military::unit_priority::normal_priority):
-			text::add_line(state, contents, "selected_units_reinforcement_priority_normal_tooltip_1");
-			break;
-		case unknown_unit_priority:
-			text::add_line(state, contents, "selected_units_reinforcement_priority_unknown_tooltip_1");
-			break;
-		}
-		text::add_line(state, contents, "selected_units_priority_tooltip_2");
-
-	}
-};
-
-
-
-
 class selected_units_supply_priority_button : public button_element_base {
 private:
 
 
 	void on_update(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::supply>(state);
+		auto priority = selected_units_aggregated_priority(state);
 		switch(priority) {
 		case int8_t(military::unit_priority::high_priority):
 			frame = 0;
@@ -3706,7 +3420,7 @@ private:
 		}
 	}
 	void button_action(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::supply>(state);
+		auto priority = selected_units_aggregated_priority(state);
 		military::unit_priority converted_priority = (priority == unknown_unit_priority ? military::unit_priority::normal_priority : military::unit_priority(priority));
 		for(auto army : state.selected_armies) {
 			if(military::can_set_army_supply_priority<command::actor::player>(state, state.local_player_nation, army, military::increment_priority(converted_priority))) {
@@ -3720,7 +3434,7 @@ private:
 		}
 	}
 	void button_right_action(sys::state& state) noexcept override {
-		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::supply>(state);
+		auto priority = selected_units_aggregated_priority(state);
 		military::unit_priority converted_priority = (priority == unknown_unit_priority ? military::unit_priority::normal_priority : military::unit_priority(priority));
 		for(auto army : state.selected_armies) {
 			if(military::can_set_army_supply_priority<command::actor::player>(state, state.local_player_nation, army, military::decrement_priority(converted_priority))) {
@@ -3738,7 +3452,7 @@ private:
 		return tooltip_behavior::tooltip;
 	}
 	virtual void update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept override {
-		auto priority = selected_units_aggregated_priority<military::unit_consumption_type::supply>(state);
+		auto priority = selected_units_aggregated_priority(state);
 		switch(priority) {
 		case int8_t(military::unit_priority::high_priority):
 			text::add_line(state, contents, "selected_units_supply_priority_high_tooltip_1");
@@ -4301,8 +4015,6 @@ public:
 			return make_element_by_type<u_row_str_bar>(state, id);
 		} else if(name == "disbandbutton") {
 			return make_element_by_type<u_row_disband>(state, id);
-		} else if(name == "reinforcement_prio_button") {
-			return make_element_by_type<u_row_reinforcement_priority_button>(state, id);
 		} else if(name == "supply_prio_button") {
 			return make_element_by_type<u_row_supply_priority_button>(state, id);
 		} else if(name == "splitinhalf") {
@@ -4409,8 +4121,6 @@ std::unique_ptr<element_base> mulit_unit_selection_panel::make_child(sys::state&
 		return make_element_by_type<disband_all_button>(state, id);
 	} else if(name == "unit_listbox") {
 		return make_element_by_type<selected_unit_list>(state, id);
-	} else if(name == "reinforcement_priority_button_multiunit") {
-		return make_element_by_type<selected_units_reinforcement_priority_button>(state, id);
 	} else if(name == "supply_priority_button_multiunit") {
 		return make_element_by_type<selected_units_supply_priority_button>(state, id);
 	} else {

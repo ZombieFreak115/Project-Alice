@@ -2318,11 +2318,6 @@ object {
 		tag{ save }
 	}
 	property{
-		name{ reinforcement_priority }
-		type{ military::unit_priority }
-		tag{ save }
-	}
-	property{
 		name{ supply_priority }
 		type{ military::unit_priority }
 		tag{ save }
@@ -2431,11 +2426,6 @@ object {
 	property{
 		name{ unused_travel_days }
 		type{ float }
-		tag{ save }
-	}
-	property{
-		name{ reinforcement_priority }
-		type{ military::unit_priority }
 		tag{ save }
 	}
 	property{

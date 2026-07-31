@@ -11252,33 +11252,6 @@ void set_army_supply_priority(sys::state& state, dcon::nation_id source, dcon::a
 template void set_army_supply_priority<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
 template void set_army_supply_priority<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
 
-
-template<command::actor Actor>
-bool can_set_army_reinforcement_priority(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority) {
-	if constexpr(Actor == command::actor::player) {
-		if(!state.current_scene.game_in_progress) {
-			return false;
-		}
-	}
-	if(military::get_effective_unit_commander(state, army) != source) {
-		return false;
-	}
-	if(priority > unit_priority::high_priority || priority < unit_priority::low_priority) {
-		return false;
-	}
-	return true;
-}
-template bool can_set_army_reinforcement_priority<command::actor::ai>(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
-template bool can_set_army_reinforcement_priority<command::actor::player>(const sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
-
-template<command::actor Actor>
-void set_army_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority) {
-	state.world.army_set_reinforcement_priority(army, priority);
-}
-template void set_army_reinforcement_priority<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
-template void set_army_reinforcement_priority<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::army_id army, military::unit_priority priority);
-
-
 template<command::actor Actor>
 bool can_set_navy_supply_priority(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority) {
 	if constexpr(Actor == command::actor::player) {
@@ -11303,34 +11276,6 @@ void set_navy_supply_priority(sys::state& state, dcon::nation_id source, dcon::n
 }
 template void set_navy_supply_priority<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
 template void set_navy_supply_priority<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
-
-
-template<command::actor Actor>
-bool can_set_navy_reinforcement_priority(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority) {
-	if constexpr(Actor == command::actor::player) {
-		if(!state.current_scene.game_in_progress) {
-			return false;
-		}
-	}
-	if(military::get_effective_unit_commander(state, navy) != source) {
-		return false;
-	}
-	if(priority > unit_priority::high_priority || priority < unit_priority::low_priority) {
-		return false;
-	}
-	return true;
-}
-template bool can_set_navy_reinforcement_priority<command::actor::ai>(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
-template bool can_set_navy_reinforcement_priority<command::actor::player>(const sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
-
-
-template<command::actor Actor>
-void set_navy_reinforcement_priority(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority) {
-	state.world.navy_set_reinforcement_priority(navy, priority);
-}
-template void set_navy_reinforcement_priority<command::actor::ai>(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
-template void set_navy_reinforcement_priority<command::actor::player>(sys::state& state, dcon::nation_id source, dcon::navy_id navy, military::unit_priority priority);
-
 
 
 template<command::actor Actor>

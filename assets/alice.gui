@@ -1589,9 +1589,6 @@ guiTypes = {
 			maxHeight = 17	
 			format = right
 		}
-
-
-
 		iconType = {
 			name = "org_bar"
 			spriteType = "GFX_morale_progress"
@@ -1612,14 +1609,9 @@ guiTypes = {
 			quadTextureSprite ="GFX_unit_disband"
 		}
 		guiButtonType = {
-			name ="reinforcement_prio_button"
-			spriteType = "GFX_reinforcement_prio_buttons"
-			position = { x= 220 y = 4 }
-		}
-		guiButtonType = {
 			name ="supply_prio_button"
 			spriteType = "GFX_supply_prio_buttons"
-			position = { x= 186 y = 4 }
+			position = { x= 220 y = 4 }
 		}
 		guiButtonType = {
 			name = "splitinhalf"
@@ -1746,13 +1738,8 @@ guiTypes = {
 			quadTextureSprite ="GFX_unit_disband"
 		}
 		guiButtonType = {
-			name = "reinforcement_priority_button_multiunit"
-			position = { 180 4 }
-			spriteType = "GFX_reinforcement_prio_buttons"
-		}
-		guiButtonType = {
 			name = "supply_priority_button_multiunit"
-			position = { 146 4 }
+			position = { 180 4 }
 			spriteType = "GFX_supply_prio_buttons"
 		}
 
@@ -2119,14 +2106,6 @@ guiTypes = {
 			position = { x= 36 y = -10 }
 			Orientation = "UPPER_LEFT"
 		}
-
-		guiButtonType = {
-			name ="reinforcement_prio_button"
-			spriteType = "GFX_reinforcement_prio_buttons"
-			position = { x= 116 y = -18 }
-			Orientation = "UPPER_LEFT"
-		}
-			
 		iconType =
 		{
 			name ="icon_speed"
