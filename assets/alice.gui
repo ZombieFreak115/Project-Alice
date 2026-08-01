@@ -5489,6 +5489,15 @@ guiTypes = {
 		textureFile = ""
 		font = "vic_18"
 	}
+	OverlappingElementsBoxType = {
+		name = "alice_province_modifiers"
+		extends = "province_view_header"
+		position = { x = 184 y = 38 }
+		size = { x=110 y= 32 }
+		Orientation = "UPPER_LEFT"
+		format = right
+		spacing = 0
+	}	
 	
 	guiButtonType = {
 		name = "alice_take_province"

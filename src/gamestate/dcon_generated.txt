@@ -458,6 +458,16 @@ object {
 		type{ bitfield }
 		tag{ scenario }
 	}
+	property{
+		name{ supply_weight }
+		type{ float }
+		tag{ scenario }
+	}
+	property{
+		name{ supply_loss_rate }
+		type{ float }
+		tag{ scenario }
+	}
 }
 
 object {

@@ -292,13 +292,13 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_cons
 float get_enemy_blockade_power(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
 	assert(province::is_sea(state, prov) && !province::province_is_deep_waters(state, prov));
 	// TODO: actually compute blockade power
-	return military::navy_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, prov, nation_as) * 1.0f;
+	return military::navy_strength_present<military::battle_included::yes, military::retreat_included::no, military::participants_included::enemies>(state, prov, nation_as) * 1.0f;
 }
 
 float get_enemy_convoy_raiding_power(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
 	assert(province::is_sea(state, prov));
 	// TODO: actually compute blockade power
-	return military::navy_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, prov, nation_as) * 1.0f;
+	return military::navy_strength_present<military::battle_included::yes, military::retreat_included::no, military::participants_included::enemies>(state, prov, nation_as) * 1.0f;
 }
 
 float compute_efficiency(float consumed, float available) {
@@ -311,6 +311,11 @@ float compute_efficiency(float consumed, float available) {
 	} else {
 		return std::min(available / consumed, 1.0f);
 	}
+}
+
+float port_supply_capacity_mult_hostile_troops_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
+	float enemy_strength_present = military::army_strength_present<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::enemies>(state, prov, nation_as);
+	return army_supply_throughput_blockade_threshold > 0.0f ? std::max((army_supply_throughput_blockade_threshold - enemy_strength_present) / army_supply_throughput_blockade_threshold, 0.f) : 1.0f;
 }
 
 float port_supply_capacity_mult_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
@@ -329,12 +334,10 @@ float port_supply_capacity_mult_supply_access_modifier(const sys::state& state, 
 float port_supply_capacity_in_province(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
 	assert(province::is_port(state, port_prov));
 	float access_mult = port_supply_capacity_mult_supply_access_modifier(state, port_prov, nation_as);
-	if(access_mult == 0.0f) {
-		return 0.0f;
-	}
+	float hostile_units_mult = port_supply_capacity_mult_hostile_troops_modifier(state, port_prov, nation_as);
 	float capacity_add = state.world.province_get_modifier_values(port_prov, sys::provincial_mod_offsets::port_supply_capacity_add) + state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_port_supply_capacity_add);
 	float capacity_percent = state.world.province_get_modifier_values(port_prov, sys::provincial_mod_offsets::port_supply_capacity_percent) + state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_port_supply_capacity_percent) + 1.0f;
-	float capacity_mul = state.world.province_get_modifier_values(port_prov, sys::provincial_mod_offsets::port_supply_capacity_mul) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_port_supply_capacity_mul) * port_supply_capacity_mult_blockaded_modifier(state, port_prov, nation_as) * access_mult;
+	float capacity_mul = state.world.province_get_modifier_values(port_prov, sys::provincial_mod_offsets::port_supply_capacity_mul) * state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_port_supply_capacity_mul) * port_supply_capacity_mult_blockaded_modifier(state, port_prov, nation_as) * access_mult * hostile_units_mult;
 	return std::max(capacity_add * capacity_percent * capacity_mul, 0.0f);
 }
 
@@ -358,7 +361,7 @@ float supply_throughput_mult_hostile_troops_modifier(const sys::state& state, dc
 	if(province::is_sea(state, prov)) {
 		return 1.0f; // Cannot have hostile troops in sea provinces. Blockades of ports are handled with a malus to port supply capacity, convoy raiding is handled as supply attrition
 	} else {
-		float enemy_strength_present = military::army_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, prov, nation_as);
+		float enemy_strength_present = military::army_strength_present<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::enemies>(state, prov, nation_as);
 		return army_supply_throughput_blockade_threshold > 0.0f ? std::max((army_supply_throughput_blockade_threshold - enemy_strength_present) / army_supply_throughput_blockade_threshold, 0.f) : 1.0f;
 	}
 }
@@ -367,9 +370,6 @@ float supply_throughput_mult_hostile_troops_modifier(const sys::state& state, dc
 float supply_throughput_in_province(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 
 	float access_mul_mod = supply_throughput_mult_access_modifier(state, province, nation_as);
-	if(access_mul_mod == 0.0f) {
-		return 0.0f;
-	}
 	bool is_sea = province::is_sea(state, province);
 	auto nation_add_mod = (is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_throughput_add) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_throughput_add));
 	auto nation_percent_mod = (is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_throughput_percent) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_throughput_percent));
@@ -395,7 +395,7 @@ float supply_loss_add_convoy_raiding(const sys::state& state, dcon::province_id 
 }
 float supply_loss_add_hostile_armies(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 	assert(province::is_land(state, province));
-	return military::army_strength_present<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, province, nation_as)* hostile_army_supply_loss;
+	return military::army_strength_present<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::enemies>(state, province, nation_as)* hostile_army_supply_loss;
 }
 
 float supply_loss_in_province(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
@@ -723,6 +723,7 @@ void update_military_unit_routes_satisfaction(sys::state& state, unit_type unit,
 			if(amount_needed <= 0.0f) {
 				return;
 			}
+			float com_supply_weight = state.world.commodity_get_supply_weight(base_com_id);
 			float stockpile_buffer_amount = local_stockpile_available_goods_get(state, market, base_com_id);
 			// The amount to consume is the minimum of the desired amount or the amount available in stockpile
 			float to_consume = std::min(amount_needed, stockpile_buffer_amount);
@@ -739,7 +740,7 @@ void update_military_unit_routes_satisfaction(sys::state& state, unit_type unit,
 				fat_route.set_buffered_reinforcement_goods(com_id, fat_route.get_buffered_reinforcement_goods(com_id) + to_consume);
 			}
 
-			fat_route.set_volume(fat_route.get_volume() + to_consume);
+			fat_route.set_volume(fat_route.get_volume() + to_consume * com_supply_weight);
 			// Subtract from route need
 			if constexpr(std::is_same_v<decltype(com_id), dcon::unit_supply_commodity_id>) {
 				unit_supply_need_set(state, unit, com_id, amount_needed - to_consume);
@@ -850,6 +851,7 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 				if(amount_needed <= 0.0f) {
 					continue;
 				}
+				float com_supply_weight = state.world.commodity_get_supply_weight(com_id);
 				float stockpile_buffer_amount = local_stockpile_available_goods_get(state, market, com_id);
 				// The amount to consume is the minimum of the desired amount or the amount available in stockpile.
 				float to_consume = std::min(amount_needed, stockpile_buffer_amount);
@@ -859,7 +861,7 @@ void update_construction_routes_satisfaction(sys::state& state, construction_typ
 				float total_stockpile_buffer_count = nation_stockpile_available_goods_get(state, nation, com_id);
 				nation_stockpile_available_goods_set(state, nation, com_id, std::max(total_stockpile_buffer_count - to_consume, 0.0f));
 				buffered_goods[i] += to_consume;
-				fat_route.set_volume(fat_route.get_volume() + to_consume);
+				fat_route.set_volume(fat_route.get_volume() + to_consume * com_supply_weight);
 
 				// Subtract from route need
 				construction_need[i] -= to_consume;
@@ -1053,14 +1055,18 @@ void update_unit_commodity_satisfaction(sys::state& state, unit_type u) {
 	for(auto route : routes) {
 		if(route.get_is_active()) {
 			state.world.for_each_unit_supply_commodity([&](dcon::unit_supply_commodity_id com_id) {
+				dcon::commodity_id base_commodity = economy::unit_commodity_get_base_commodity(state, com_id);
+				float com_supply_loss_mod = state.world.commodity_get_supply_loss_rate(base_commodity);
 				float current_avail = available_supply_goods_buffer.get(com_id);
 				float buffered_amount = route.get_buffered_supply_goods(com_id);
-				available_supply_goods_buffer.set(com_id, current_avail + (buffered_amount * route.get_throughput() * route.get_supply_loss()));
+				available_supply_goods_buffer.set(com_id, current_avail + (buffered_amount * route.get_throughput() * route.get_supply_loss() * com_supply_loss_mod));
 			});
 			state.world.for_each_unit_build_commodity([&](dcon::unit_build_commodity_id com_id) {
+				dcon::commodity_id base_commodity = economy::unit_commodity_get_base_commodity(state, com_id);
+				float com_supply_loss_mod = state.world.commodity_get_supply_loss_rate(base_commodity);
 				float current_avail = available_reinforcement_goods_buffer.get(com_id);
 				float buffered_amount = route.get_buffered_reinforcement_goods(com_id);
-				available_reinforcement_goods_buffer.set(com_id, current_avail + (buffered_amount * route.get_throughput() * route.get_supply_loss()));
+				available_reinforcement_goods_buffer.set(com_id, current_avail + (buffered_amount * route.get_throughput() * route.get_supply_loss() * com_supply_loss_mod));
 			});
 		}
 	}
@@ -1155,8 +1161,9 @@ void update_construction_commodity_satisfaction(sys::state& state, construction_
 				dcon::commodity_id com_id = build_costs.commodity_type[j];
 				assert(build_costs.commodity_type[j] == current_fufilled.commodity_type[j]);
 				if(com_id) {
+					float com_supply_loss_mod = state.world.commodity_get_supply_loss_rate(com_id);
 					float& current_amount = current_fufilled.commodity_amounts[j];
-					float route_amount = route_goods[j] * route.get_throughput() * route.get_supply_loss();
+					float route_amount = route_goods[j] * route.get_throughput() * route.get_supply_loss() * com_supply_loss_mod;
 					current_amount += route_amount;
 				} else {
 					break;

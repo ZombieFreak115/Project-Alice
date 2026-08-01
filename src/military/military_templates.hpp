@@ -27,11 +27,15 @@ auto battle_is_ongoing_in_province(sys::state const& state, T ids) {
 }
 
 
-enum class battle_allowed : uint8_t {
+enum class battle_included : uint8_t {
 	no = 0,
 	yes = 1
 };
-enum class retreat_allowed : uint8_t {
+enum class retreat_included : uint8_t {
+	no = 0,
+	yes = 1
+};
+enum class blackflag_included : uint8_t {
 	no = 0,
 	yes = 1
 };
@@ -52,19 +56,19 @@ constexpr bool has_flag(enum_type to_check, enum_type flag) {
 	return (static_cast<integer_type>(to_check) & static_cast<integer_type>(flag)) != integer_type(0);
 }
 
-template<battle_allowed battle_included, retreat_allowed retreat_included, participants_included participant_setting>
+template<battle_included battle_included, retreat_included retreat_included, participants_included participant_setting>
 bool province_has_fleet(const sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
 	auto navies = state.world.province_get_navy_location(location);
 	if(navies.begin() == navies.end()) {
 		return false; // no navies present
 	}
 	for(auto navy : navies) {
-		if constexpr(battle_included == battle_allowed::no) {
+		if constexpr(battle_included == battle_included::no) {
 			if(navy.get_navy().get_battle_from_navy_battle_participation()) {
 				continue;
 			}
 		}
-		if constexpr(retreat_included == retreat_allowed::no) {
+		if constexpr(retreat_included == retreat_included::no) {
 			if(navy.get_navy().get_is_retreating()) {
 				continue;
 			}
@@ -94,20 +98,25 @@ bool province_has_fleet(const sys::state& state, dcon::province_id location, dco
 	return false;
 }
 
-template<battle_allowed battle_included, retreat_allowed retreat_included, participants_included participant_setting>
+template<battle_included battle_included, retreat_included retreat_included, blackflag_included blackflag_included, participants_included participant_setting>
 bool province_has_army(const sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
 	auto armies = state.world.province_get_army_location(location);
 	if(armies.begin() == armies.end()) {
 		return false; // no armies present
 	}
 	for(auto army : armies) {
-		if constexpr(battle_included == battle_allowed::no) {
+		if constexpr(battle_included == battle_included::no) {
 			if(army.get_army().get_battle_from_army_battle_participation()) {
 				continue;
 			}
 		}
-		if constexpr(retreat_included == retreat_allowed::no) {
+		if constexpr(retreat_included == retreat_included::no) {
 			if(army.get_army().get_is_retreating()) {
+				continue;
+			}
+		}
+		if constexpr(blackflag_included == blackflag_included::no) {
+			if(army.get_army().get_black_flag()) {
 				continue;
 			}
 		}
@@ -138,19 +147,24 @@ bool province_has_army(const sys::state& state, dcon::province_id location, dcon
 
 
 
-template<battle_allowed battle_included, retreat_allowed retreat_included, participants_included participant_setting>
+template<battle_included battle_included, retreat_included retreat_included, blackflag_included blackflag_included, participants_included participant_setting>
 float army_strength_present(const sys::state& state, dcon::province_id location, dcon::nation_id nation_as) {
 	float total = 0.0f;
 	for(auto a : state.world.province_get_army_location(location)) {
 		auto army = a.get_army();
 		auto controller = army.get_controller_from_army_control();
-		if constexpr(battle_included == battle_allowed::no) {
+		if constexpr(battle_included == battle_included::no) {
 			if(state.world.army_get_battle_from_army_battle_participation(army)) {
 				continue;
 			}
 		}
-		if constexpr(retreat_included == retreat_allowed::no) {
+		if constexpr(retreat_included == retreat_included::no) {
 			if(state.world.army_get_is_retreating(army)) {
+				continue;
+			}
+		}
+		if constexpr(blackflag_included == blackflag_included::no) {
+			if(state.world.army_get_black_flag(army)) {
 				continue;
 			}
 		}
@@ -183,18 +197,18 @@ float army_strength_present(const sys::state& state, dcon::province_id location,
 	return total;
 }
 
-template<battle_allowed battle_included, retreat_allowed retreat_included, participants_included participant_setting>
+template<battle_included battle_included, retreat_included retreat_included, participants_included participant_setting>
 float navy_strength_present(const sys::state& state, dcon::province_id location, dcon::nation_id nation_as) {
 	float total = 0.0f;
 	for(auto a : state.world.province_get_navy_location(location)) {
 		auto navy = a.get_navy();
 		auto controller = navy.get_controller_from_navy_control();
-		if constexpr(battle_included == battle_allowed::no) {
+		if constexpr(battle_included == battle_included::no) {
 			if(state.world.navy_get_battle_from_navy_battle_participation(navy)) {
 				continue;
 			}
 		}
-		if constexpr(retreat_included == retreat_allowed::no) {
+		if constexpr(retreat_included == retreat_included::no) {
 			if(state.world.navy_get_is_retreating(navy)) {
 				continue;
 			}

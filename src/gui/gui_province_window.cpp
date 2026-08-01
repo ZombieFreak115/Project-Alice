@@ -756,7 +756,9 @@ public:
 		} else if(name == "prov_terrain") {
 			return make_element_by_type<province_terrain_image>(state, id);
 		} else if(name == "province_modifiers") {
-			return make_element_by_type<province_modifiers>(state, id);
+			return make_element_by_type<invisible_element>(state, id);
+		} else if (name == "alice_province_modifiers") {
+			return make_element_by_type< province_modifiers>(state, id);
 		} else if(name == "slave_state_icon") {
 			auto ptr = make_element_by_type<fixed_pop_type_icon>(state, id);
 			slave_icon = ptr.get();

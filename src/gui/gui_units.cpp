@@ -2231,11 +2231,13 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 	for(auto route : routes) {
 		if(route.get_is_active()) {
 			for_each_relevant_unit_commodity([&](auto com_id) {
+				dcon::commodity_id base_commodity = economy::unit_commodity_get_base_commodity(state, com_id);
+				float com_supply_loss_mod = state.world.commodity_get_supply_loss_rate(base_commodity);
 				float buffered_amount = supply_routes::military_route_get_buffered_goods(state, route.id, com_id);
-				commodities_actual_satisfied[com_id] += (buffered_amount * route.get_throughput() * route.get_supply_loss());
+				commodities_actual_satisfied[com_id] += (buffered_amount * route.get_throughput() * route.get_supply_loss() * com_supply_loss_mod);
 				commodities_satisfied_no_loss[com_id] += buffered_amount;
 				commodities_satisfied_w_throughput[com_id] += (buffered_amount * route.get_throughput());
-				commodities_satisfied_w_loss[com_id] += (buffered_amount * route.get_supply_loss());
+				commodities_satisfied_w_loss[com_id] += (buffered_amount * route.get_supply_loss() * com_supply_loss_mod);
 			});
 		}
 	}

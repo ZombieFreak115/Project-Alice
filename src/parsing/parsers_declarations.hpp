@@ -642,6 +642,8 @@ struct good_context {
 };
 
 struct good {
+	float supply_weight = 1.0f;
+	float supply_loss_rate = 1.0f;
 	void money(association_type, bool v, error_handler& err, int32_t line, good_context& context);
 	void color(color_from_3i v, error_handler& err, int32_t line, good_context& context);
 	void cost(association_type, float v, error_handler& err, int32_t line, good_context& context);

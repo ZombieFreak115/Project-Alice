@@ -9780,8 +9780,10 @@ tagged_vector<float, dcon::unit_supply_commodity_id> get_last_fufilled_supply(co
 	auto routes = unit_get_supply_routes(state, unit);
 	for(auto route : routes) {
 		state.world.for_each_unit_supply_commodity([&](dcon::unit_supply_commodity_id supply_com_id) {
+			dcon::commodity_id base_commodity = economy::unit_commodity_get_base_commodity(state, supply_com_id);
+			float com_supply_loss_mod = state.world.commodity_get_supply_loss_rate(base_commodity);
 			float buffered_goods = route.get_buffered_supply_goods(supply_com_id);
-			fufilled_supply[supply_com_id] += (buffered_goods * route.get_supply_loss() * route.get_throughput()); // take into account goods which will be lost to attrition and throughput
+			fufilled_supply[supply_com_id] += (buffered_goods * route.get_supply_loss() * com_supply_loss_mod * route.get_throughput()); // take into account goods which will be lost to attrition and throughput
 		});
 	}
 	return fufilled_supply;
@@ -9797,8 +9799,10 @@ tagged_vector<float, dcon::unit_build_commodity_id> get_last_fufilled_reinforcem
 	auto routes = unit_get_supply_routes(state, unit);
 	for(auto route : routes) {
 		state.world.for_each_unit_build_commodity([&](dcon::unit_build_commodity_id build_com_id) {
+			dcon::commodity_id base_commodity = economy::unit_commodity_get_base_commodity(state, build_com_id);
+			float com_supply_loss_mod = state.world.commodity_get_supply_loss_rate(base_commodity);
 			float buffered_goods = route.get_buffered_reinforcement_goods(build_com_id);
-			fufilled_supply[build_com_id] += (buffered_goods * route.get_supply_loss() * route.get_throughput()); // take into account goods which will be lost to attrition and throughput
+			fufilled_supply[build_com_id] += (buffered_goods * route.get_supply_loss() * com_supply_loss_mod * route.get_throughput()); // take into account goods which will be lost to attrition and throughput
 		});
 	}
 	return fufilled_supply;
@@ -10012,7 +10016,7 @@ bool get_allied_prov_adjacency_reinforcement_bonus(const sys::state& state, dcon
 		}
 		auto prov_controller = state.world.province_get_nation_from_province_control(prov);
 		// enemy battles or units will not allow for reinforcements
-		if(province_has_army<battle_allowed::yes, retreat_allowed::no, participants_included::enemies>(state, prov, our_nation)) {
+		if(province_has_army<battle_included::yes, retreat_included::no, blackflag_included::no, participants_included::enemies>(state, prov, our_nation)) {
 			return false;
 		}
 		// checks if the province controlled by us, or is controlled by someone who is at enemies with the owner of location
@@ -10105,7 +10109,7 @@ float calculate_location_reinforce_modifier_battle(const sys::state& state, dcon
 			continue;
 		}
 		// if there are enemy battles or enemy units sourrinding the province, it will get no reinforcements
-		if(province_has_army<battle_allowed::yes, retreat_allowed::no, participants_included::enemies>(state, prov, in_nation)) {
+		if(province_has_army<battle_included::yes, retreat_included::no, military::blackflag_included::no, participants_included::enemies>(state, prov, in_nation)) {
 			highest_adj_prov_modifier = std::max(highest_adj_prov_modifier, 0.0f);
 		} else {
 			highest_adj_prov_modifier = std::max(highest_adj_prov_modifier, calculate_location_reinforce_modifier_no_battle(state, prov, in_nation));

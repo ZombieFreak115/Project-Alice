@@ -1634,7 +1634,7 @@ bool is_crossing_blocked(const sys::state& state, dcon::nation_id thisnation, dc
 		}
 		// otherwise, its a blockadable strait
 		else {
-			return military::province_has_fleet<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, strait_prov, thisnation);
+			return military::province_has_fleet<military::battle_included::yes, military::retreat_included::no, military::participants_included::enemies>(state, strait_prov, thisnation);
 		}
 	}
 	return false;
@@ -2620,7 +2620,7 @@ std::vector<dcon::province_id> make_land_unit_path(sys::state& state, dcon::prov
 
 		};
 		auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance) {
-			float danger_factor = (to != end && military::province_has_army<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, to, nation_as)) ? 4.f : 1.f;
+			float danger_factor = (to != end && military::province_has_army<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::enemies>(state, to, nation_as)) ? 4.f : 1.f;
 			return distance * military::get_avg_movement_cost_modifier(state, nation_as, from, to) * danger_factor;
 
 		};
@@ -2636,7 +2636,7 @@ std::vector<dcon::province_id> make_land_unit_path(sys::state& state, dcon::prov
 
 		};
 		auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance) {
-			float danger_factor = (to != end && military::province_has_army<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, to, nation_as)) ? 4.f : 1.f;
+			float danger_factor = (to != end && military::province_has_army<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::enemies>(state, to, nation_as)) ? 4.f : 1.f;
 			return distance * military::get_avg_movement_cost_modifier(state, nation_as, from, to) * danger_factor;
 
 		};
@@ -2903,7 +2903,7 @@ bool make_land_manual_retreat_path_adjacency_valid(sys::state& state, dcon::nati
 bool make_land_manual_retreat_path_province_valid(sys::state& state, dcon::nation_id nation_as, dcon::province_id start, dcon::province_id to, dcon::army_id a) {
 	if(to.index() < state.province_definitions.first_sea_province.index()) { // is land
 		// Province must be accelsible, and must not be both adjacent to the start province AND have an enemy unit on it
-		return has_access_to_province(state, nation_as, to) && !(province::provinces_are_adjacent(state, to, start) && military::province_has_army<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, to, nation_as));
+		return has_access_to_province(state, nation_as, to) && !(province::provinces_are_adjacent(state, to, start) && military::province_has_army<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::enemies>(state, to, nation_as));
 
 	} else { // is sea
 		return military::can_embark_onto_sea_tile(state, nation_as, to, a);
@@ -2922,7 +2922,7 @@ std::vector<dcon::province_id> make_land_manual_retreat_path(sys::state& state, 
 	};
 	auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance) {
 		auto armies = state.world.province_get_army_location(to);
-		float danger_factor = (to != end && military::province_has_army<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, to, nation_as)) ? 4.0f : 1.0f;
+		float danger_factor = (to != end && military::province_has_army<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::enemies>(state, to, nation_as)) ? 4.0f : 1.0f;
 		float movement_cost_mod = military::get_avg_movement_cost_modifier(state, nation_as, to, from);
 		return distance * movement_cost_mod * danger_factor;
 	};
@@ -2937,7 +2937,7 @@ bool make_land_auto_retreat_path_adjacency_valid(sys::state& state, dcon::nation
 bool make_land_auto_retreat_path_province_valid(sys::state& state, dcon::nation_id nation_as, dcon::province_id start, dcon::province_id to) {
 	if(to.index() < state.province_definitions.first_sea_province.index()) { // is land
 		// Province must be accelsible, adjecent to the start province, and cannot have an enemy unit on it
-		return has_access_to_province(state, nation_as, to) && province::provinces_are_adjacent(state, to, start) && !military::province_has_army<military::battle_allowed::yes, military::retreat_allowed::no, military::participants_included::enemies>(state, to, nation_as);
+		return has_access_to_province(state, nation_as, to) && province::provinces_are_adjacent(state, to, start) && !military::province_has_army<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::enemies>(state, to, nation_as);
 
 	} else { // is sea
 		/*return military::can_embark_onto_sea_tile(state, nation_as, other_prov, a);*/
@@ -2963,7 +2963,7 @@ std::vector<dcon::province_id> make_land_auto_retreat_path(sys::state& state, dc
 		if(!military::are_enemies(state, nation_as, to_prov_controller)) {
 			distance *= 0.01f;
 		}
-		if(military::province_has_army<military::battle_allowed::no, military::retreat_allowed::no, military::participants_included::in_common_war>(state, to, nation_as)) {
+		if(military::province_has_army<military::battle_included::no, military::retreat_included::no, military::blackflag_included::no, military::participants_included::in_common_war>(state, to, nation_as)) {
 			distance *= 0.01f;
 		}
 		return distance;

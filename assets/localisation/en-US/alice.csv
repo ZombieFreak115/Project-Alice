@@ -2056,7 +2056,7 @@ investment_expansion_tooltip;Expansion
 supply_throughput_total_tooltip;Total supply throughput: ?Y$value$?W
 supply_throughput_used_tooltip;Supply throughput used: ?Y$value$?W
 supply_throughput_mult_access_modifier;Supply access
-supply_throughput_mult_blockade_modifier;Hostile armies
+supply_throughput_mult_hostile_units_modifier;Hostile armies
 supply_throughput_efficiency_tooltip;Net efficiency: ?Y$value$?W
 modifier_naval_supply_speed;Naval supply speed
 modifier_land_supply_speed;Land supply speed
@@ -2079,6 +2079,7 @@ port_supply_capacity_used_tooltip;Used port supply capacity: ?Y$value$?W
 port_supply_capacity_efficiency_tooltip;Net port efficiency: ?Y$value$?W
 port_supply_capacity_mul_blockaded_modifier;Port blockaded
 port_supply_capacity_mul_access_modifier;Port access
+port_supply_capacity_mul_hostile_units_modifier;Hostile armies
 alice_mvstatecap_1;Moves the market capital and state government stockpiles to this province
 alice_mvstatecap_2;State is owned by us
 alice_mvstatecap_3;Province is not the market capital

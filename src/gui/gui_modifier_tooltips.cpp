@@ -243,7 +243,7 @@ void active_hardcoded_modifiers_description(sys::state& state, text::layout_base
 			ui::active_single_hardcoded_modifier_description(state, layout, "supply_throughput_mult_access_modifier", access_mod, 8, header, sys::provincial_mod_offsets::supply_throughput_mul);
 		}
 		if(blockade_mod != 1.0f) {
-			ui::active_single_hardcoded_modifier_description(state, layout, "supply_throughput_mult_blockade_modifier", blockade_mod, 8, header, sys::provincial_mod_offsets::supply_throughput_mul);
+			ui::active_single_hardcoded_modifier_description(state, layout, "supply_throughput_mult_hostile_units_modifier", blockade_mod, 8, header, sys::provincial_mod_offsets::supply_throughput_mul);
 		}
 
 		break;
@@ -275,6 +275,10 @@ void active_hardcoded_modifiers_description(sys::state& state, text::layout_base
 		float access_mult = supply_routes::port_supply_capacity_mult_supply_access_modifier(state, prov, local_nation);
 		if(access_mult != 1.0f) {
 			ui::active_single_hardcoded_modifier_description(state, layout, "port_supply_capacity_mul_access_modifier", access_mult, 8, header, sys::provincial_mod_offsets::port_supply_capacity_mul);
+		}
+		float hostile_units_mult = supply_routes::port_supply_capacity_mult_hostile_troops_modifier(state, prov, local_nation);
+		if(hostile_units_mult != 1.0f) {
+			ui::active_single_hardcoded_modifier_description(state, layout, "port_supply_capacity_mul_hostile_units_modifier", hostile_units_mult, 8, header, sys::provincial_mod_offsets::port_supply_capacity_mul);
 		}
 		break;
 	}
