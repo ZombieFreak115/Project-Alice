@@ -2085,3 +2085,18 @@ alice_mvstatecap_2;State is owned by us
 alice_mvstatecap_3;Province is not the market capital
 alice_mvstatecap_4;Cooldown is not active ($val$ days left)
 alice_mvstatecap_5;No provinces in the state are occupied, or being sieged
+military_stockpile_window_header;Military Stockpiles
+military_stockpile_value_divider;/
+open_mil_stockpile_button_text;Military Stockpiles
+current_stockpile_count_tooltip;In stockpiles: ?Y$val$?W
+stockpile_target_tooltip;Stockpiles target: ?Y$val$?W
+stockpile_change;$val$/day
+stockpile_change_tooltip;Daily Stockpile Change: ?Y$val$?W
+stockpile_days_left;$days$ days left
+stockpile_days_left_tooltip;Estimated ?Y$days$?W days worth of supplies left at current consumption levels
+mlitary_stockpile_commodity_tooltip;?GLeft-click?W to select commodity, ?Rright-click?W to deselect
+mlitary_stockpile_target_error;?RInvalid input?W
+confirm_stockpile_target_tooltip;Confirm the stockpile target
+stockpile_target_set_label;Set stockpile target:
+military_stockpile_info_tooltip;Each commodity icon and the numbers under it displays diffrent values about the state of all summed-up government stockpiles. It shows:\n    -The current amount present in stockpiles\n    -The current stockpile target for the stockpile spending setting\n    -The daily amount change (positive or negative)\n    -The estimated amount of days left until stockpile exhaustion.\nSelect a commodity by ?Gright-clicking?W the icon to set a stockpile target in the right window.
+military_stockpile_targets_info_tooltip;Once a commodity is selected, its stockpile target can be set here by typing in a new target (number with or without decimals allowed), and clicking on the confirmation button below.

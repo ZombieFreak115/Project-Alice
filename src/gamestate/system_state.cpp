@@ -3085,6 +3085,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 
 	world.nation_resize_stockpile_targets(world.commodity_size());
 	world.nation_resize_total_stockpiles(world.commodity_size());
+	world.nation_resize_yesterday_total_stockpiles(world.commodity_size());
 	world.nation_resize_drawing_on_stockpiles(world.commodity_size());
 	world.commodity_resize_price_record(economy::price_history_length);
 	world.nation_resize_gdp_record(economy::gdp_history_length);

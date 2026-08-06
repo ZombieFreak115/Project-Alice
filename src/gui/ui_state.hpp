@@ -152,6 +152,7 @@ struct state {
 	element_base* army_combat_window = nullptr;
 	element_base* change_leader_window = nullptr;
 	element_base* macro_builder_window = nullptr;
+	element_base* military_stockpiles_window = nullptr;
 	element_base* request_topbar_listbox = nullptr;
 	element_base* build_province_unit_window = nullptr;
 	element_base* disband_unit_window = nullptr;

@@ -2294,6 +2294,10 @@ bool can_change_stockpile_settings(sys::state& state, dcon::nation_id source, dc
 	if(!state.current_scene.game_in_progress) {
 		return false;
 	}
+	// sanity check, no negative target, and no more than 1 billion stockpile target
+	if(target_amount < 0.0f || target_amount > 1000000000.0f) {
+		return false;
+	}
 	return true;
 }
 

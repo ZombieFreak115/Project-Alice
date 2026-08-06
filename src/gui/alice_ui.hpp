@@ -1034,6 +1034,7 @@ bool pop_passes_filter(sys::state& state, dcon::pop_id p);
 
 std::unique_ptr<ui::element_base> make_gamerules_main(sys::state& state);
 std::unique_ptr<ui::element_base> make_macrobuilder2_main(sys::state& state);
+std::unique_ptr<ui::element_base> make_military_stockpile_main(sys::state& state);
 std::unique_ptr<ui::element_base> make_budgetwindow_main(sys::state& state);
 std::unique_ptr<ui::element_base> make_demographicswindow_main(sys::state& state);
 std::unique_ptr<ui::element_base> make_province_economy_overview_body(sys::state& state);

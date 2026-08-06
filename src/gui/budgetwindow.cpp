@@ -22,6 +22,7 @@ struct budgetwindow_main_max_debt_amount_t;
 struct budgetwindow_main_debt_chart_t;
 struct budgetwindow_main_chart_bg_t;
 struct budgetwindow_main_satisfaction_percent_t;
+struct budgetwindow_main_miltary_stockpile_button_t;
 struct budgetwindow_main_t;
 struct budgetwindow_section_header_label_t;
 struct budgetwindow_section_header_llbutton_t;
@@ -231,6 +232,12 @@ struct budgetwindow_main_chart_bg_t : public ui::element_base {
 struct budgetwindow_main_satisfaction_percent_t : public alice_ui::template_label {
 // BEGIN main::satisfaction_percent::variables
 // END
+	void on_update(sys::state& state) noexcept override;
+};
+struct budgetwindow_main_miltary_stockpile_button_t : public alice_ui::template_mixed_button {
+// BEGIN main::miltary_stockpile_button::variables
+// END
+	bool button_action(sys::state& state) noexcept override;
 	void on_update(sys::state& state) noexcept override;
 };
 struct budgetwindow_main_military_table_t : public layout_generator {
@@ -478,6 +485,7 @@ struct budgetwindow_main_t : public layout_window_element {
 	std::unique_ptr<template_label> military_settings_label;
 	std::unique_ptr<budgetwindow_main_satisfaction_percent_t> satisfaction_percent;
 	std::unique_ptr<template_label> military_title;
+	std::unique_ptr<budgetwindow_main_miltary_stockpile_button_t> miltary_stockpile_button;
 	budgetwindow_main_military_table_t military_table;
 	budgetwindow_main_income_table_t income_table;
 	budgetwindow_main_espenses_table_t espenses_table;
@@ -2153,7 +2161,6 @@ void budgetwindow_main_chart_bg_t::on_create(sys::state& state) noexcept {
 void budgetwindow_main_satisfaction_percent_t::on_update(sys::state& state) noexcept {
 	budgetwindow_main_t& main = *((budgetwindow_main_t*)(parent)); 
 // BEGIN main::satisfaction_percent::update
-
 	// Compute the average satisfaction percentage for all military consumption
 	// TODO FOR LATER: show which goods are lacking
 	float avg_naval_reinf_satisfaction = military::average_naval_consumption_satisfaction<military::unit_consumption_type::reinforcement>(state, state.local_player_nation);
@@ -2179,6 +2186,28 @@ void budgetwindow_main_satisfaction_percent_t::on_update(sys::state& state) noex
 
 
 // END
+}
+void budgetwindow_main_miltary_stockpile_button_t::on_update(sys::state& state) noexcept {
+	budgetwindow_main_t& main = *((budgetwindow_main_t*)(parent)); 
+// BEGIN main::miltary_stockpile_button::update
+// END
+}
+bool budgetwindow_main_miltary_stockpile_button_t::button_action(sys::state& state) noexcept {
+	budgetwindow_main_t& main = *((budgetwindow_main_t*)(parent)); 
+// BEGIN main::miltary_stockpile_button::lbutton_action
+	if(!state.ui_state.military_stockpiles_window) {
+		auto window = alice_ui::make_military_stockpile_main(state);
+		window->impl_on_update(state);
+		state.ui_state.military_stockpiles_window = window.get();
+		state.ui_state.root->add_child_to_front(std::move(window));
+	} else if(state.ui_state.military_stockpiles_window->is_visible()) {
+		state.ui_state.military_stockpiles_window->set_visible(state, false);
+	} else {
+		state.ui_state.military_stockpiles_window->set_visible(state, true);
+		state.ui_state.root->move_child_to_front(state.ui_state.military_stockpiles_window);
+	}
+// END
+	return true;
 }
 ui::message_result budgetwindow_main_t::on_lbutton_down(sys::state& state, int32_t x, int32_t y, sys::key_modifiers mods) noexcept {
 	state.ui_state.drag_target = this;
@@ -2334,6 +2363,9 @@ void budgetwindow_main_t::create_layout_level(sys::state& state, layout_level& l
 				} else
 				if(cname == "military_title") {
 					temp.ptr = military_title.get();
+				} else
+				if(cname == "miltary_stockpile_button") {
+					temp.ptr = miltary_stockpile_button.get();
 				} else
 				{
 					std::string str_cname {cname};
@@ -2960,6 +2992,25 @@ void budgetwindow_main_t::on_create(sys::state& state) noexcept {
 				cptr->default_text = state.lookup_key(child_data.text_key);
 			if(child_data.tooltip_text_key.length() > 0)
 				cptr->default_tooltip = state.lookup_key(child_data.tooltip_text_key);
+			cptr->parent = this;
+			cptr->on_create(state);
+			children.push_back(cptr);
+			pending_children.pop_back(); continue;
+		} else 
+		if(child_data.name == "miltary_stockpile_button") {
+			miltary_stockpile_button = std::make_unique<budgetwindow_main_miltary_stockpile_button_t>();
+			miltary_stockpile_button->parent = this;
+			auto cptr = miltary_stockpile_button.get();
+			cptr->base_data.position.x = child_data.x_pos;
+			cptr->base_data.position.y = child_data.y_pos;
+			cptr->base_data.size.x = child_data.x_size;
+			cptr->base_data.size.y = child_data.y_size;
+			cptr->template_id = child_data.template_id;
+			cptr->icon_id = child_data.icon_id;
+			if(child_data.tooltip_text_key.length() > 0)
+				cptr->default_tooltip = state.lookup_key(child_data.tooltip_text_key);
+			if(child_data.text_key.length() > 0)
+				cptr->default_text = state.lookup_key(child_data.text_key);
 			cptr->parent = this;
 			cptr->on_create(state);
 			children.push_back(cptr);

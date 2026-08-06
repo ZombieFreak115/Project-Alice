@@ -4774,8 +4774,7 @@ uint32_t ef_variable_good_name(EFFECT_PARAMTERS) {
 	assert(std::isfinite(amount));
 	if(amount > 0.0f) {
 		// Add to capital stockpile
-		float current = ws.world.market_get_government_stockpile(capital_market, commodity);
-		economy::set_government_stockpile(ws, nation, capital_market, commodity, amount + current);
+		economy::add_government_stockpile(ws, nation, capital_market, commodity, amount);
 	}
 	else {
 		// Walk though state stockpiles starting from the capital and consume from them since the amount to be "gained" is negative. We dont care about the satisfaction rate and simply try to remove as much of the commodities as required
@@ -4803,12 +4802,10 @@ uint32_t ef_variable_good_name_province(EFFECT_PARAMTERS) {
 		assert(std::isfinite(amount));
 		if(state_controller) {
 			// Add to market
-			float current = ws.world.market_get_government_stockpile(prov_market, commodity);
-			economy::set_government_stockpile(ws, state_controller, prov_market, commodity, std::max(amount + current, 0.0f));
+			(amount > 0.0f ? economy::add_government_stockpile(ws, state_controller, prov_market, commodity, amount) : economy::subtract_government_stockpile(ws, state_controller, prov_market, commodity, amount));
 		}
 		else {
-			float current = ws.world.market_get_government_stockpile(prov_market, commodity);
-			economy::set_rebel_stockpile(ws, prov_market, commodity, std::max(amount + current, 0.0f));
+			(amount > 0.0f ? economy::add_rebel_stockpile(ws, prov_market, commodity, amount) : economy::subtract_rebel_stockpile(ws, prov_market, commodity, amount));
 		}
 
 	}

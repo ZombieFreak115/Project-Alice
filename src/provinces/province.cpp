@@ -545,13 +545,11 @@ void set_state_controller(sys::state& state, dcon::state_instance_id state_inst,
 	state.world.force_create_state_control(state_inst, new_controller);
 	economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
 		auto curr_local_stockpile = state.world.market_get_government_stockpile(market, commodity);
-		auto old_controller_total_stockpile = state.world.nation_get_total_stockpiles(old_controller, commodity);
-		auto new_controller_total_stockpile = state.world.nation_get_total_stockpiles(new_controller, commodity);
 		if(old_controller) {
-			state.world.nation_set_total_stockpiles(old_controller, commodity, std::max(old_controller_total_stockpile - curr_local_stockpile, 0.0f));
+			economy::subtract_total_govt_stockpile(state, old_controller, commodity, curr_local_stockpile);
 		}
 		if(new_controller) {
-			state.world.nation_set_total_stockpiles(new_controller, commodity, new_controller_total_stockpile + curr_local_stockpile);
+			economy::add_total_govt_stockpile(state, new_controller, commodity, curr_local_stockpile);
 		}
 	});
 }
@@ -734,23 +732,6 @@ void restore_cached_values(sys::state& state) {
 			}
 		}
 	}
-	state.world.for_each_state_instance([&](dcon::state_instance_id s) {
-		auto owner = state.world.state_instance_get_nation_from_state_ownership(s);
-		state.world.nation_set_owned_state_count(owner, uint16_t(state.world.nation_get_owned_state_count(owner) + uint16_t(1)));
-		dcon::province_id p;
-
-		int16_t min_priority = (int16_t)state.world.abstract_state_membership_size();
-
-		for(auto prv : state.world.state_definition_get_abstract_state_membership(state.world.state_instance_get_definition(s))) {
-			auto priority = state.world.abstract_state_membership_get_priority(prv);
-			if (priority < min_priority && state.world.province_get_nation_from_province_ownership(prv.get_province()) == owner) {
-				p = prv.get_province().id;
-				min_priority = priority;
-			}
-		}
-
-		state.world.state_instance_set_capital(s, p);
-	});
 }
 
 void update_cached_values(sys::state& state) {
@@ -1515,9 +1496,8 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 					float old_owner_total_stockpile = state.world.nation_get_total_stockpiles(old_owner, commodity);
 					float new_owner_total_stockpile = state.world.nation_get_total_stockpiles(new_owner, commodity);
 					float current_stockpile_amount = state.world.market_get_government_stockpile(new_market, commodity);
-					economy::set_government_stockpile(state, new_owner, new_market, commodity, current_stockpile_amount + move_stockpile_amount);
-					state.world.nation_set_total_stockpiles(old_owner, commodity, std::max(old_owner_total_stockpile - move_stockpile_amount, 0.0f));
-					state.world.nation_set_total_stockpiles(new_owner, commodity, new_owner_total_stockpile + move_stockpile_amount);
+					economy::add_government_stockpile(state, new_owner, new_market, commodity, move_stockpile_amount);
+					economy::subtract_government_stockpile(state, old_owner, local_market, commodity, move_stockpile_amount);
 				});
 			}
 			// Otherwise, simply delete stockpile contents from the old owner if applicable

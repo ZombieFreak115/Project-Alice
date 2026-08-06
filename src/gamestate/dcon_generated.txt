@@ -4448,6 +4448,11 @@ object {
 		tag{ save }
 	}
 	property {
+		name{ yesterday_total_stockpiles}
+		type{ array{commodity_id}{float} }
+		tag{ save }
+	}
+	property {
 		name{ national_bank }
 		type{ float }
 		tag{ save }

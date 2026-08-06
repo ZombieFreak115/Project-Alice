@@ -504,7 +504,7 @@ consume_stockpile_result consume_single_government_stockpile(sys::state& state, 
 	//float divisor = (clamped_req_amount == 0 ? 1.0f : clamped_req_amount);
 	float satisfaction = (amount == 0 ? 1.0f : to_consume_amount / amount); // if amount is 0 then full satisfaction, otherwise clamp value to avoid div by zero if stockpile empty
 	// Consume it
-	economy::set_government_stockpile(state, state_controller, stockpile_market, commodity, current_stockpile - to_consume_amount);
+	economy::subtract_government_stockpile(state, state_controller, stockpile_market, commodity, to_consume_amount);
 
 	return consume_stockpile_result {to_consume_amount, satisfaction};
 }
@@ -1066,7 +1066,15 @@ dcon::unilateral_relationship_id nation_gives_direct_free_trade_rights(sys::stat
 
 
 
-
+void update_yesterday_stockpiles_cache(sys::state& state) {
+	concurrency::parallel_for(uint32_t(0), uint32_t(state.world.commodity_size()), [&](uint32_t index) {
+		dcon::commodity_id com_id{ dcon::commodity_id::value_base_t(index) };
+		state.world.execute_serial_over_nation([&](auto nations) {
+			auto to_apply = state.world.nation_get_total_stockpiles(nations, com_id);
+			state.world.nation_set_yesterday_total_stockpiles(nations, com_id, to_apply);
+		});
+	});
+}
 
 
 void initialize(sys::state& state) {
@@ -1890,15 +1898,14 @@ void populate_navy_consumption(sys::state& state) {
 	});
 }
 
-void set_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount) {
-	assert(controller);
-	assert(amount >= 0.0f);
-	float current_local = state.world.market_get_government_stockpile(market, commodity);
-	float diff =  amount - current_local;
-	state.world.market_set_government_stockpile(market, commodity, amount);
-	state.world.nation_set_total_stockpiles(controller, commodity, std::max(state.world.nation_get_total_stockpiles(controller, commodity) + diff, 0.0f)); // Clamp to prevent negatives as fp rounding may cause it to go negative
-	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
-	assert(state.world.nation_get_total_stockpiles(controller, commodity) >= 0.0f);
+void add_total_govt_stockpile(sys::state& state, dcon::nation_id controller, dcon::commodity_id commodity, float amount) {
+	float current_national = state.world.nation_get_total_stockpiles(controller, commodity);
+	state.world.nation_set_total_stockpiles(controller, commodity, current_national + amount);
+}
+void subtract_total_govt_stockpile(sys::state& state, dcon::nation_id controller, dcon::commodity_id commodity, float amount) {
+	float current_national = state.world.nation_get_total_stockpiles(controller, commodity);
+	float to_sub = std::min(current_national, amount);
+	state.world.nation_set_total_stockpiles(controller, commodity, current_national - to_sub);
 }
 
 void add_government_stockpile(sys::state& state, dcon::nation_id controller, dcon::market_id market, dcon::commodity_id commodity, float amount) {
@@ -1906,8 +1913,7 @@ void add_government_stockpile(sys::state& state, dcon::nation_id controller, dco
 	assert(controller);
 	float current_local = state.world.market_get_government_stockpile(market, commodity);
 	state.world.market_set_government_stockpile(market, commodity, current_local + amount);
-	float current_national = state.world.nation_get_total_stockpiles(controller, commodity);
-	state.world.nation_set_total_stockpiles(controller, commodity, current_national + amount);
+	add_total_govt_stockpile(state, controller, commodity, amount);
 	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
 	assert(state.world.nation_get_total_stockpiles(controller, commodity) >= 0.0f);
 }
@@ -1915,27 +1921,11 @@ void subtract_government_stockpile(sys::state& state, dcon::nation_id controller
 	assert(amount >= 0.0f);
 	assert(controller);
 	float current_local = state.world.market_get_government_stockpile(market, commodity);
-	state.world.market_set_government_stockpile(market, commodity, std::max(current_local - amount, 0.0f));
-	float current_national = state.world.nation_get_total_stockpiles(controller, commodity);
-	state.world.nation_set_total_stockpiles(controller, commodity, std::max(current_national - amount, 0.0f));
+	float to_sub = std::min(current_local, amount);
+	state.world.market_set_government_stockpile(market, commodity, current_local - to_sub);
+	subtract_total_govt_stockpile(state, controller, commodity, amount);
 	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
 	assert(state.world.nation_get_total_stockpiles(controller, commodity) >= 0.0f);
-}
-
-template<concepts::dcon_id_ve_type<dcon::nation_id> nation_type, concepts::dcon_id_ve_type<dcon::market_id> market_type>
-void set_government_stockpile(sys::state& state, nation_type controller, market_type market, dcon::commodity_id commodity, ve::fp_vector amount) {
-	auto current_local = state.world.market_get_government_stockpile(market, commodity);
-	auto diff = amount - current_local;
-	state.world.market_set_government_stockpile(market, commodity, amount);
-	state.world.nation_set_total_stockpiles(controller, commodity, ve::max(state.world.nation_get_total_stockpiles(controller, commodity) + diff, 0.0f)); // Clamp to prevent negatives as fp rounding may cause it to go negative
-	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
-	assert(state.world.nation_get_total_stockpiles(controller, commodity) >= 0.0f);
-}
-void set_rebel_stockpile(sys::state& state, dcon::market_id market, dcon::commodity_id com_id, float amount) {
-	assert(amount >= 0.0f);
-	assert(market);
-	state.world.market_set_government_stockpile(market, com_id, amount);
-	assert(state.world.market_get_government_stockpile(market, com_id) >= 0.0f);
 }
 
 void add_rebel_stockpile(sys::state& state, dcon::market_id market, dcon::commodity_id commodity, float amount) {
@@ -1949,7 +1939,8 @@ void subtract_rebel_stockpile(sys::state& state, dcon::market_id market, dcon::c
 	assert(amount >= 0.0f);
 	assert(market);
 	float current_local = state.world.market_get_government_stockpile(market, commodity);
-	state.world.market_set_government_stockpile(market, commodity, std::max(current_local - amount, 0.0f));
+	float to_sub = std::min(current_local, amount);
+	state.world.market_set_government_stockpile(market, commodity, current_local - to_sub);
 	assert(state.world.market_get_government_stockpile(market, commodity) >= 0.0f);
 }
 
@@ -2787,14 +2778,14 @@ void decay_government_stockpiles(sys::state& state) {
 			auto current_stockpiles = state.world.market_get_government_stockpile(markets, com_id);
 			auto decay = current_stockpiles * government_stockpile_spoilage * (2.0f - capital_control);
 			auto new_stockpiles = current_stockpiles - decay;
-			ve::apply([&](dcon::nation_id controller, dcon::market_id market, float new_amount) {
+			ve::apply([&](dcon::nation_id controller, dcon::market_id market, float decay_amount) {
 				if(controller) {
-					set_government_stockpile(state, controller, market, com_id, new_amount);
+					subtract_government_stockpile(state, controller, market, com_id, decay_amount);
 				}
 				else {
-					set_rebel_stockpile(state, market, com_id, new_amount);
+					subtract_rebel_stockpile(state, market, com_id, decay_amount);
 				}
-			}, controllers, markets, new_stockpiles);
+			}, controllers, markets, decay);
 		});
 	});
 }
@@ -2803,6 +2794,8 @@ void daily_update(sys::state& state, bool presimulation, float presimulation_sta
 	sanity_check(state);
 
 	set_profile_point(state, "start");
+
+	update_yesterday_stockpiles_cache(state);
 
 	update_government_stockpile_market_demand_weights(state); // Functions will later will use these calculated values
 	
@@ -4069,8 +4062,7 @@ void daily_update(sys::state& state, bool presimulation, float presimulation_sta
 				auto sat = state.world.market_get_actual_probability_to_buy(market, c);
 				auto combined_stockpile_demand = economy::combined_government_stockpile_demand(state, market, c);
 				if(combined_stockpile_demand > 0.f) {
-					auto curr = state.world.market_get_government_stockpile(market, c);
-					set_government_stockpile(state, n, market, c, curr + combined_stockpile_demand * nations_commodity_spending * sat);
+					add_government_stockpile(state, n, market, c, combined_stockpile_demand * nations_commodity_spending * sat);
 					auto delta =
 						combined_stockpile_demand
 						* (1.0f - sat)
@@ -6310,7 +6302,7 @@ bool do_resource_potentials_allow_upgrade(sys::state& state, [[maybe_unused]] dc
 }
 
 void update_total_government_stockpiles(sys::state& state) {
-	for(auto nation : state.world.in_nation) {
+	state.world.for_each_nation([&](dcon::nation_id nation) {
 		economy::for_each_commodity_no_money(state, [&](dcon::commodity_id commodity) {
 			float total_stockpile = 0;
 			state.world.nation_for_each_state_control(nation, [&](dcon::state_control_id sc) {
@@ -6320,8 +6312,7 @@ void update_total_government_stockpiles(sys::state& state) {
 			});
 			state.world.nation_set_total_stockpiles(nation, commodity, total_stockpile);
 		});
-		
-	}
+	});
 }
 
 bool do_resource_potentials_allow_refit(sys::state& state, [[maybe_unused]] dcon::nation_id source, dcon::province_id location, dcon::factory_type_id from, dcon::factory_type_id refit_target) {
