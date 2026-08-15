@@ -253,7 +253,7 @@ void create_nation_based_on_template(sys::state& state, dcon::nation_id n, dcon:
 // call after a nation loses its last province
 void cleanup_nation(sys::state& state, dcon::nation_id n);
 
-bool exists(sys::state& state, dcon::nation_id nation);
+bool exists(const sys::state& state, dcon::nation_id nation);
 
 
 bool exists_or_is_utility_tag(sys::state& state, dcon::nation_id nation);
@@ -315,6 +315,9 @@ void reject_crisis_participation(sys::state& state);
 void cleanup_crisis(sys::state& state);
 void cleanup_crisis_peace_offer(sys::state& state, dcon::peace_offer_id peace);
 void accept_crisis_peace_offer(sys::state& state, dcon::nation_id from, dcon::nation_id to, dcon::peace_offer_id peace);
+
+void get_existing_nations(const sys::state& state, std::vector<dcon::nation_id>& vec_out);
+std::vector<dcon::nation_id> get_existing_nations(const sys::state& state);
 
 void update_pop_acceptance(sys::state& state, dcon::nation_id n);
 void liberate_nation_from(sys::state& state, dcon::national_identity_id liberated, dcon::nation_id from);

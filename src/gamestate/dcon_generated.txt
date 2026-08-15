@@ -1822,16 +1822,6 @@ object {
 		tag{ save }
 	}
 	property{
-		name{ used_supply_throughput }
-		type{ float }
-		tag{ save }
-	}
-	property{
-		name{ used_port_supply_capacity }
-		type{ float }
-		tag{ save }
-	}
-	property{
 		name{ is_blockaded }
 		type{ bitfield }
 		
@@ -2005,13 +1995,16 @@ relationship{
 		type{ float }
 		
 	}
-
 	property{
 		name{ canal_or_blockade_province }
 		type{ dcon::province_id }
 		tag{ save }
 	}
-
+	property{
+		name{ used_supply_throughput }
+		type{ float }
+		tag{ save }
+	}
 	property{
 		name{ type }
 		type{ uint8_t }
@@ -4624,6 +4617,14 @@ object {
 	property{
 		name{ ai_is_threatened }
 		type{ bitfield }
+	}
+	property{
+		name{ prov_supply_throughput_cache }
+		type{ array{province_id}{float}}
+	}
+	property{
+		name{ prov_supply_loss_cache }
+		type{ array{province_id}{float}}
 	}
 	property{
 		name{ ai_rival }

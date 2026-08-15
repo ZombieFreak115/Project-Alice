@@ -524,22 +524,35 @@ void active_modifiers_description(sys::state& state, text::layout_base& layout, 
 	active_hardcoded_modifiers_description(state, layout, n, identation, nmid, header);
 	
 }
-void display_battle_reinforcement_modifiers(sys::state& state, dcon::land_battle_id b, text::layout_base& contents, int32_t indent, bool attacker) {
+void display_land_battle_supply_satisfaction(sys::state& state, dcon::land_battle_id b, text::layout_base& contents, int32_t indent, bool attacker) {
 	uint32_t reserve_count = military::get_reserves_count_by_side(state, b, attacker);
 	//top header displaying how many brigades are currently in reserve on that side
-	text::add_line(state, contents, "alice_reinforce_battle_mod_top", text::variable_type::x, text::format_wholenum(reserve_count), indent);
+	//text::add_line(state, contents, "battle_reinforcement_header_tooltip", text::variable_type::x, text::format_wholenum(reserve_count), indent);
 
-	// average army spending in battle
-	float reinf_mod = military::calculate_average_battle_supply_spending(state, b, attacker);
-	text::add_line(state, contents, "alice_reinforce_battle_spending_modifier", text::variable_type::x, text::format_float(reinf_mod, 2), indent + 20);
 
-	// location reinforcement bonus
-	reinf_mod = military::calculate_average_battle_location_modifier(state, b, attacker);
-	text::add_line(state, contents, "alice_reinforce_battle_location_modifier", text::variable_type::x, text::format_float(reinf_mod, 2), indent + 20);
+	float total_reinf_fufilled = 0.0f;
+	float total_reinf_requied = 0.0f;
+	float total_supply_fufilled = 0.0f;
+	float total_supply_requied = 0.0f;
+	for(auto a : state.world.land_battle_get_army_battle_participation(b)) {
+		auto army = a.get_army();
+		bool attacker_army = military::is_attacker_in_battle(state, army);
+		if((attacker && attacker_army) || (!attacker && !attacker_army)) {
+			auto fufilled_reinf_goods = military::get_last_fufilled_reinforcement(state, army.id);
+			auto required_reinf_goods = military::get_last_required_reinforcement(state, army.id);
+			auto fufilled_supply_goods = military::get_last_fufilled_supply(state, army.id);
+			auto required_supply_goods = military::get_last_required_supply(state, army.id);
+			std::for_each(fufilled_reinf_goods.begin(), fufilled_reinf_goods.end(), [&](float amount) { total_reinf_fufilled += amount; });
+			std::for_each(required_reinf_goods.begin(), required_reinf_goods.end(), [&](float amount) { total_reinf_requied += amount; });
+			std::for_each(fufilled_supply_goods.begin(), fufilled_supply_goods.end(), [&](float amount) { total_supply_fufilled += amount; });
+			std::for_each(required_supply_goods.begin(), required_supply_goods.end(), [&](float amount) { total_supply_requied += amount; });
 
-	// get the national modifiers 
-	reinf_mod = military::calculate_average_battle_national_modifiers(state, b, attacker);
-	text::add_line(state, contents, "alice_reinforce_battle_national_modifier", text::variable_type::x, text::format_float(reinf_mod, 2), indent + 20);
+		}
+	}
+	float reinforcement_satisfaction = (total_reinf_requied == 0.0f ? 1.0f : total_reinf_fufilled / total_reinf_requied);
+	float supply_satisfaction = (total_supply_requied == 0.0f ? 1.0f : total_supply_fufilled / total_supply_requied);
+	text::add_line(state, contents, "battle_supply_satisfaction_tooltip", text::variable_type::val, text::fp_percentage{ supply_satisfaction }, indent + 20);
+	text::add_line(state, contents, "battle_reinforcement_satisfaction_tooltip", text::variable_type::val, text::fp_percentage{ reinforcement_satisfaction }, indent + 20);
 }
 
 void display_unit_stats(sys::state& state, text::columnar_layout& contents, dcon::nation_id controller, dcon::unit_type_id unit_type) {

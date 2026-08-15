@@ -56,7 +56,7 @@ constexpr float convoy_raiding_supply_loss = 0.0f; // the supply loss per effect
 
 constexpr float max_supply_route_loss = 0.75f; // the maximum total supply loss % a route may incur.
 
-constexpr float base_port_supply_capacity = 0.1f;
+constexpr float base_port_supply_capacity = 0.0f;
 constexpr float naval_base_port_supply_capacity = 6.0f;
 
 constexpr float civilian_port_throughput_capacity = 0.2f; // the port supply capacity gained for each 1000 level of civilian port.

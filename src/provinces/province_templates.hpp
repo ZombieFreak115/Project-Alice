@@ -160,7 +160,7 @@ struct path_node_heuristic {
 
 
 // Creates a path from start province to end province,with given template functions to decide various factors. Returns the path in the passed-in buffer, and can thusly be used with static buffers. Expects the buffer to be empty
-// 
+// Returns true if a valid path was found, false if not
 // HeuristicModifier: Modifier to the heuristic used (direct distance). The higher this value is, the less accurate but more performant the pathfinding will be. If 0.0f, it will always find the optimal path
 // StateType: Type of the local state to be used and passed to other lambdas. If it is std::monostate, it will be ignored and not passed to any function
 // AdjFunc: Lambda which takes the following as parameters (to_prov, from_prov, adjacency, local_state)  and returns a bool. Decides if the passage between the two provinces is possible.
@@ -169,12 +169,12 @@ struct path_node_heuristic {
 // StateInitProvFunc: Lambda which takes the following as parameters (to_prov, local_state) and returns void. This will be called once per province iteration and can be used to initialize the local state to be used in the other functions
 // tateInitAdjFunc: Lambda which takes the following as parameters (to_prov, from_prov, adjacency, distance, local_state) and returns void. This will be called once per adjacency iteration and can be used to initialize the local state to be used in other functions
 template<float HeuristicModifier, typename StateType, typename AdjFunc, typename ProvFunc, typename MovementCostFunc, typename StateInitProvFunc, typename StateInitAdjFunc>
-void make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::province_id end, std::vector<dcon::province_id>& path_result, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func, StateInitProvFunc&& stateinit_prov_func, StateInitAdjFunc&& stateinit_adj_func) {
+bool make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::province_id end, std::vector<dcon::province_id>& path_result, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func, StateInitProvFunc&& stateinit_prov_func, StateInitAdjFunc&& stateinit_adj_func) {
 
 	// uses an A* implementation with direct distance as heuristic
 	StateType local_state{ };
 	if(start == end) // early exit if start is already at destination
-		return;
+		return true;
 
 	if constexpr(!std::is_same_v<StateType, std::monostate>) {
 		stateinit_prov_func(end, local_state);
@@ -187,7 +187,7 @@ void make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::p
 		}
 	}();
 	if(!prov_check) { //  or if the end province would fail the province check
-		return;
+		return false;
 	}
 
 
@@ -233,7 +233,7 @@ void make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::p
 		if(current_prov == end) {
 			fill_path_result(current_prov);
 			assert_path_result(path_result);
-			return;
+			return true;
 		}
 		// add current to closed list immediately
 		current_node.is_in_closed_list = true;
@@ -314,8 +314,8 @@ void make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::p
 			}
 		}
 	}
-
 	assert_path_result(path_result);
+	return false;
 
 }
 
@@ -330,8 +330,8 @@ void make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::p
 // ProvFunc: Lambda which takes the following as parameter (to_prov, local_state)  and returns a bool. Decides if the given province is passable from any direction
 // MovementCostFunc: Lambda which takes the following as parameters (to_prov, from_prov, adjacency, distance, local_state) and returns a float. The returned value is used as movement cost in pathfinding
 template<float HeuristicModifier, typename AdjFunc, typename ProvFunc, typename MovementCostFunc>
-void make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::province_id end, std::vector<dcon::province_id>& path_result, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func) {
-	make_path_to_prov<HeuristicModifier, std::monostate>(state, start, end, path_result, adj_func, prov_func, movementcost_func, []() { }, []() { });
+bool make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::province_id end, std::vector<dcon::province_id>& path_result, AdjFunc&& adj_func, ProvFunc&& prov_func, MovementCostFunc&& movementcost_func) {
+	return make_path_to_prov<HeuristicModifier, std::monostate>(state, start, end, path_result, adj_func, prov_func, movementcost_func, []() { }, []() { });
 }
 
 

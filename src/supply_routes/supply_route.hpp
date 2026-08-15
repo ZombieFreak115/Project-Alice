@@ -22,6 +22,8 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::navy_suppl
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::land_construction_supply_route_id route);
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_construction_supply_route_id route);
 
+void update_nations_supply_cache(sys::state& state);
+
 // Computes the efficiency of a construct with has consumed vs available. Eg supply throughput
 float compute_efficiency(float consumed, float available);
 
@@ -41,18 +43,24 @@ float supply_throughput_mult_access_modifier(const sys::state& state, dcon::prov
 float supply_throughput_mult_hostile_troops_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
 
 // Gets the max supply throughput modifier in goods volume for the specified nation in the specified province, with percentage-based modifiers taken into account
-float supply_throughput_in_province(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
+float calculate_supply_throughput_in_province(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
+float calculate_supply_throughput_in_adjacency(const sys::state& state, dcon::province_adjacency_id adj, dcon::nation_id nation_as);
 
-// Gets the current effective efficency percentage in moving supplies for a nation in the specified provincce
-float supply_throughput_efficiency(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
+// Calculates the actual supply throughput after taking into account both regular supply throughput and potential port supply capacity
+float calculate_effective_supply_throughput_in_adjacency(const sys::state& state, dcon::province_adjacency_id adj, dcon::nation_id nation);
+
+float supply_throughput_efficiency(const sys::state& state, dcon::province_adjacency_id adj, dcon::nation_id nation_as);
+float supply_throughput_efficiency(const sys::state& state, dcon::province_id prov_a, dcon::province_id prov_b, dcon::nation_id nation_as);
+// Also takes into account potential port supply capacity modifiers if relavent
+float effective_supply_throughput_efficiency(const sys::state& state, dcon::province_adjacency_id adj, dcon::nation_id nation_as);
 
 float supply_loss_add_convoy_raiding(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 float supply_loss_add_hostile_armies(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 
-float supply_loss_in_province(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
-float adjacency_net_supply_loss(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
-float adjacency_avg_supply_loss(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as);
-float adjacency_avg_supply_loss(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
+float calculate_supply_loss_in_province(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
+float calculate_adjacency_net_supply_loss(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
+float calculate_adjacency_avg_supply_loss(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as);
+float calculate_adjacency_avg_supply_loss(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
 void update_supply_routes_daily(sys::state& state);
 
 

@@ -854,10 +854,11 @@ void migration_map_tt_box(sys::state& state, text::columnar_layout& contents, dc
 
 void supply_loss_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {
 	if(prov) {
+		country_name_box(state, contents, prov);
 		auto local_nation = state.local_player_nation;
 		auto is_sea = province::is_sea(state, prov);
 		auto fat = dcon::fatten(state.world, prov);
-		float total = supply_routes::supply_loss_in_province(state, prov, local_nation);
+		float total = state.world.nation_get_prov_supply_loss_cache(local_nation, prov);
 		bool header = false;
 		text::add_line(state, contents, "supply_loss_total_tooltip", text::variable_type::value, text::fp_one_place{ total }, 0);
 		ui::active_modifiers_description(state, contents, prov, 8, sys::provincial_mod_offsets::supply_loss_add, header);
@@ -885,11 +886,12 @@ void supply_loss_map_tt_box(sys::state& state, text::columnar_layout& contents, 
 
 void supply_throughput_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {
 	if(prov) {
+		country_name_box(state, contents, prov);
 		auto local_nation = state.local_player_nation;
 		auto is_sea = province::is_sea(state, prov);
 		auto fat = dcon::fatten(state.world, prov);
 		bool header = false;
-		float total = supply_routes::supply_throughput_in_province(state, prov, local_nation);
+		float total = state.world.nation_get_prov_supply_throughput_cache(local_nation, prov);
 		text::add_line(state, contents, "supply_throughput_total_tooltip", text::variable_type::value, text::fp_two_places{ total }, 0);
 		ui::active_modifiers_description(state, contents, prov, 8, sys::provincial_mod_offsets::supply_throughput_add, header);
 		if(is_sea) {
@@ -915,32 +917,28 @@ void supply_throughput_map_tt_box(sys::state& state, text::columnar_layout& cont
 
 void supply_route_efficiency_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {
 	if(prov) {
+		country_name_box(state, contents, prov);
+		text::add_line(state, contents, "supply_efficiency_header_tooltip");
 		auto fat = dcon::fatten(state.world, prov);
-		float used_supply_throughput = state.world.province_get_used_supply_throughput(prov);
-		float supply_throughput = supply_routes::supply_throughput_in_province(state, prov, state.local_player_nation);
-		float sup_efficiency = supply_routes::supply_throughput_efficiency(state, prov, state.local_player_nation);
-		text::add_line(state, contents, "supply_throughput_total_tooltip", text::variable_type::value, text::fp_two_places{ supply_throughput }, 0);
+		for(auto adj : fat.get_province_adjacency()) {
+			auto indx = (adj.get_connected_provinces(0).id != prov ? 0 : 1);
+			auto adj_prov = adj.get_connected_provinces(indx);
+			bool is_coastal_adj = (state.world.province_adjacency_get_type(adj) & province::border::coastal_bit) != 0;
+			// Only include provinces in the tooltip which are either not coastal border (land -> land or sea -> sea) and potentially lower displayed throughput if the province is a port
+			if(!is_coastal_adj || province::is_port_connected_to(state, prov, adj_prov) || province::is_port_connected_to(state, adj_prov, prov)) {
+				float available_throughput = supply_routes::calculate_effective_supply_throughput_in_adjacency(state, adj, state.local_player_nation);
+				float used_throughput = adj.get_used_supply_throughput();
+				float sup_efficiency = supply_routes::effective_supply_throughput_efficiency(state, adj, state.local_player_nation);
+				text::add_line(state, contents, "supply_efficiency_adjacency_tooltip", text::variable_type::prov, adj_prov.get_name(), text::variable_type::value, text::fp_one_place{ available_throughput }, text::variable_type::val, text::fp_one_place{ used_throughput }, text::variable_type::x, text::fp_percentage{ sup_efficiency }, 8);
+			}
 
-		text::add_line(state, contents, "supply_throughput_used_tooltip", text::variable_type::value, text::fp_two_places{ used_supply_throughput }, 0);
-
-		text::add_line(state, contents, "supply_throughput_efficiency_tooltip", text::variable_type::value, text::fp_percentage_two_places{ sup_efficiency }, 0);
-
-		if(province::is_port(state, prov)) {
-			float port_sup_capacity = supply_routes::port_supply_capacity_in_province(state, prov, state.local_player_nation);
-			float used_port_supply_capacity = state.world.province_get_used_port_supply_capacity(prov);
-			float port_capacity_efficiency = supply_routes::port_supply_capacity_efficiency(state, prov, state.local_player_nation);
-
-			text::add_line(state, contents, "port_supply_capacity_total_tooltip", text::variable_type::value, text::fp_two_places{ port_sup_capacity }, 0);
-
-			text::add_line(state, contents, "port_supply_capacity_used_tooltip", text::variable_type::value, text::fp_two_places{ used_port_supply_capacity }, 0);
-
-			text::add_line(state, contents, "port_supply_capacity_efficiency_tooltip", text::variable_type::value, text::fp_percentage_two_places{ port_capacity_efficiency }, 0);
 		}
 	}
 }
 
 void port_supply_capacity_map_tt_box(sys::state& state, text::columnar_layout& contents, dcon::province_id prov) {
 	if(prov && province::is_port(state, prov)) {
+		country_name_box(state, contents, prov);
 		auto local_nation = state.local_player_nation;
 		auto is_sea = province::is_sea(state, prov);
 		auto fat = dcon::fatten(state.world, prov);

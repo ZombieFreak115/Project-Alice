@@ -1263,15 +1263,9 @@ alice_con_decay_description;Natural decay ?R-$x$
 x_from_y;?Y$culture$?W $x$ from ?Y$y$?W
 x_in_y;$x$ at $y$
 alice_reserve_reg_count;$x$ currently have ?Y$y$?W reserve brigades in the battle.
-alice_reinforce_battle_mod_top;?Y$x$?W reserve brigades affected by the following reinforcement modifiers:
-alice_reinforce_battle_only_reserve;Only ?Yreserves?W in a battle can be reinforced.
-alice_reinforce_battle_spending_modifier;Average army supply fufillment: ?Yx$x$.?W
-alice_reinforce_battle_location_modifier;Average location modifier: ?Yx$x$.?W
-alice_reinforce_battle_national_modifier;Average national modifiers&techs: ?Yx$x$.?W
-alice_reinforce_rate_battle_attacker;The attackers can reinforce up to $x$ soldiers per month.
-alice_reinforce_rate_battle_attacker_none;The attackers are currently getting no reinforcements.
-alice_reinforce_rate_battle_defender;The defenders can reinforce up to $x$ soldiers per month.
-alice_reinforce_rate_battle_defender_none;The defenders are currently getting no reinforcements.
+land_battle_supply_satisfaction_header_tooltip;An estimated reinforcement rate of ?Y$val$?W soldiers per month, with the following sastisfaction:
+battle_supply_satisfaction_tooltip;Supply satisfaction: ?Y$val$?W
+battle_reinforcement_satisfaction_tooltip;Reinforcement satisfaction: ?Y$val$?W
 reinforce_rate;This regiment can reinforce up to $x$ soldiers per month.
 reinforce_rate_none;This regiment can't currently be reinforced.
 alice_domestic_investment_button;Investing in individual projects is ?Rdeprecated?W, use the ?Ydomestic investment?W slider on the budget screen instead
@@ -2054,7 +2048,9 @@ total_investments_label;Total
 investment_efficiency_tooltip;Tools, efficiency inputs and machines
 investment_expansion_tooltip;Expansion
 supply_throughput_total_tooltip;Total supply throughput: ?Y$value$?W
-supply_throughput_used_tooltip;Supply throughput used: ?Y$value$?W
+supply_efficiency_header_tooltip;Efficiency for province connections:
+supply_efficiency_adjacency_tooltip;?Y$prov$?W -> Available: ?G$value$?W. Used: ?R$val$?W. Efficiency: ?Y$x$?W
+port_capacity_efficiency_header_tooltip;Port capacity efficiency:
 supply_throughput_mult_access_modifier;Supply access
 supply_throughput_mult_hostile_units_modifier;Hostile armies
 supply_throughput_efficiency_tooltip;Net efficiency: ?Y$value$?W
@@ -2075,8 +2071,6 @@ supply_loss_total_tooltip;Supply loss: ?Y$value$?W
 supply_loss_add_convoy_raiding_modifier;Convoy raiding
 supply_loss_add_hostile_armies_modifier;Hostile armies
 port_supply_capacity_total_tooltip;Total port supply capacity: ?Y$value$?W
-port_supply_capacity_used_tooltip;Used port supply capacity: ?Y$value$?W
-port_supply_capacity_efficiency_tooltip;Net port efficiency: ?Y$value$?W
 port_supply_capacity_mul_blockaded_modifier;Port blockaded
 port_supply_capacity_mul_access_modifier;Port access
 port_supply_capacity_mul_hostile_units_modifier;Hostile armies

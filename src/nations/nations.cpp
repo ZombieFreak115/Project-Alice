@@ -2281,7 +2281,7 @@ void create_nation_based_on_template(sys::state& state, dcon::nation_id n, dcon:
 	politics::update_displayed_identity(state, n);
 }
 
-bool exists(sys::state& state, dcon::nation_id nation) {
+bool exists(const sys::state& state, dcon::nation_id nation) {
 	return state.world.nation_get_owned_province_count(nation) > 0;
 }
 
@@ -3844,6 +3844,19 @@ void update_crisis(sys::state& state) {
 			});
 		}
 	}
+}
+
+void get_existing_nations(const sys::state& state, std::vector<dcon::nation_id>& vec_out) {
+	state.world.for_each_nation([&](dcon::nation_id n) {
+		if(exists(state, n)) {
+			vec_out.push_back(n);
+		}
+	});
+}
+std::vector<dcon::nation_id> get_existing_nations(const sys::state& state) {
+	std::vector<dcon::nation_id> nations{ };
+	get_existing_nations(state, nations);
+	return nations;
 }
 
 void update_pop_acceptance(sys::state& state, dcon::nation_id n) {

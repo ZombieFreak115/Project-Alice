@@ -9810,41 +9810,42 @@ tagged_vector<float, dcon::unit_build_commodity_id> get_last_fufilled_reinforcem
 template tagged_vector<float, dcon::unit_build_commodity_id> get_last_fufilled_reinforcement(const sys::state& state, dcon::army_id unit);
 template tagged_vector<float, dcon::unit_build_commodity_id> get_last_fufilled_reinforcement(const sys::state& state, dcon::navy_id unit);
 
+float get_over_naval_cap_penalty_modifier(const sys::state& state, dcon::nation_id nation) {
+	float oversize_amount =
+		state.world.nation_get_naval_supply_points(nation) > 0
+		? std::min(float(state.world.nation_get_used_naval_supply_points(nation)) / float(state.world.nation_get_naval_supply_points(nation)), 1.75f)
+		: 1.75f;
+	float over_size_penalty = oversize_amount > 1.0f ? 2.0f - oversize_amount : 1.0f;
+	return over_size_penalty;
+}
+
+
 float get_land_org_regain_modifiers(const sys::state& state, dcon::regiment_id regiment) {
 	auto army = state.world.regiment_get_army_from_army_membership(regiment);
 	auto tech_nation = tech_nation_for_army(state, army);
-	auto battle = state.world.army_get_battle_from_army_battle_participation(army);
-	bool is_on_frontline_in_battle = (battle && !is_regiment_in_reserve(state, regiment));
-	if(is_on_frontline_in_battle || state.world.army_get_navy_from_army_transport(army) || state.world.army_get_black_flag(army))
-		return 0.0f;
+	auto owner_nation = state.world.army_get_controller_from_army_control(army);
+	auto supply_slider = float(state.world.nation_get_land_supply_consumption(owner_nation)) / 100.0F;
+	auto black_flag = state.world.army_get_black_flag(army);
 
 	auto leader = state.world.army_get_general_from_army_leadership(army);
 	auto leader_per = get_leader_personality_wrapper(state, leader);
 	auto leader_bg = get_leader_background_wrapper(state, leader);
-	return state.world.nation_get_modifier_values(tech_nation, sys::national_mod_offsets::org_regain)
+	float morale_modifiers = state.world.nation_get_modifier_values(tech_nation, sys::national_mod_offsets::org_regain)
 		+ state.world.leader_trait_get_morale(leader_per) + state.world.leader_trait_get_morale(leader_bg) + 1.0f
 		+ (state.world.leader_get_prestige(leader) * state.defines.leader_prestige_to_morale_factor);
+	return morale_modifiers * supply_slider * !black_flag; // Blackflagged units get no org regain
 
 }
 
 float get_naval_org_regain_modifiers(const sys::state& state, dcon::ship_id ship) {
 	auto navy = state.world.ship_get_navy_from_navy_membership(ship);
-	auto battle = state.world.navy_get_battle_from_navy_battle_participation(navy);
-	if(battle) {
-		return 0.0f;
-	}
-	auto tech_nation = state.world.navy_get_controller_from_navy_control(navy);
-
-	float oversize_amount =
-		state.world.nation_get_naval_supply_points(tech_nation) > 0
-		? std::min(float(state.world.nation_get_used_naval_supply_points(tech_nation)) / float(state.world.nation_get_naval_supply_points(tech_nation)), 1.75f)
-		: 1.75f;
-	float over_size_penalty = oversize_amount > 1.0f ? 2.0f - oversize_amount : 1.0f;
+	auto owner_nation = state.world.navy_get_controller_from_navy_control(navy);
+	float over_size_penalty = get_over_naval_cap_penalty_modifier(state, owner_nation);
 
 	auto leader = state.world.navy_get_admiral_from_navy_leadership(navy);
 	auto leader_per = get_leader_personality_wrapper(state, leader);
 	auto leader_bg = get_leader_background_wrapper(state, leader);
-	auto morale_modifiers = state.world.nation_get_modifier_values(tech_nation, sys::national_mod_offsets::org_regain)
+	auto morale_modifiers = state.world.nation_get_modifier_values(owner_nation, sys::national_mod_offsets::org_regain)
 		+ state.world.leader_trait_get_morale(leader_per) + state.world.leader_trait_get_morale(leader_bg) + 1.0f
 		+ (state.world.leader_get_prestige(leader) * state.defines.leader_prestige_to_morale_factor);
 	return morale_modifiers * over_size_penalty;
@@ -9947,11 +9948,10 @@ void recover_org(sys::state& state) {
 	[&](){
 			state.world.for_each_regiment([&](dcon::regiment_id reg) {
 				auto regiment = fatten(state.world, reg);
-				if(regiment.is_valid()) {
-					auto org_regain = calculate_regiment_org_regain<supply_estimation::based_on_satisfaction, false>(state, regiment);
-					assert(std::isfinite(org_regain));
-					regiment.set_org(regiment.get_org() + org_regain);
-				}
+				auto org_regain = calculate_regiment_org_regain<supply_estimation::based_on_satisfaction, false>(state, regiment);
+				assert(std::isfinite(org_regain));
+				regiment.set_org(regiment.get_org() + org_regain);
+				
 			});
 			
 		},
@@ -9999,195 +9999,6 @@ float unit_get_strength(sys::state& state, dcon::ship_id ship_id) {
 
 
 /* === Army reinforcement === */
-
-// returns true if the province "location" will get a reinforce bonus by being adjacent to a "allied" province.
-// checks if the province parameter "location" is adjacent to a "allied" controlled province from the perspective of the "our_nation" param.
-// "allied" means either: controlled by yourself, or controlled by an nation who is fighting the controller of "location"
-bool get_allied_prov_adjacency_reinforcement_bonus(const sys::state& state, dcon::province_id location, dcon::nation_id our_nation) {
-	auto location_controller = state.world.province_get_nation_from_province_control(location);
-	for(auto adj : state.world.province_get_province_adjacency(location)) {
-		auto indx = adj.get_connected_provinces(0).id != location ? 0 : 1;
-		auto prov = adj.get_connected_provinces(indx);
-
-		if(province::is_sea(state, prov) || province::is_crossing_blocked(state, our_nation, location, prov) ||
-			!state.world.province_get_nation_from_province_ownership(prov)) {
-			// if its a sea province, a blockaded sea strait or uncolonized
-			return false;
-		}
-		auto prov_controller = state.world.province_get_nation_from_province_control(prov);
-		// enemy battles or units will not allow for reinforcements
-		if(province_has_army<battle_included::yes, retreat_included::no, blackflag_included::no, participants_included::enemies>(state, prov, our_nation)) {
-			return false;
-		}
-		// checks if the province controlled by us, or is controlled by someone who is at enemies with the owner of location
-		else if(prov_controller == our_nation || (are_enemies(state, location_controller, prov_controller))) {
-			return true;
-		}
-	}
-	return false;
-}
-
-
-// calculate the reinforcement location mod for units not in a battle
-float calculate_location_reinforce_modifier_no_battle(const sys::state& state, dcon::province_id location, dcon::nation_id in_nation) {
-	float location_modifier = 1.0f;
-	auto location_controller = state.world.province_get_nation_from_province_control(location);
-	auto location_owner = state.world.province_get_nation_from_province_ownership(location);
-	// if we arent rebels
-	if(bool(in_nation)) {
-		// in your owned territory, occupied or not
-		if(location_owner == in_nation) {
-			location_modifier = 2.0f;
-		}
-		// uncolonized (unowned) territory
-		else if(!location_owner) {
-			// if its a coastal uncolonized prov
-			if(state.world.province_get_is_coast(location)) {
-				location_modifier = 0.1f;
-			} else {
-				location_modifier = 0.0f;
-			}
-		}
-		//if you are at war with the location controller, or the controller is rebels
-		else if(are_enemies(state, in_nation, location_controller)) {
-			// if we are eligible to get the 50% bonus by being adj to an allied province
-			if(get_allied_prov_adjacency_reinforcement_bonus(state, location, in_nation)) {
-
-				location_modifier = 0.5f;
-			}
-			// if its coastal and not blockaded by the enemy, give 25%
-			else if(state.world.province_get_is_coast(location) && !province_is_blockaded_by_enemy(state, location, in_nation)) {
-				location_modifier = 0.25f;
-			}
-			// if its neither, give 10%
-			else {
-				location_modifier = 0.1f;
-			}
-
-		}
-		// if the units has access to the province, if they dont, they are blackflagged and shall get no reinforcements
-		else if(!province::has_access_to_province(state, in_nation, location)) {
-			location_modifier = 0.0f;
-		}
-		// territory whom we do not own, but are not at war with, while having access to it, 100% bonus
-		else {
-			location_modifier = 1.0f;
-		}
-	}
-	//if we are rebels
-	else {
-		// if it is uncolonized
-		if(!location_owner) {
-			location_modifier = 0.0f;
-		} else if(!location_controller) {
-			location_modifier = 1.0f;
-		} else {
-			if(get_allied_prov_adjacency_reinforcement_bonus(state, location, in_nation)) {
-
-				location_modifier = 0.5f;
-			} else {
-				// rebels get no reinforcements if they dont control any provinces
-				location_modifier = 0.0f;
-			}
-		}
-	}
-	return location_modifier;
-
-}
-
-
-
-// calculate the reinforcement location mod for units in a battle
-float calculate_location_reinforce_modifier_battle(const sys::state& state, dcon::province_id location, dcon::nation_id in_nation) {
-	float highest_adj_prov_modifier = 0.0f;
-	// iterate over adjacent provinces
-	for(auto adj : state.world.province_get_province_adjacency(location)) {
-		auto indx = adj.get_connected_provinces(0).id != location ? 0 : 1;
-		auto prov = adj.get_connected_provinces(indx);
-		if(province::is_sea(state, prov) || province::is_crossing_blocked(state, in_nation, location, prov)) {
-			// if it is a sea province, or a blockaded sea strait, ignore it
-			continue;
-		}
-		// if there are enemy battles or enemy units sourrinding the province, it will get no reinforcements
-		if(province_has_army<battle_included::yes, retreat_included::no, military::blackflag_included::no, participants_included::enemies>(state, prov, in_nation)) {
-			highest_adj_prov_modifier = std::max(highest_adj_prov_modifier, 0.0f);
-		} else {
-			highest_adj_prov_modifier = std::max(highest_adj_prov_modifier, calculate_location_reinforce_modifier_no_battle(state, prov, in_nation));
-		}
-	}
-	return highest_adj_prov_modifier;
-
-
-}
-
-
-// calculates average effective army spending for all regiments on one side of a battle.
-float calculate_average_battle_supply_spending(sys::state& state, dcon::land_battle_id b, bool attacker) {
-	assert(b);
-	float total = 0;
-	int32_t count = 0;
-	for(auto army : state.world.land_battle_get_army_battle_participation(b)) {
-		bool battle_attacker = is_attacker_in_battle(state, army.get_army());
-		if((battle_attacker && attacker) || (!battle_attacker && !attacker)) {
-			for(auto reg : army.get_army().get_army_membership()) {
-				total += reg.get_regiment().get_reinforcement_satisfaction();
-				count++;
-			}
-		}
-	}
-	// fix for crash if the user hovers over the battle right as it ends, count might be 0 and would result in div by zero error
-	if(count == 0)
-		count = 1;
-	return total / count;
-}
-
-// calculates average location modifier for all regiments on one side of a battle.
-float calculate_average_battle_location_modifier(sys::state& state, dcon::land_battle_id b, bool attacker) {
-	assert(b);
-	auto location = state.world.land_battle_get_location_from_land_battle_location(b);
-	float total = 0;
-	int32_t count = 0;
-	for(auto army : state.world.land_battle_get_army_battle_participation(b)) {
-		bool battle_attacker = is_attacker_in_battle(state, army.get_army());
-		if((battle_attacker && attacker) || (!battle_attacker && !attacker)) {
-			auto controller = army.get_army().get_controller_from_army_control();
-			float army_reinf = calculate_location_reinforce_modifier_battle(state, location, controller);
-			for(auto reg : army.get_army().get_army_membership()) {
-				total += army_reinf;
-				count++;
-			}
-		}
-	}
-	// fix for crash if the user hovers over the battle right as it ends, count might be 0 and would result in div by zero error
-	if(count == 0)
-		count = 1;
-	return total / count;
-}
-
-// calculates average national modifiers for all regiments on one side of a battle.
-float calculate_average_battle_national_modifiers(sys::state& state, dcon::land_battle_id b, bool attacker) {
-	assert(b);
-	auto location = state.world.land_battle_get_location_from_land_battle_location(b);
-	float total = 0;
-	int32_t count = 0;
-	for(auto army : state.world.land_battle_get_army_battle_participation(b)) {
-		bool battle_attacker = is_attacker_in_battle(state, army.get_army());
-		if((battle_attacker && attacker) || (!battle_attacker && !attacker)) {
-			auto controller = army.get_army().get_controller_from_army_control();
-			float army_reinf = (1.0f + state.world.nation_get_modifier_values(controller, sys::national_mod_offsets::reinforce_speed)) *
-				(1.0f + state.world.nation_get_modifier_values(controller, sys::national_mod_offsets::reinforce_rate));
-			for(auto reg : army.get_army().get_army_membership()) {
-				total += army_reinf;
-				count++;
-			}
-		}
-	}
-	// fix for crash if the user hovers over the battle right as it ends, count might be 0 and would result in div by zero error
-	if(count == 0)
-		count = 1;
-	return total / count;
-}
-
 
 // calculates the raw amount of reinforcements one side of a battle can potentially receive every month, for display to the user
 float calculate_battle_reinforcement(sys::state& state, dcon::land_battle_id b, bool attacker) {
@@ -10258,130 +10069,82 @@ maximum-strength x (technology-repair-rate + provincial-modifier-to-repair-rate 
 
 	}
 }
-
 float get_national_supply_cost_modifiers(const sys::state& state, dcon::nation_id nation) {
-	return std::max(0.01f, state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::supply_consumption) + 1.0f);;
+	return state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::supply_consumption);
 }
 
-
-float get_subunit_supply_cost_modifiers(const sys::state& state, dcon::nation_id owner, dcon::regiment_id regiment) {
-	auto unit_type = state.world.regiment_get_type(regiment);
-	auto strength = state.world.regiment_get_strength(regiment);
+float get_strength_supply_cost_modifier(const sys::state& state, dcon::nation_id owner, dcon::regiment_id regiment) {
+	return state.world.regiment_get_strength(regiment);
+}
+float get_strength_supply_cost_modifier(const sys::state& state, dcon::nation_id owner, dcon::ship_id ship) {
+	return state.world.ship_get_strength(ship);
+}
+float get_unit_tech_supply_cost_modifiers(const sys::state& state, dcon::nation_id owner, dcon::unit_type_id unit_type) {
 	auto unit_supply_cost_mod = state.world.nation_get_unit_stats(owner, unit_type).supply_consumption;
-	return unit_supply_cost_mod * strength;
-}
-
-float get_subunit_supply_cost_modifiers(const sys::state& state, dcon::nation_id owner, dcon::ship_id ship) {
-	auto unit_type = state.world.ship_get_type(ship);
-	auto strength = state.world.ship_get_strength(ship);
-	auto unit_supply_cost_mod = state.world.nation_get_unit_stats(owner, unit_type).supply_consumption;
-	return unit_supply_cost_mod * strength;
-}
-
-
-float combine_naval_supply_cost_modifiers(float national_modifiers, float ship_modifiers) {
-	return national_modifiers * ship_modifiers;;
-}
-
-float combine_land_supply_cost_modifiers(float national_modifiers, float regiment_modifiers) {
-	return national_modifiers * regiment_modifiers;
+	return unit_supply_cost_mod;
 }
 
 float get_supply_cost_modifiers(const sys::state& state, dcon::ship_id ship) {
 	auto navy = state.world.ship_get_navy_from_navy_membership(ship);
 	auto nation = state.world.navy_get_controller_from_navy_control(navy);
-	return combine_naval_supply_cost_modifiers(get_national_supply_cost_modifiers(state, nation), get_subunit_supply_cost_modifiers(state, nation, ship));
+	auto type = state.world.ship_get_type(ship);
+	float national_mod = get_national_supply_cost_modifiers(state, nation);
+	float str_mod = get_strength_supply_cost_modifier(state, nation, ship);
+	float unit_tech_mod = get_unit_tech_supply_cost_modifiers(state, nation, type);
+	float supply_slider = float(state.world.nation_get_naval_supply_consumption(nation)) / 100.f;
+	return std::max(national_mod + unit_tech_mod, 0.01f) * str_mod * supply_slider;
 }
 
 float get_supply_cost_modifiers(const sys::state& state, dcon::regiment_id regiment) {
 	auto army = state.world.regiment_get_army_from_army_membership(regiment);
+	bool black_flag = state.world.army_get_black_flag(army);
 	auto nation = state.world.army_get_controller_from_army_control(army);
-	return combine_land_supply_cost_modifiers(get_national_supply_cost_modifiers(state, nation), get_subunit_supply_cost_modifiers(state, nation, regiment));
+	auto type = state.world.regiment_get_type(regiment);
+	float national_mod = get_national_supply_cost_modifiers(state, nation);
+	float str_mod = get_strength_supply_cost_modifier(state, nation, regiment);
+	float unit_tech_mod = get_unit_tech_supply_cost_modifiers(state, nation, type);
+	float supply_slider = float(state.world.nation_get_land_supply_consumption(nation)) / 100.0f;
+	return std::max(national_mod + unit_tech_mod, 0.01f) * str_mod * supply_slider * !black_flag; // blackflagged units can not receive supply
 }
 
-float get_land_national_reinforcement_modifiers(const sys::state& state, dcon::nation_id nation) {
-	auto combined = state.defines.reinforce_speed  * (1.0f + state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::reinforce_speed) + state.world.nation_get_modifier_values(nation,sys::national_mod_offsets::reinforce_rate));
 
-	assert(std::isfinite(combined));
+float get_national_reinforcement_modifiers(const sys::state& state, dcon::nation_id nation) {
+	auto combined = state.defines.reinforce_speed * (1.0f + state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::reinforce_speed)) * (1.0f + state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::reinforce_rate));
 	return combined;
 }
 
-float get_naval_national_reinforcement_modifiers(const sys::state& state, dcon::nation_id nation) {
-	auto main_mods = state.defines.reinforce_speed * (1.0f + state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::reinforce_speed));
-	float oversize_amount =
-		state.world.nation_get_naval_supply_points(nation) > 0
-		? std::min(float(state.world.nation_get_used_naval_supply_points(nation)) / float(state.world.nation_get_naval_supply_points(nation)), 1.75f)
-		: 1.75f;
-	float over_size_penalty = oversize_amount > 1.0f ? 2.0f - oversize_amount : 1.0f;
 
-	assert(std::isfinite(main_mods));
-	assert(std::isfinite(oversize_amount));
-	return main_mods * oversize_amount;
+float get_land_reinforcement_modifiers(const sys::state& state, dcon::army_id army) {
+	auto nation = state.world.army_get_controller_from_army_control(army);
+	bool blackflagged = state.world.army_get_black_flag(army);
+	auto reinf_setting = float(state.world.nation_get_land_reinforcement_consumption(nation)) / 100.0f;
+	// No reinforcements if blackflagged
+	auto combined = get_national_reinforcement_modifiers(state, nation) * reinf_setting * !blackflagged;
+
+	assert(std::isfinite(combined));
+	return combined;
+
 }
 
-float get_army_reinforcement_modifiers(const sys::state& state, dcon::army_id army) {
-	if(state.world.army_get_is_retreating(army) || state.world.army_get_navy_from_army_transport(army) || state.world.army_get_black_flag(army)) {
-		return 0.0f;
-	}
-	float location_modifier;
-	auto army_battle = state.world.army_get_battle_from_army_battle_participation(army);
-	auto army_owner = state.world.army_get_controller_from_army_control(army);
-	if(army_battle) {
-		location_modifier = calculate_location_reinforce_modifier_battle(state, state.world.land_battle_get_location_from_land_battle_location(army_battle), army_owner);
-	} else {
-		location_modifier = calculate_location_reinforce_modifier_no_battle(state, state.world.army_get_location_from_army_location(army), army_owner);
-	}
-	return location_modifier;
-}
+float get_naval_reinforcement_modifiers(const sys::state& state, dcon::navy_id navy) {
+	auto nation = state.world.navy_get_controller_from_navy_control(navy);
 
-
-float get_navy_reinforcement_modifiers(const sys::state& state, dcon::navy_id navy) {
 	auto location = state.world.navy_get_location_from_navy_location(navy);
 	auto naval_base_lvl = state.world.province_get_building_level(location, uint8_t(economy::province_building_type::naval_base));
+	float reinf_setting = float(state.world.nation_get_naval_reinforcement_consumption(nation)) / 100.0f;
 	// Can't repair while moving or not being at a naval base
 	if(state.world.navy_get_arrival_time(navy) || naval_base_lvl < 1) {
 		return 0.0f;
 	}
 	auto repair_mod = state.world.province_get_modifier_values(location, sys::provincial_mod_offsets::local_repair) + 1.0f;
-	return repair_mod;
-}
+	auto main_mods = get_national_reinforcement_modifiers(state, nation);
+	float over_size_penalty = get_over_naval_cap_penalty_modifier(state, nation);
 
 
-float get_regiment_reinforcement_modifiers(const sys::state& state, dcon::regiment_id regiment) {
-	auto pop = state.world.regiment_get_pop_from_regiment_source(regiment);
-	auto army = state.world.regiment_get_army_from_army_membership(regiment);
-	auto battle = state.world.army_get_battle_from_army_battle_participation(army);
-	// If in a battle AND it is in reserve then it may get reinforcements, or if it is not in a battle. It may also not gain reinforcements if it dosent have a pop attached
-	if(!pop) {
-		return 0.0f;
-	}
-	if(!battle || (battle && is_regiment_in_reserve(state, regiment))) {
-		return 1.0f;
-	}
-	else {
-		return 0.0f;
-	}
 
-}
-
-float combine_land_reinforcement_modifiers(float national_modifiers, float army_modifiers, float regiment_modifiers) {
-	return national_modifiers * army_modifiers * regiment_modifiers;
-}
-float combine_naval_reinforcement_modifiers(float national_modifiers, float army_modifiers) {
-	return national_modifiers * army_modifiers;
-}
-
-float get_land_reinforcement_modifiers(const sys::state& state, dcon::regiment_id regiment) {
-	auto army = state.world.regiment_get_army_from_army_membership(regiment);
-	auto nation = state.world.army_get_controller_from_army_control(army);
-	return combine_land_reinforcement_modifiers(get_land_national_reinforcement_modifiers(state, nation), get_army_reinforcement_modifiers(state, army), get_regiment_reinforcement_modifiers(state, regiment));
-
-}
-
-float get_naval_reinforcement_modifiers(const sys::state& state, dcon::ship_id ship) {
-	auto navy = state.world.ship_get_navy_from_navy_membership(ship);
-	auto nation = state.world.navy_get_controller_from_navy_control(navy);
-	return combine_naval_reinforcement_modifiers(get_naval_national_reinforcement_modifiers(state, nation), get_navy_reinforcement_modifiers(state, navy));
+	assert(std::isfinite(main_mods));
+	assert(std::isfinite(over_size_penalty));
+	return main_mods * repair_mod  * over_size_penalty * reinf_setting;
 
 }
 

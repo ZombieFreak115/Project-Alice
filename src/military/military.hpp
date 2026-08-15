@@ -531,7 +531,6 @@ tagged_vector<float, dcon::unit_supply_commodity_id> get_last_required_supply(co
 
 
 void recover_org(sys::state& state);
-float calculate_location_reinforce_modifier_battle(const sys::state& state, dcon::province_id location, dcon::nation_id in_nation);
 float unit_get_strength(sys::state& state, dcon::regiment_id regiment_id);
 float unit_get_strength(sys::state& state, dcon::ship_id ship_id);
 // stops the unit movement completly and clears all other auxillary movement effects (arrival date, path etc)
@@ -540,9 +539,6 @@ void stop_navy_movement(sys::state& state, dcon::navy_id navy);
 void stop_army_movement(sys::state& state, dcon::army_id army);
 
 float calculate_battle_reinforcement(sys::state& state, dcon::land_battle_id b, bool attacker);
-float calculate_average_battle_supply_spending(sys::state& state, dcon::land_battle_id b, bool attacker);
-float calculate_average_battle_location_modifier(sys::state& state, dcon::land_battle_id b, bool attacker);
-float calculate_average_battle_national_modifiers(sys::state& state, dcon::land_battle_id b, bool attacker);
 
 
 void reinforce_regiments(sys::state& state);
@@ -562,8 +558,8 @@ float get_supply_cost_modifiers(const sys::state& state, dcon::ship_id ship);
 float get_supply_cost_modifiers(const sys::state& state, dcon::regiment_id regiment);
 
 
-float get_land_reinforcement_modifiers(const sys::state& state, dcon::regiment_id regiment);
-float get_naval_reinforcement_modifiers(const sys::state& state, dcon::ship_id ship);
+float get_land_reinforcement_modifiers(const sys::state& state, dcon::army_id regiment);
+float get_naval_reinforcement_modifiers(const sys::state& state, dcon::navy_id navy);
 
 bool is_battle_retreatable(sys::state& state, dcon::naval_battle_id battle, retreat_type retreat_type);
 bool is_battle_retreatable(sys::state& state, dcon::land_battle_id battle);
@@ -614,7 +610,7 @@ float army_get_strength(const sys::state& state, dcon::army_id army);
 template<regiment_dmg_source damage_source>
 void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id);
 
-
+// Does not add a +1 as it is expected that will be by caller
 float get_national_supply_cost_modifiers(const sys::state& state, dcon::nation_id nation);
 
 // Gets the average good satisfaction for all navies a nation has. Does not include constructions

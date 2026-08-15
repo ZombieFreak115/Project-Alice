@@ -365,7 +365,8 @@ float estimate_reinforcement(const sys::state& state, dcon::regiment_id regiment
 // US14 Calculates reinforcement for a particular regiment
 template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
 float estimate_reinforcement(const sys::state& state, dcon::regiment_id regiment) {
-	auto mods = get_land_reinforcement_modifiers(state, regiment);
+	auto army = state.world.regiment_get_army_from_army_membership(regiment);
+	auto mods = get_land_reinforcement_modifiers(state, army);
 	return estimate_reinforcement<interval_type, supply_type, potential_reinforcement>(state, regiment, mods);
 
 }
@@ -427,7 +428,8 @@ float estimate_reinforcement(const sys::state& state, dcon::ship_id ship, float 
 // potential_reinforcement: Do we cap the reinforcement at max strength, or not?
 template<interval_estimation interval_type, supply_estimation supply_type, bool potential_reinforcement>
 float estimate_reinforcement(const sys::state& state, dcon::ship_id ship) {
-	auto mods = get_naval_reinforcement_modifiers(state, ship);
+	auto navy = state.world.ship_get_navy_from_navy_membership(ship);
+	auto mods = get_naval_reinforcement_modifiers(state, navy);
 	return estimate_reinforcement<interval_type, supply_type, potential_reinforcement>(state, ship, mods);
 
 }
