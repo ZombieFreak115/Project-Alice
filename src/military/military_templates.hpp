@@ -412,9 +412,8 @@ float estimate_reinforcement(const sys::state& state, dcon::ship_id ship, float 
 	}
 	auto combined = reinf_fufillment * reinforcement_mods;
 	float curstr = state.world.ship_get_strength(ship);
-	float pending_reinf = state.world.ship_get_total_pending_reinforcement(ship);
 	if constexpr(!potential_reinforcement) {
-		combined = std::min(combined, 1.0f - (curstr + pending_reinf)); // Can only reinforce up to the amount of missing strength
+		combined = std::min(combined, 1.0f - curstr); // Can only reinforce up to the amount of missing strength
 		return std::max(combined, 0.0f);
 	} else {
 		return combined;

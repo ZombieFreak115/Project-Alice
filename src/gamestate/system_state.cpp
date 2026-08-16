@@ -3455,8 +3455,6 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 
 	demographics::fixup_state_only_pops<true>(*this);
 
-	military::reinforce_regiments(*this);
-	military::repair_ships(*this);
 
 
 	nations::update_national_administrative_efficiency(*this);
@@ -3510,7 +3508,20 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	ai::update_focuses(*this);
 	supply_routes::update_supply_routes_daily(*this);
 
-	military::recover_org(*this);
+
+	military::reinforce_regiments(*this);
+
+	concurrency::parallel_invoke(
+		[&]() {
+			military::recover_land_org(*this);
+		},
+		[&]() {
+			military::recover_naval_org(*this);
+		},
+		[&]() {
+			military::repair_ships(*this);
+		}
+	);
 
 	military::set_initial_leaders(*this);
 
@@ -4047,6 +4058,8 @@ void state::fill_unsaved_data() { // reconstructs derived values that are not di
 		world.issue_set_issue_type(i, uint8_t(culture::issue_type::political));
 	}
 
+
+
 	military::reset_unit_stats(*this);
 	culture::clear_existing_tech_effects(*this);
 	culture::repopulate_technology_effects(*this);
@@ -4487,8 +4500,17 @@ void state::single_game_tick() {
 		// Resolving military unit constructions should be handled right after updating supply routes and advancing unit constructions, as they will add to the "purchased_goods" stockpile for unit constructions  and right after increase the construction days
 		military::resolve_unit_constructions(*this);
 
-
-		military::recover_org(*this);
+		concurrency::parallel_invoke(
+			[&]() {
+				military::recover_land_org(*this);
+			},
+			[&]() {
+				military::recover_naval_org(*this);
+			},
+			[&]() {
+				military::repair_ships(*this);
+			}
+		);
 		military::update_siege_progress(*this);
 		military::update_movement(*this);
 		military::update_naval_battles(*this);
@@ -4569,7 +4591,6 @@ void state::single_game_tick() {
 			military::apply_attrition(*this);
 			break;
 		case 9:
-			military::repair_ships(*this);
 			military::update_fastest_units(*this);
 			break;
 		case 10:

@@ -530,7 +530,9 @@ tagged_vector<float, dcon::unit_supply_commodity_id> get_last_required_supply(co
 
 
 
-void recover_org(sys::state& state);
+void recover_land_org(sys::state& state);
+void recover_naval_org(sys::state& state);
+
 float unit_get_strength(sys::state& state, dcon::regiment_id regiment_id);
 float unit_get_strength(sys::state& state, dcon::ship_id ship_id);
 // stops the unit movement completly and clears all other auxillary movement effects (arrival date, path etc)

@@ -2265,10 +2265,6 @@ object {
 		type{ float }
 	}
 	property{
-		name { total_pending_reinforcement }
-		type{ float }
-	}
-	property{
 		name { last_potential_reinforcement}
 		type{ float }
 	}
@@ -4566,11 +4562,6 @@ object {
 		type{ uint16_t }
 	}
 	property {
-		name{ overlord_commanding_units }
-		type{ bitfield }
-		tag{ save }
-	}
-	property {
 		name{ averge_land_unit_score }
 		type{ float }
 	}
@@ -5357,7 +5348,6 @@ relationship{
 	property{
 		name{ are_at_war }
 		type{ bitfield }
-		tag{ save }
 	}
 	property{
 		name{ truce_until }
@@ -5846,6 +5836,11 @@ relationship{
 		name{ruler}
 		type{many}
 		index_storage{array}
+	}
+	property{
+		name{ commanding_units }
+		type{ bitfield }
+		tag { save }
 	}
 }
 

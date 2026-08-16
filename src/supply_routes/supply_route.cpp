@@ -295,17 +295,6 @@ void update_nations_supply_cache(sys::state& state) {
 	existing_nations.clear();
 	nations::get_existing_nations(state, existing_nations);
 
-	/*concurrency::parallel_for_each(existing_nations.begin(), existing_nations.end(), [&](dcon::nation_id nation) {
-		state.world.for_each_province([&](dcon::province_id prov) {
-			float supply_throughput = supply_routes::supply_throughput_in_province(state, prov, nation);
-			float supply_loss = supply_routes::supply_loss_in_province(state, prov, nation);
-			state.world.nation_set_supply_throughput_cache(nation, prov, supply_throughput);
-			state.world.nation_set_supply_loss_cache(nation, prov, supply_loss);
-		});
-
-	});*/
-
-
 	concurrency::parallel_for_each(existing_nations.begin(), existing_nations.end(), [&](dcon::nation_id nation) {
 		// Cache supply throughput and loss by-province for use later
 		state.world.for_each_province([&](dcon::province_id prov) {
@@ -314,15 +303,6 @@ void update_nations_supply_cache(sys::state& state) {
 			state.world.nation_set_prov_supply_throughput_cache(nation, prov, supply_throughput);
 			state.world.nation_set_prov_supply_loss_cache(nation, prov, supply_loss);
 		});
-		// Cache supply throughput by-adjacency for fast pathing later
-		/*state.world.for_each_province_adjacency([&](dcon::province_adjacency_id adj) {
-
-			float adj_throughput = calculate_supply_throughput_in_adjacency(state, adj, nation);
-			state.world.nation_set_adj_supply_throughput_cache(nation, adj, adj_throughput);
-
-			float sup_loss = supply_routes::calculate_adjacency_net_supply_loss(state, adj, nation);
-			state.world.nation_set_adj_supply_loss_cache(nation, adj, sup_loss);
-		});*/
 
 	});
 	auto end = std::chrono::steady_clock::now();
@@ -1146,12 +1126,7 @@ void update_unit_commodity_satisfaction(sys::state& state, unit_type u) {
 				total_supply_goods_desired += desired_amount;
 				total_supply_goods_consumed += to_consume;
 			});
-			float supply_satisfaction;
-			if(total_supply_goods_desired == 0.0f) {
-				supply_satisfaction = 1.0f;
-			} else {
-				supply_satisfaction = total_supply_goods_consumed / total_supply_goods_desired;
-			}
+			float supply_satisfaction = (total_supply_goods_desired == 0.0f ? 1.0f : total_supply_goods_consumed / total_supply_goods_desired);
 			subunit.set_supply_satisfaction(supply_satisfaction);
 			subunit.set_last_supply_cost_modifier(supply_goods_cost_mod);
 		}
@@ -1172,17 +1147,15 @@ void update_unit_commodity_satisfaction(sys::state& state, unit_type u) {
 				total_reinf_goods_desired += desired_amount;
 				total_reinf_goods_consumed += to_consume;
 			});
-			float reinf_satisfaction;
-			if(total_reinf_goods_desired == 0.0f) {
-				reinf_satisfaction = 1.0f;
-			} else {
-				reinf_satisfaction = total_reinf_goods_consumed / total_reinf_goods_desired;
-			}
-			float added_pending_reinforcement = reinf_satisfaction * reinf_goods_cost_mod;
+			float reinf_satisfaction = (total_reinf_goods_desired == 0.0f ? 1.0f : total_reinf_goods_consumed / total_reinf_goods_desired);
 			subunit.set_reinforcement_satisfaction(reinf_satisfaction);
-			subunit.set_total_pending_reinforcement(subunit.get_total_pending_reinforcement() + added_pending_reinforcement);
+			if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
+				// For armies, we accumulate the reinforcement first and then apply it monthly (for balance reasons), whereas navies repair once a day
+				float added_pending_reinforcement = reinf_satisfaction * reinf_goods_cost_mod;
+				subunit.set_total_pending_reinforcement(subunit.get_total_pending_reinforcement() + added_pending_reinforcement);
+				assert(std::isfinite(subunit.get_total_pending_reinforcement()));
+			}
 			subunit.set_last_potential_reinforcement(reinf_goods_cost_mod);
-			assert(std::isfinite(subunit.get_total_pending_reinforcement()));
 		}
 	}
 }

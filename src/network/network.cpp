@@ -2431,7 +2431,7 @@ void switch_one_player(sys::state& state, dcon::nation_id new_n, dcon::nation_id
 
 	if(state.current_scene.game_in_progress) {
 		// give back units if puppet becomes player controlled while the game is running. This is also done when the game starts and goes from lobby to game in progress
-		if(bool(state.world.nation_get_overlord_as_subject(new_n)) && state.world.nation_get_overlord_commanding_units(new_n)) {
+		if(nations::is_vassal(state, new_n)) {
 			military::give_back_units(state, new_n);
 		}
 	}

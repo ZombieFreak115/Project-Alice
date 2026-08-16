@@ -2819,7 +2819,7 @@ dcon::ship_id create_new_ship(sys::state& state, dcon::nation_id n, dcon::unit_t
 dcon::nation_id get_effective_unit_commander(const sys::state& state, dcon::army_id unit) {
 	auto army_controller = state.world.army_get_controller_from_army_control(unit);
 	auto potential_overlord = state.world.nation_get_overlord_as_subject(army_controller);
-	if(bool(potential_overlord) && state.world.nation_get_overlord_commanding_units(army_controller)) {
+	if(bool(potential_overlord) && state.world.overlord_get_commanding_units(potential_overlord)) {
 		return state.world.overlord_get_ruler(potential_overlord);
 	}
 	return army_controller;
@@ -2828,7 +2828,7 @@ dcon::nation_id get_effective_unit_commander(const sys::state& state, dcon::army
 dcon::nation_id get_effective_unit_commander(const sys::state& state, dcon::navy_id unit) {
 	auto navy_controller = state.world.navy_get_controller_from_navy_control(unit);
 	auto potential_overlord = state.world.nation_get_overlord_as_subject(navy_controller);
-	if(bool(potential_overlord) && state.world.nation_get_overlord_commanding_units(navy_controller)) {
+	if(bool(potential_overlord) && state.world.overlord_get_commanding_units(potential_overlord)) {
 		return state.world.overlord_get_ruler(potential_overlord);
 	}
 	return navy_controller;
@@ -3050,7 +3050,10 @@ void add_to_war(sys::state& state, dcon::war_id w, dcon::nation_id n, bool as_at
 
 
 void give_back_units(sys::state& state, dcon::nation_id target) {
-	state.world.nation_set_overlord_commanding_units(target, false);
+	auto overlord_rel = state.world.nation_get_overlord_as_subject(target);
+	if(bool(overlord_rel)) {
+		state.world.overlord_set_commanding_units(overlord_rel, false);
+	}
 }
 
 
@@ -9708,6 +9711,14 @@ tagged_vector<float, dcon::unit_supply_commodity_id> get_last_required_supply(co
 
 	tagged_vector<float, dcon::unit_supply_commodity_id> required_supply(state.world.unit_supply_commodity_size());
 	const auto membership = unit_get_membership(state, unit);
+	dcon::nation_id controller = unit_get_controller(state, unit);
+	float supply_consumption_rate = [&]() {
+		if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
+			return float(state.world.nation_get_land_supply_consumption(controller)) / 100.0f;
+		} else if constexpr(std::is_same_v<unit_type, dcon::navy_id>) {
+			return float(state.world.nation_get_naval_supply_consumption(controller)) / 100.0f;
+		}
+	}();
 	for(auto s : membership) {
 		auto subunit = [&]() {
 			if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
@@ -9719,7 +9730,8 @@ tagged_vector<float, dcon::unit_supply_commodity_id> get_last_required_supply(co
 		}();
 		dcon::unit_type_id type = subunit.get_type();
 		const economy::commodity_set& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
-		float last_supply_cost_mod = subunit.get_last_supply_cost_modifier();
+		// Supply consumption rate is part of last potential supply cost modifier. In order to get all of the potential supply requirements at full consumtion rate, it must be removed by dividing it
+		float last_supply_cost_mod = subunit.get_last_supply_cost_modifier() / supply_consumption_rate;
 		for(uint32_t i = 0; i < supply_cost.set_size; ++i) {
 			auto base_com_id = supply_cost.commodity_type[i];
 			if(base_com_id) {
@@ -9743,18 +9755,28 @@ tagged_vector<float, dcon::unit_build_commodity_id> get_last_required_reinforcem
 
 	tagged_vector<float, dcon::unit_build_commodity_id> required_reinf(state.world.unit_build_commodity_size());
 	const auto membership = unit_get_membership(state, unit);
+	dcon::nation_id controller = unit_get_controller(state, unit);
+	float reinf_consumption_rate = [&]() {
+		if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
+			return float(state.world.nation_get_land_reinforcement_consumption(controller)) / 100.0f;
+		} else if constexpr(std::is_same_v<unit_type, dcon::navy_id>) {
+			return float(state.world.nation_get_naval_reinforcement_consumption(controller)) / 100.0f;
+		}
+	}();
+
 	for(auto s : membership) {
 		auto subunit = [&]() {
 			if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
 				return fatten(state.world, s.get_regiment());
 			}
-			if constexpr(std::is_same_v<unit_type, dcon::navy_id>) {
+			else if constexpr(std::is_same_v<unit_type, dcon::navy_id>) {
 				return fatten(state.world, s.get_ship());
 			}
-			}();
+		}();
 		dcon::unit_type_id type = subunit.get_type();
 		const economy::commodity_set& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
-		float last_reinf = subunit.get_last_potential_reinforcement();
+		// Reinforcement consumption rate is part of last potential reinforcement. In order to get all of the potential reinforcement requirements at full consumtion rate, it must be removed by dividing it
+		float last_reinf = subunit.get_last_potential_reinforcement() / reinf_consumption_rate;
 		for(uint32_t i = 0; i < build_cost.set_size; ++i) {
 			auto base_com_id = build_cost.commodity_type[i];
 			if(base_com_id) {
@@ -9935,7 +9957,7 @@ float calculate_ship_org_regain(sys::state& state, dcon::ship_id ship) {
 
 
 
-void recover_org(sys::state& state) {
+void recover_land_org(sys::state& state) {
 	/*
 	- Units that are not on the frontline of a battle, and not embarked recover organization daily at: (national-organization-regeneration-modifier
 	+ morale-from-tech + leader-morale-trait + 1) x the-unit's-supply-factor / 5 up to the maximum organization of 100%
@@ -9943,31 +9965,31 @@ void recover_org(sys::state& state) {
 	+ (leader-prestige x defines:LEADER_PRESTIGE_TO_MORALE_FACTOR).
 	- Similarly, unit-max-org + (leader-prestige x defines:LEADER_PRESTIGE_TO_MAX_ORG_FACTOR) allows for maximum org.
 	*/
-	concurrency::parallel_invoke(
-
-	[&](){
-			state.world.for_each_regiment([&](dcon::regiment_id reg) {
-				auto regiment = fatten(state.world, reg);
-				auto org_regain = calculate_regiment_org_regain<supply_estimation::based_on_satisfaction, false>(state, regiment);
-				assert(std::isfinite(org_regain));
-				regiment.set_org(regiment.get_org() + org_regain);
+	state.world.for_each_regiment([&](dcon::regiment_id reg) {
+		auto regiment = fatten(state.world, reg);
+		auto org_regain = calculate_regiment_org_regain<supply_estimation::based_on_satisfaction, false>(state, regiment);
+		assert(std::isfinite(org_regain));
+		regiment.set_org(regiment.get_org() + org_regain);
 				
-			});
+	});
 			
-		},
 
-		// US17
-	[&](){
-			state.world.for_each_ship([&](dcon::ship_id shp) {
-				auto ship = fatten(state.world, shp);
-				auto org_regain = calculate_ship_org_regain<supply_estimation::based_on_satisfaction, false>(state, ship);
-				assert(std::isfinite(org_regain));
-				ship.set_org(ship.get_org() + org_regain);
-
-			});
-		}
-	);
 }
+
+void recover_naval_org(sys::state& state) {
+	/*
+	naval org works simiarly to land org above
+	*/
+	state.world.for_each_ship([&](dcon::ship_id shp) {
+		auto ship = fatten(state.world, shp);
+		auto org_regain = calculate_ship_org_regain<supply_estimation::based_on_satisfaction, false>(state, ship);
+		assert(std::isfinite(org_regain));
+		ship.set_org(ship.get_org() + org_regain);
+
+	});
+
+}
+
 // stops the unit movement completly and clears all other auxillary movement effects (arrival date, path etc)
 void stop_army_movement(sys::state& state, dcon::army_id army) {
 	assert(army);
@@ -10050,12 +10072,13 @@ void repair_ships(sys::state& state) {
 	/*
 	US18. A ship that is docked at a naval base is repaired (has its strength increase) by:
 maximum-strength x (technology-repair-rate + provincial-modifier-to-repair-rate + 1) x (national-reinforce-speed-modifier + 1) x navy-supplies x DEFINE:REINFORCE_SPEED
+
+	Each repair tick is distributed to be once per day. This is changed from vanilla where it is combined to tick once per month
 	*/
 	for(auto ship : state.world.in_ship) {
 		auto navy = ship.get_navy_from_navy_membership();
 		auto in_nation = navy.get_controller_from_navy_control();
-		//auto reinforcement = calculate_regiment_reinforcement<interval_estimation::monthly, supply_estimation::based_on_satisfaction, false>(state, regiment);
-		auto reinforcement = std::min(ship.get_total_pending_reinforcement(), 1.0f - ship.get_strength()); // Clamp reinforcement to missing str
+		auto reinforcement = estimate_reinforcement<interval_estimation::daily, supply_estimation::based_on_satisfaction, false>(state, ship);
 		assert(std::isfinite(reinforcement));
 		assert(std::isfinite(ship.get_strength()));
 		ship.set_strength(ship.get_strength() + reinforcement);
@@ -10063,9 +10086,6 @@ maximum-strength x (technology-repair-rate + provincial-modifier-to-repair-rate 
 		auto old_experience = ship.get_experience();
 		auto lost_xp = old_experience - (old_experience / (reinforcement / 3 + 1));
 		adjust_ship_experience(state, in_nation, ship, -lost_xp);
-		// Reset reinforcement buffer
-		ship.set_total_pending_reinforcement(ship.get_total_pending_reinforcement() - reinforcement);
-		assert(ship.get_total_pending_reinforcement() >= 0.0f);
 
 	}
 }
@@ -10931,10 +10951,12 @@ float average_naval_consumption_satisfaction(const sys::state& state, dcon::nati
 			unit_count++;
 			auto ship = r.get_ship();
 			if constexpr(consumption_type == unit_consumption_type::reinforcement) {
-				total += ship.get_reinforcement_satisfaction();
+				float reinf_consumption = float(state.world.nation_get_naval_reinforcement_consumption(nation)) / 100.0f;
+				total += (ship.get_reinforcement_satisfaction() * reinf_consumption); //Multiply with the consumption rate to get the total satisfaction rate
 			}
 			else {
-				total += ship.get_supply_satisfaction();
+				float supply_consumption = float(state.world.nation_get_naval_supply_consumption(nation)) / 100.0f;
+				total += (ship.get_supply_satisfaction() * supply_consumption); //Multiply with the consumption rate to get the total satisfaction rate
 			}
 		}
 	}
@@ -10954,9 +10976,11 @@ float average_land_consumption_satisfaction(const sys::state& state, dcon::natio
 			unit_count++;
 			auto regiment = r.get_regiment();
 			if constexpr(consumption_type == unit_consumption_type::reinforcement) {
-				total += regiment.get_reinforcement_satisfaction();
+				float reinf_consumption = float(state.world.nation_get_land_reinforcement_consumption(nation)) / 100.0f;
+				total += (regiment.get_reinforcement_satisfaction() * reinf_consumption);//Multiply with the consumption rate to get the total satisfaction rate
 			} else {
-				total += regiment.get_supply_satisfaction();
+				float supply_consumption = float(state.world.nation_get_land_supply_consumption(nation)) / 100.0f;
+				total += (regiment.get_supply_satisfaction() * supply_consumption);//Multiply with the consumption rate to get the total satisfaction rate
 			}
 		}
 	}

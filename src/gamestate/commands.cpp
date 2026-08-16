@@ -3073,7 +3073,7 @@ bool can_command_units(sys::state& state, dcon::nation_id asker, dcon::nation_id
 	if(!nations::is_nation_subject_of(state, target, asker)) {
 		return false;
 	}
-	if(nations::is_commanding_subject_units(state, target, asker)) {
+	if(nations::is_units_commanded_by_overlord(state, target)) {
 		return false;
 	}
 	return true;
@@ -3090,7 +3090,8 @@ void command_units(sys::state& state, dcon::nation_id asker, dcon::nation_id tar
 
 
 void execute_command_units(sys::state& state, dcon::nation_id asker, dcon::nation_id target) {
-	state.world.nation_set_overlord_commanding_units(target, true);
+	auto overlord_rel = state.world.nation_get_overlord_as_subject(target);
+	state.world.overlord_set_commanding_units(overlord_rel, true);
 	ai::remove_ai_data(state, target);
 }
 
@@ -3111,7 +3112,7 @@ bool can_give_back_units(sys::state& state, dcon::nation_id asker, dcon::nation_
 	if(!nations::is_nation_subject_of(state, target, asker)) {
 		return false;
 	}
-	if(!nations::is_commanding_subject_units(state, target, asker)) {
+	if(!nations::is_units_commanded_by_overlord(state, target)) {
 		return false;
 	}
 	return true;
@@ -6109,7 +6110,7 @@ void execute_notify_start_game(sys::state& state, dcon::nation_id source) {
 		if(state.world.nation_get_is_player_controlled(n)) {
 			ai::remove_ai_data(state, n);
 			// give back units if puppet becomes player controlled
-			if(bool(state.world.nation_get_overlord_as_subject(n)) && state.world.nation_get_overlord_commanding_units(n)) {
+			if(nations::is_vassal(state, n)) {
 				military::give_back_units(state, n);
 			}
 		}

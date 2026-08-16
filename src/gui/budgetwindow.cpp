@@ -2168,19 +2168,6 @@ void budgetwindow_main_satisfaction_percent_t::on_update(sys::state& state) noex
 	float avg_naval_supply_satisfaction = military::average_naval_consumption_satisfaction<military::unit_consumption_type::supply>(state, state.local_player_nation);
 	float avg_land_supply_satisfaction = military::average_land_consumption_satisfaction<military::unit_consumption_type::supply>(state, state.local_player_nation);
 
-
-	float land_reinf_consumption = state.world.nation_get_land_reinforcement_consumption(state.local_player_nation) / 100.0f;
-	land_reinf_consumption = (land_reinf_consumption == 0 ? 1.0f : land_reinf_consumption);
-
-	float land_supply_consumption = state.world.nation_get_land_supply_consumption(state.local_player_nation) / 100.0f;
-	land_supply_consumption = (land_supply_consumption == 0 ? 1.0f : land_supply_consumption);
-
-	float naval_reinf_consumption = state.world.nation_get_naval_reinforcement_consumption(state.local_player_nation) / 100.0f;
-	naval_reinf_consumption = (naval_reinf_consumption == 0 ? 1.0f : naval_reinf_consumption);
-
-	float naval_supply_consumption = state.world.nation_get_naval_supply_consumption(state.local_player_nation) / 100.0f;
-	naval_supply_consumption = (naval_supply_consumption == 0 ? 1.0f : naval_supply_consumption);
-
 	float avg_satisfaction = (avg_naval_reinf_satisfaction + avg_naval_supply_satisfaction + avg_land_reinf_satisfaction + avg_land_supply_satisfaction ) / 4.0f;
 	set_text(state, text::format_percentage(avg_satisfaction, 2));
 

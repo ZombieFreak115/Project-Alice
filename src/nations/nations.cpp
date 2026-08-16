@@ -150,27 +150,54 @@ void update_cached_values(sys::state& state) {
 }
 
 void restore_unsaved_values(sys::state& state) {
-	for(auto n : state.world.in_nation)
-		n.set_is_great_power(false);
 
-	for(auto& gp : state.great_nations) {
-		state.world.nation_set_is_great_power(gp.nation, true);
-	}
+	concurrency::parallel_invoke(
+		[&]() {
+			for(auto n : state.world.in_nation)
+				n.set_is_great_power(false);
 
-	state.world.for_each_gp_relationship([&](dcon::gp_relationship_id rel) {
-		if((influence::level_mask & state.world.gp_relationship_get_status(rel)) == influence::level_in_sphere) {
-			auto t = state.world.gp_relationship_get_influence_target(rel);
-			auto gp = state.world.gp_relationship_get_great_power(rel);
-			state.world.nation_set_in_sphere_of(t, gp);
-			state.trade_route_cached_values_out_of_date = true;
+			for(auto& gp : state.great_nations) {
+				state.world.nation_set_is_great_power(gp.nation, true);
+			}
+		},
+		[&]() {
+			state.world.for_each_gp_relationship([&](dcon::gp_relationship_id rel) {
+				if((influence::level_mask & state.world.gp_relationship_get_status(rel)) == influence::level_in_sphere) {
+					auto t = state.world.gp_relationship_get_influence_target(rel);
+					auto gp = state.world.gp_relationship_get_great_power(rel);
+					state.world.nation_set_in_sphere_of(t, gp);
+					state.trade_route_cached_values_out_of_date = true;
+				}
+			});
+		},
+		[&]() {
+			state.world.execute_serial_over_nation([&](auto ids) {
+				auto treasury = state.world.nation_get_stockpiles(ids, economy::money);
+				state.world.nation_set_last_treasury(ids, treasury);
+			});
+		},
+		[&]() {
+			state.world.for_each_war([&](dcon::war_id war) {
+				static std::vector<dcon::nation_id> attackers;
+				static std::vector<dcon::nation_id> defenders;
+				attackers.clear();
+				defenders.clear();
+				auto participants = state.world.war_get_war_participant(war);
+				for(auto participant : participants) {
+					(participant.get_is_attacker() ? attackers.push_back(participant.get_nation()) : defenders.push_back(participant.get_nation()));
+				}
+				for(auto attacker : attackers) {
+					for(auto defender : defenders) {
+						auto rel = state.world.get_diplomatic_relation_by_diplomatic_pair(attacker, defender);
+						if(!rel) {
+							rel = state.world.force_create_diplomatic_relation(attacker, defender);
+						}
+						state.world.diplomatic_relation_set_are_at_war(rel, true);
+					}
+				}
+			});
 		}
-	});
-
-	state.world.execute_serial_over_nation([&](auto ids) {
-		auto treasury = state.world.nation_get_stockpiles(ids, economy::money);
-		state.world.nation_set_last_treasury(ids, treasury);
-	});
-
+	);
 	restore_cached_values(state);
 }
 
@@ -764,11 +791,9 @@ void generate_initial_state_instances(sys::state& state) {
 	}
 }
 
-bool is_commanding_subject_units(sys::state& state, dcon::nation_id subject, dcon::nation_id overlord) {
-	if(nations::is_nation_subject_of(state, subject, overlord)) {
-		return state.world.nation_get_overlord_commanding_units(subject);
-	}
-	return false;
+bool is_units_commanded_by_overlord(const sys::state& state, dcon::nation_id subject) {
+	auto rel = state.world.nation_get_overlord_as_subject(subject);
+	return state.world.overlord_get_commanding_units(rel);
 }
 
 bool can_release_as_vassal(sys::state const& state, dcon::nation_id n, dcon::national_identity_id releasable) {
@@ -2138,7 +2163,7 @@ void switch_all_players(sys::state& state, dcon::nation_id new_n, dcon::nation_i
 	
 	if(state.current_scene.game_in_progress) {
 		// give back units if puppet becomes player controlled while the game is running. This is also done when the game starts and goes from lobby to game in progress
-		if(bool(state.world.nation_get_overlord_as_subject(new_n)) && state.world.nation_get_overlord_commanding_units(new_n)) {
+		if(is_vassal(state, new_n)) {
 			military::give_back_units(state, new_n);
 		}
 	}

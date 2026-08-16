@@ -382,7 +382,8 @@ void remove_ai_data(sys::state& state, dcon::nation_id n) {
 
 bool unit_on_ai_control(const sys::state& state, dcon::army_id a) {
 	auto fat_id = dcon::fatten(state.world, a);
-	if(fat_id.get_controller_from_army_control().get_overlord_commanding_units()) {
+	auto nation = fat_id.get_controller_from_army_control();
+	if(nations::is_units_commanded_by_overlord(state, nation)) {
 		return false;
 	}
 	return fat_id.get_controller_from_army_control().get_is_player_controlled()
@@ -391,7 +392,8 @@ bool unit_on_ai_control(const sys::state& state, dcon::army_id a) {
 }
 bool unit_on_ai_control(const sys::state& state, dcon::navy_id a) {
 	auto fat_id = dcon::fatten(state.world, a);
-	if(fat_id.get_controller_from_navy_control().get_overlord_commanding_units()) {
+	auto nation = fat_id.get_controller_from_navy_control();
+	if(nations::is_units_commanded_by_overlord(state, nation)) {
 		return false;
 	}
 	return !fat_id.get_controller_from_navy_control().get_is_player_controlled();
