@@ -228,7 +228,10 @@ bool make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::p
 		auto current_prov = open_queue.back();
 		open_queue.pop_back();
 		auto& current_node = path_node_container[current_prov];
-		current_node.is_in_open_list = false;
+		// Its a duplicate we have already been through, skip
+		if(current_node.is_in_closed_list) {
+			continue;
+		}
 		// check if we have reached the end
 		if(current_prov == end) {
 			fill_path_result(current_prov);
@@ -236,12 +239,12 @@ bool make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::p
 			return true;
 		}
 		// add current to closed list immediately
+		current_node.is_in_open_list = false;
 		current_node.is_in_closed_list = true;
 
 		for(auto adj : state.world.province_get_province_adjacency(current_prov)) {
 			auto other_prov =
 				adj.get_connected_provinces(0) == current_prov ? adj.get_connected_provinces(1) : adj.get_connected_provinces(0);
-			auto bits = adj.get_type();
 			auto distance = adj.get_distance();
 
 
@@ -279,18 +282,11 @@ bool make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::p
 						}();
 
 						float distance_to_neighbor = current_node.distance_covered + actual_dist; // computes net distance to neighbor from the start province
-						float approx_dist_to_end;
-						if constexpr(HeuristicModifier != 0.0f) {
-							approx_dist_to_end = direct_distance(state, other_prov, end) * HeuristicModifier;
-						} else {
-							approx_dist_to_end = 0.0f;
-						}
-
 						// if not present in the open queue add it to the open queue for processing later
 						if(!neighbor_node.is_in_open_list) {
 							// set distance and parent, then add it to the open queue
 							neighbor_node.distance_covered = distance_to_neighbor;
-							neighbor_node.distance_to_target = approx_dist_to_end;
+							neighbor_node.distance_to_target = direct_distance(state, other_prov, end) * HeuristicModifier;
 							neighbor_node.parent = current_prov;
 							neighbor_node.province = other_prov; // set province now, before it is added to the open queue
 							open_queue.push_back(other_prov);
@@ -299,8 +295,10 @@ bool make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::p
 						} else if(distance_to_neighbor < neighbor_node.distance_covered) {
 							// this is a better path; update distance covered and parent
 							neighbor_node.distance_covered = distance_to_neighbor;
-							neighbor_node.distance_to_target = approx_dist_to_end;
 							neighbor_node.parent = current_prov;
+							// Add it to the heap again to update it with the new distance information. The old one is kept, but ignored when it is popped
+							open_queue.push_back(other_prov);
+							std::push_heap(open_queue.begin(), open_queue.end(), province_comparer);
 						}
 
 
@@ -512,7 +510,10 @@ std::vector<dcon::province_id> make_path_to_expression(const sys::state& state, 
 		auto current_prov = open_queue.back();
 		open_queue.pop_back();
 		auto& current_node = path_node_container[current_prov];
-		current_node.is_in_open_list = false;
+		// Its a duplicate we have already been through, skip
+		if(current_node.is_in_closed_list) {
+			continue;
+		}
 		// check if we have reached the end
 		if(end_expression(current_prov)) {
 			fill_path_result(current_prov);
@@ -520,6 +521,7 @@ std::vector<dcon::province_id> make_path_to_expression(const sys::state& state, 
 			return path_result;
 		}
 		// add current to closed list immediately
+		current_node.is_in_open_list = false;
 		current_node.is_in_closed_list = true;
 
 		for(auto adj : state.world.province_get_province_adjacency(current_prov)) {
@@ -551,6 +553,9 @@ std::vector<dcon::province_id> make_path_to_expression(const sys::state& state, 
 						// this is a better path; update distance covered and parent
 						neighbor_node.distance_covered = distance_to_neighbor;
 						neighbor_node.parent = current_prov;
+						// Add it to the heap again to update it with the new distance information. The old one is kept, but ignored when it is popped
+						open_queue.push_back(other_prov);
+						std::push_heap(open_queue.begin(), open_queue.end(), province_comparer);
 					}
 					
 
