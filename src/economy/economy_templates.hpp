@@ -68,6 +68,11 @@ void for_each_unit_construction(const sys::state& state, F&& func) {
 	state.world.for_each_province_land_construction(func);
 	state.world.for_each_province_naval_construction(func);
 }
+template<typename F>
+void ve_for_each_unit_construction(const sys::state& state, F&& func) {
+	state.world.execute_serial_over_province_land_construction(func);
+	state.world.execute_serial_over_province_naval_construction(func);
+}
 
 template<typename F>
 void parallel_for_each_unit_construction(const sys::state& state, F&& func) {
@@ -84,6 +89,72 @@ void parallel_for_each_unit_construction(const sys::state& state, F&& func) {
 		}
 	});
 }
+
+template<typename F>
+void ve_parallel_for_each_unit_construction(const sys::state& state, F&& func) {
+	state.world.execute_parallel_over_province_land_construction(func);
+	state.world.execute_parallel_over_province_naval_construction(func);
+}
+
+
+template<typename F>
+void for_each_building_construction(const sys::state& state, F&& func) {
+	state.world.for_each_factory_construction(func);
+	state.world.for_each_province_building_construction(func);
+}
+template<typename F>
+void ve_for_each_building_construction(const sys::state& state, F&& func) {
+	state.world.execute_serial_over_factory_construction(func);
+	state.world.execute_serial_over_province_building_construction(func);
+}
+
+template<typename F>
+void parallel_for_each_building_construction(const sys::state& state, F&& func) {
+	concurrency::parallel_for(uint32_t(0), state.world.factory_construction_size(), [&](uint32_t i) {
+		dcon::factory_construction_id construction = dcon::factory_construction_id{ dcon::factory_construction_id::value_base_t(i) };
+		if(state.world.factory_construction_is_valid(construction)) {
+			func(construction);
+		}
+	});
+	concurrency::parallel_for(uint32_t(0), state.world.province_building_construction_size(), [&](uint32_t i) {
+		dcon::province_building_construction_id construction = dcon::province_building_construction_id{ dcon::province_building_construction_id::value_base_t(i) };
+		if(state.world.province_building_construction_is_valid(construction)) {
+			func(construction);
+		}
+	});
+}
+
+template<typename F>
+void ve_parallel_for_each_building_construction(const sys::state& state, F&& func) {
+	state.world.execute_parallel_over_factory_construction(func);
+	state.world.execute_parallel_over_province_building_construction(func);
+}
+
+
+template<typename F>
+void for_each_construction(const sys::state& state, F&& func) {
+	for_each_unit_construction(state, func);
+	for_each_building_construction(state, func);
+}
+template<typename F>
+void ve_for_each_construction(const sys::state& state, F&& func) {
+	ve_for_each_unit_construction(state, func);
+	ve_for_each_building_construction(state, func);
+}
+
+template<typename F>
+void parallel_for_each_construction(const sys::state& state, F&& func) {
+	parallel_for_each_unit_construction(state, func);
+	parallel_for_each_building_construction(state, func);
+}
+
+template<typename F>
+void ve_parallel_for_each_construction(const sys::state& state, F&& func) {
+	ve_parallel_for_each_unit_construction(state, func);
+	ve_parallel_for_each_building_construction(state, func);
+}
+
+
 
 template<price_estimation price_est, concepts::any_dcon_id_type<dcon::market_id> market_type, concepts::normal_or_vector_value_type<float> float_type>
 auto get_estimated_state_stockpile_purchase_price(const sys::state& state, market_type market, dcon::commodity_id com_id, float_type goods_desired) {
@@ -143,6 +214,40 @@ auto government_stockpile_desired_commodity_amount(const sys::state& state, nati
 		return std::max(government_stockpile_target_balance(state, nation, com_id), 0.0f);
 	} else {
 		return ve::max(government_stockpile_target_balance(state, nation, com_id), 0.0f);
+	}
+}
+
+// Accumulates all construction good requirements via the "acc_func" functor of a given construction. Already-fufilled good requirements are subtracted
+// Functor signatures:
+// (dcon::commodity_id commodity, float required_amount),
+// (uint32_t set_index, float required_amount),
+// (uint32_t set_index, float required_amount, float total_cost)
+template<concepts::construction_type construction_type, typename FAccumulate>
+void accumulate_construction_good_requirements(const sys::state& state, construction_type c, FAccumulate& acc_func) {
+	const economy::commodity_set actual_cost = construction_get_actual_build_cost(state, c);
+
+	const economy::commodity_set& currently_fufilled = get_purchased_goods(state, c);
+	for(uint32_t i = 0; i < actual_cost.set_size; i++) {
+		dcon::commodity_id cid = actual_cost.commodity_type[i];
+		if(cid) {
+			float total_required = actual_cost.commodity_amounts[i];
+			float fufilled_amount = currently_fufilled.commodity_amounts[i];
+			float required = std::max(total_required - fufilled_amount, 0.0f);
+			if constexpr(std::is_invocable_r_v<void, FAccumulate, dcon::commodity_id, float>) {
+				acc_func(cid, required);
+			}
+			else if constexpr(std::is_invocable_r_v<void, FAccumulate, uint32_t, float>) {
+				acc_func(i, required);
+			}
+			else if constexpr(std::is_invocable_r_v<void, FAccumulate, uint32_t, float, float>) {
+				acc_func(i, required, total_required);
+			}
+			else {
+				static_assert(false, "Invalid functor signature");
+			}
+		} else {
+			break;
+		}
 	}
 }
 

@@ -3059,8 +3059,7 @@ void state::load_scenario_data(parsers::error_handler& err, sys::year_month_day 
 	world.market_resize_export(world.commodity_size());
 	world.market_resize_army_demand(world.commodity_size());
 	world.market_resize_navy_demand(world.commodity_size());
-	world.market_resize_construction_demand(world.commodity_size());
-	world.market_resize_unit_construction_demand(world.commodity_size());
+	world.market_resize_government_construction_demand(world.commodity_size());
 	world.market_resize_government_stockpile_demand(world.commodity_size());
 	world.market_resize_private_construction_demand(world.commodity_size());
 	world.market_resize_actual_probability_to_buy(world.commodity_size());
@@ -3998,13 +3997,14 @@ void state::fill_unsaved_data() { // reconstructs derived values that are not di
 	world.province_resize_demographics_alt(demographics::size(*this));
 
 	world.market_resize_commodity_float_buffer_1(world.commodity_size());
+
 	world.nation_resize_commodity_float_buffer_1(world.commodity_size());
+	world.nation_resize_commodity_float_buffer_2(world.commodity_size());
+	world.nation_resize_commodity_float_buffer_3(world.commodity_size());
 	world.nation_resize_unit_supply_and_build_commodity_float_buffer_1(world.unit_supply_and_build_commodity_size());
 	world.nation_resize_unit_supply_and_build_commodity_float_buffer_2(world.unit_supply_and_build_commodity_size());
 	world.nation_resize_unit_supply_and_build_commodity_float_buffer_3(world.unit_supply_and_build_commodity_size());
 	world.nation_resize_unit_supply_and_build_commodity_float_buffer_4(world.unit_supply_and_build_commodity_size());
-	world.nation_resize_unit_build_commodity_float_buffer_1(world.unit_build_commodity_size());
-	world.nation_resize_unit_build_commodity_float_buffer_2(world.unit_build_commodity_size());
 
 	world.army_resize_unit_build_commodity_float_buffer_1(world.unit_build_commodity_size());
 	world.army_resize_unit_supply_commodity_float_buffer_1(world.unit_supply_commodity_size());
@@ -4495,10 +4495,9 @@ void state::single_game_tick() {
 
 		supply_routes::update_supply_routes_daily(*this);
 
-		military::advance_unit_constructions(*this);
+		economy::advance_constructions_progress(*this);
 
-		// Resolving military unit constructions should be handled right after updating supply routes and advancing unit constructions, as they will add to the "purchased_goods" stockpile for unit constructions  and right after increase the construction days
-		military::resolve_unit_constructions(*this);
+		economy::resolve_constructions(*this);
 
 		concurrency::parallel_invoke(
 			[&]() {

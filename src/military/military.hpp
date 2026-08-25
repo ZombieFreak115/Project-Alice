@@ -549,10 +549,6 @@ void run_gc(sys::state& state);
 void update_blackflag_status(sys::state& state);
 void send_rebel_hunter_to_next_province(sys::state& state, dcon::army_id ar, dcon::province_id prov);
 
-void advance_unit_constructions(sys::state& state);
-
-void resolve_unit_constructions(sys::state& state);
-
 // Gets the net total supply cost modifier for the naval unit,with all modifiers included
 float get_supply_cost_modifiers(const sys::state& state, dcon::ship_id ship);
 

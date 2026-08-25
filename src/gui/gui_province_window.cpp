@@ -938,7 +938,7 @@ public:
 				auto& goods = state.economy_definitions.building_definitions[int32_t(Value)].cost;
 				auto& cgoods = pb_con.get_purchased_goods();
 
-				float factor = economy::build_cost_multiplier(state, prov, pb_con.get_is_pop_project());
+				float factor = economy::construction_build_cost_multiplier(state, pb_con);
 
 				for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
 					auto cid = goods.commodity_type[i];

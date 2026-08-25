@@ -11,9 +11,72 @@ void for_each_unit_supply_route(sys::state& state, F&& functor) {
 }
 
 template<typename F>
+void ve_for_each_unit_supply_route(sys::state& state, F&& functor) {
+	state.world.execute_serial_over_army_supply_route(functor);
+	state.world.execute_serial_over_navy_supply_route(functor);
+}
+
+template<typename F>
+void parallel_for_each_unit_supply_route(sys::state& state, F&& functor) {
+	concurrency::parallel_for(uint32_t(0), state.world.army_supply_route_size(), [&](uint32_t i) {
+		dcon::army_supply_route_id route = dcon::army_supply_route_id{ dcon::army_supply_route_id::value_base_t(i) };
+		functor(route);
+	});
+	concurrency::parallel_for(uint32_t(0), state.world.navy_supply_route_size(), [&](uint32_t i) {
+		dcon::navy_supply_route_id route = dcon::navy_supply_route_id{ dcon::navy_supply_route_id::value_base_t(i) };
+		functor(route);
+	});
+}
+
+template<typename F>
+void ve_parallel_for_each_unit_supply_route(sys::state& state, F&& functor) {
+	state.world.execute_parallel_over_army_supply_route(functor);
+	state.world.execute_parallel_over_navy_supply_route(functor);
+}
+
+template<typename F>
 void for_each_construction_supply_route(sys::state& state, F&& functor) {
 	state.world.for_each_land_construction_supply_route(functor);
 	state.world.for_each_naval_construction_supply_route(functor);
+	state.world.for_each_factory_construction_supply_route(functor);
+	state.world.for_each_building_construction_supply_route(functor);
+}
+
+template<typename F>
+void ve_for_each_construction_supply_route(sys::state& state, F&& functor) {
+	state.world.execute_serial_over_land_construction_supply_route(functor);
+	state.world.execute_serial_over_naval_construction_supply_route(functor);
+	state.world.execute_serial_over_factory_construction_supply_route(functor);
+	state.world.execute_serial_over_building_construction_supply_route(functor);
+}
+
+
+template<typename F>
+void parallel_for_each_construction_supply_route(sys::state& state, F&& functor) {
+	concurrency::parallel_for(uint32_t(0), state.world.land_construction_supply_route_size(), [&](uint32_t i) {
+		dcon::land_construction_supply_route_id route = dcon::land_construction_supply_route_id{ dcon::land_construction_supply_route_id::value_base_t(i) };
+		functor(route);
+	});
+	concurrency::parallel_for(uint32_t(0), state.world.naval_construction_supply_route_size(), [&](uint32_t i) {
+		dcon::naval_construction_supply_route_id route = dcon::naval_construction_supply_route_id{ dcon::naval_construction_supply_route_id::value_base_t(i) };
+		functor(route);
+	});
+	concurrency::parallel_for(uint32_t(0), state.world.factory_construction_supply_route_size(), [&](uint32_t i) {
+		dcon::factory_construction_supply_route_id route = dcon::factory_construction_supply_route_id{ dcon::factory_construction_supply_route_id::value_base_t(i) };
+		functor(route);
+	});
+	concurrency::parallel_for(uint32_t(0), state.world.building_construction_supply_route_size(), [&](uint32_t i) {
+		dcon::building_construction_supply_route_id route = dcon::building_construction_supply_route_id{ dcon::building_construction_supply_route_id::value_base_t(i) };
+		functor(route);
+	});
+}
+
+template<typename F>
+void ve_parallel_for_each_construction_supply_route(sys::state& state, F&& functor) {
+	state.world.execute_parallel_over_land_construction_supply_route(functor);
+	state.world.execute_parallel_over_naval_construction_supply_route(functor);
+	state.world.execute_parallel_over_factory_construction_supply_route(functor);
+	state.world.execute_parallel_over_building_construction_supply_route(functor);
 }
 
 template<typename F>
@@ -21,6 +84,32 @@ void for_each_supply_route(sys::state& state, F&& functor) {
 	for_each_unit_supply_route(state, functor);
 	for_each_construction_supply_route(state, functor);
 }
+template<typename F>
+void ve_for_each_supply_route(sys::state& state, F&& functor) {
+	ve_for_each_unit_supply_route(state, functor);
+	ve_for_each_construction_supply_route(state, functor);
+}
+
+
+template<typename F>
+void parallel_for_each_supply_route(sys::state& state, F&& functor) {
+	parallel_for_each_unit_supply_route(state, functor);
+	parallel_for_each_construction_supply_route(state, functor);
+}
+
+template<typename F>
+void ve_parallel_for_each_supply_route(sys::state& state, F&& functor) {
+	ve_parallel_for_each_unit_supply_route(state, functor);
+	ve_parallel_for_each_construction_supply_route(state, functor);
+}
+
+
+
+
+
+
+
+
 template<typename F, typename army_container_type, typename navy_container_type, typename land_construction_container_type, typename naval_construction_container_type>
 void for_each_supply_route_container(sys::state& state, F&& functor, army_container_type& army_container, navy_container_type& navy_container, land_construction_container_type& land_construction_container, naval_construction_container_type& naval_construction_container) {
 	state.world.for_each_army_supply_route([&](auto route) {
@@ -37,25 +126,6 @@ void for_each_supply_route_container(sys::state& state, F&& functor, army_contai
 	});
 }
 
-template<typename F>
-void parallel_for_each_supply_route(sys::state& state, F&& functor) {
-	concurrency::parallel_for(uint32_t(0), state.world.army_supply_route_size(), [&](uint32_t i) {
-		dcon::army_supply_route_id route = dcon::army_supply_route_id{ dcon::army_supply_route_id::value_base_t(i)};
-		functor(route);
-	});
-	concurrency::parallel_for(uint32_t(0), state.world.navy_supply_route_size(), [&](uint32_t i) {
-		dcon::navy_supply_route_id route = dcon::navy_supply_route_id{ dcon::navy_supply_route_id::value_base_t(i) };
-		functor(route);
-	});
-	concurrency::parallel_for(uint32_t(0), state.world.land_construction_supply_route_size(), [&](uint32_t i) {
-		dcon::land_construction_supply_route_id route = dcon::land_construction_supply_route_id{ dcon::land_construction_supply_route_id::value_base_t(i) };
-		functor(route);
-	});
-	concurrency::parallel_for(uint32_t(0), state.world.naval_construction_supply_route_size(), [&](uint32_t i) {
-		dcon::naval_construction_supply_route_id route = dcon::naval_construction_supply_route_id{ dcon::naval_construction_supply_route_id::value_base_t(i) };
-		functor(route);
-	});
-}
 template<typename F, typename army_container_type, typename navy_container_type, typename land_construction_container_type, typename naval_construction_container_type>
 void parallel_for_each_supply_route_container(sys::state& state, F&& functor, army_container_type& army_container, navy_container_type& navy_container, land_construction_container_type& land_construction_container, naval_construction_container_type& naval_construction_container) {
 	concurrency::parallel_for(uint32_t(0), state.world.army_supply_route_size(), [&](uint32_t i) {

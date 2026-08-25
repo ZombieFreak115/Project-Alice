@@ -444,11 +444,72 @@ float estimate_reinforcement(const sys::state& state, dcon::navy_id navy) {
 	return total_reinforcement;
 
 }
+// Accumulates the consumption required for a subunit (regiment or ship) using the functors for Supply consumption and Reinforcement consumption respectively
+// Functor signature is: (dcon::commodity_id, float)
+template<concepts::military_subunit subunit_type, typename FSupply, typename FReinf>
+void accumulate_subunit_consumption(const sys::state& state, dcon::nation_id owner, subunit_type u, FSupply&& supply_acc_func, FReinf&& reinf_acc_func) {
+	assert(owner);
+	auto subunit = fatten(state.world, u);
+	dcon::unit_type_id type = subunit.get_type();
+
+	auto supply_mod = military::get_supply_cost_modifiers(state, subunit);
+
+	const auto& supply_cost = state.military_definitions.unit_base_definitions[type].supply_cost;
+	for(uint32_t i = 0; i < supply_cost.set_size; ++i) {
+		dcon::commodity_id com_id = supply_cost.commodity_type[i];
+		if(com_id) {
+			float required_amounts = supply_cost.commodity_amounts[i];
+			supply_acc_func(com_id, required_amounts * supply_mod);
+
+		} else {
+			break;
+		}
+	}
+	const auto& build_cost = state.military_definitions.unit_base_definitions[type].build_cost;
+	auto reinforcement = military::estimate_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, false>(state, subunit);
+	for(uint32_t i = 0; i < economy::commodity_set::set_size; ++i) {
+		auto com_id = build_cost.commodity_type[i];
+		if(com_id) {
+			float required_amounts = build_cost.commodity_amounts[i];
+			// Unit need reinforcement - add extra consumption. Every 1% of reinforcement demands 1% of unit cost
+			reinf_acc_func(com_id, required_amounts * reinforcement);
+
+		} else {
+			break;
+		}
+	}
+}
+
+// Accumulates the consumption required for a unit (army or navy) using the functors for Supply consumption and Reinforcement consumption respectively
+// Functor signature is: (dcon::commodity_id, float)
+template<concepts::military_unit unit_type, typename FSupply, typename FReinf>
+void accumulate_unit_consumption(sys::state& state, unit_type unit, FSupply&& acc_supply_func, FReinf&& acc_reinf_func) {
+	dcon::nation_id nation = military::unit_get_controller(state, unit);
+
+	auto unit_membership = military::unit_get_membership(state, unit);
+	for(auto r : unit_membership) {
+		// Accumulate the commodities needed
+		auto subunit = [&]() {
+			if constexpr(std::is_same_v<unit_type, dcon::army_id>) {
+				return r.get_regiment();
+			} else if constexpr(std::is_same_v<unit_type, dcon::navy_id>) {
+				return r.get_ship();
+			}
+		}();
+		accumulate_subunit_consumption(state, nation, subunit.id, acc_supply_func, acc_reinf_func);
+	}
+}
 
 template<typename F>
 void for_each_unit(const sys::state& state, F&& func) {
 	state.world.for_each_army(func);
 	state.world.for_each_navy(func);
+}
+
+template<typename F>
+void ve_for_each_unit(const sys::state& state, F&& func) {
+	state.world.execute_serial_over_army(func);
+	state.world.execute_serial_over_navy(func);
 }
 
 template<typename F>
@@ -465,6 +526,12 @@ void parallel_for_each_unit(const sys::state& state, F&& func) {
 			func(navy);
 		}
 	});
+}
+
+template<typename F>
+void ve_parallel_for_each_unit(const sys::state& state, F&& func) {
+	state.world.execute_parallel_over_army(func);
+	state.world.execute_parallel_over_navy(func);
 }
 
 

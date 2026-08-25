@@ -352,7 +352,7 @@ public:
 					return;
 				}
 				if(unit_icon) unit_icon->frame = state.military_definitions.unit_base_definitions[type].icon - 1;
-				if(unit_building_progress) unit_building_progress->progress = economy::unit_construction_progress(state, c);
+				if(unit_building_progress) unit_building_progress->progress = economy::construction_progress(state, c);
 			} else if(std::holds_alternative<dcon::province_naval_construction_id>(content)) {
 				auto c = std::get<dcon::province_naval_construction_id>(content);
 				auto type = state.world.province_naval_construction_get_type(c);
@@ -360,7 +360,7 @@ public:
 					return;
 				}
 				if(unit_icon) unit_icon->frame = state.military_definitions.unit_base_definitions[type].icon - 1;
-				if(unit_building_progress) unit_building_progress->progress = economy::unit_construction_progress(state, c);
+				if(unit_building_progress) unit_building_progress->progress = economy::construction_progress(state, c);
 			}
 		} else {
 			auto regiments = 0;

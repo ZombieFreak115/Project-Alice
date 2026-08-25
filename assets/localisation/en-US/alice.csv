@@ -2039,7 +2039,6 @@ naval_reinforcement_consumption;Navy reinforcements
 naval_supply_consumption;Navy supply
 budget_military_settings;Satisfaction
 government_stockpiles_target;Current target: $val$
-alice_budget_military_construction;Mil. Construction
 subsidies_label;Subsidies
 effective_output_tooltip;Effective output (output divided by base output)
 subsidies_explanation_tooltip;Total volume of subsidies is decided by national budget. Factories receive for subsidies proportionally to their effective output. You can set subsidies in updated production menu via directives.
@@ -2094,3 +2093,7 @@ confirm_stockpile_target_tooltip;Confirm the stockpile target
 stockpile_target_set_label;Set stockpile target:
 military_stockpile_info_tooltip;Each commodity icon and the numbers under it displays diffrent values about the state of all summed-up government stockpiles. It shows:\n    -The current amount present in stockpiles\n    -The current stockpile target for the stockpile spending setting\n    -The daily amount change (positive or negative)\n    -The estimated amount of days left until stockpile exhaustion.\nSelect a commodity by ?Gright-clicking?W the icon to set a stockpile target in the right window.
 military_stockpile_targets_info_tooltip;Once a commodity is selected, its stockpile target can be set here by typing in a new target (number with or without decimals allowed), and clicking on the confirmation button below.
+army_construction_consumption;Army Constructions
+navy_construction_consumption;Navy Constructions
+factory_construction_consumption;Factory Constructions
+building_construction_consumption;Building Constructions

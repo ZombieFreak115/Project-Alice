@@ -2255,11 +2255,14 @@ void create_nation_based_on_template(sys::state& state, dcon::nation_id n, dcon:
 	state.world.nation_set_land_spending(n, int8_t(100));
 	state.world.nation_set_naval_spending(n, int8_t(100));
 	state.world.nation_set_construction_spending(n, int8_t(100));
-	state.world.nation_set_military_construction_spending(n, int8_t(100));
 	state.world.nation_set_naval_supply_consumption(n, int8_t(100));
 	state.world.nation_set_naval_reinforcement_consumption(n, int8_t(100));
 	state.world.nation_set_land_supply_consumption(n, int8_t(100));
 	state.world.nation_set_naval_supply_consumption(n, int8_t(100));
+	state.world.nation_set_army_construction_consumption(n, int8_t(100));
+	state.world.nation_set_navy_construction_consumption(n, int8_t(100));
+	state.world.nation_set_factory_construction_consumption(n, int8_t(100));
+	state.world.nation_set_building_construction_consumption(n, int8_t(100));
 	state.world.nation_set_effective_construction_spending(n, 1.0f);
 	state.world.nation_set_spending_level(n, 1.0f);
 	state.world.nation_set_poor_tax(n, int8_t(50));

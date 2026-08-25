@@ -19,13 +19,13 @@ auto desired_needs_spending([[maybe_unused]] sys::state const& state, [[maybe_un
 struct total_stockpile_spendings {
 	float army_stockpile_spendings = 0.0f;
 	float navy_stockpile_spendings = 0.0f;
-	float military_construction_spendings = 0.0f;
+	float construction_spendings = 0.0f;
 	float stockpile_filling_spendings = 0.0f;
 };
 struct total_stockpile_spendings_by_commodity {
 	tagged_vector<float, dcon::unit_supply_and_build_commodity_id> army_stockpile_spendings{ };
 	tagged_vector<float, dcon::unit_supply_and_build_commodity_id> navy_stockpile_spendings{ };
-	tagged_vector<float, dcon::unit_build_commodity_id> military_construction_spendings{ };
+	tagged_vector<float, dcon::commodity_id> construction_spendings{ };
 	tagged_vector<float, dcon::commodity_id> stockpile_filling_spendings{ };
 };
 
@@ -102,7 +102,6 @@ float farmer_min_wage(sys::state& state, dcon::market_id m, float min_wage_facto
 float laborer_min_wage(sys::state& state, dcon::market_id m, float min_wage_factor);
 
 void daily_update(sys::state& state, bool presimulation, float presimulation_stage);
-void resolve_building_constructions(sys::state& state);
 
 std::vector<dcon::factory_type_id> commodity_get_factory_types_as_output(sys::state const& state, dcon::commodity_id output_good);
 
@@ -155,6 +154,9 @@ std::vector<full_construction_factory> estimate_private_investment_upgrade(sys::
 std::vector<full_construction_factory> estimate_private_investment_construct(sys::state& state, dcon::nation_id nid, bool craved, float est_private_const_spending, bool& potential_target_exists);
 std::vector<full_construction_province> estimate_private_investment_province(sys::state& state, dcon::nation_id nid, float est_private_const_spending);
 
+void change_factory_type_in_province(sys::state& state, dcon::province_id p, dcon::factory_type_id t, dcon::factory_type_id refit_target);
+void add_factory_level_to_province(sys::state& state, dcon::province_id p, dcon::factory_type_id t);
+
 // NOTE: used to estimate how much you will pay if you were to subsidize a particular nation,
 // *not* how much you are paying at the moment
 float estimate_war_subsidies(sys::state& state, dcon::nation_id target, dcon::nation_id source);
@@ -168,8 +170,6 @@ float estimate_daily_income(sys::state& state, dcon::nation_id n);
 construction_status province_building_construction(sys::state& state, dcon::province_id, province_building_type t);
 construction_status factory_upgrade(sys::state& state, dcon::factory_id f);
 
-float unit_construction_progress(sys::state& state, dcon::province_land_construction_id c);
-float unit_construction_progress(sys::state& state, dcon::province_naval_construction_id c);
 void try_add_factory_to_state(sys::state& state, dcon::state_instance_id s, dcon::factory_type_id t);
 void bound_budget_settings(sys::state& state, dcon::nation_id n);
 

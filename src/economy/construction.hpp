@@ -9,8 +9,6 @@ struct state;
 
 namespace economy {
 
-float factory_construction_progress(sys::state& state, dcon::factory_construction_id construction);
-
 enum class construction_completed : uint8_t {
 	no,
 	yes
@@ -30,9 +28,9 @@ economy::commodity_set calculate_factory_upgrade_goods_cost(
 
 float estimate_private_construction_spendings(sys::state& state, dcon::nation_id nid);
 void populate_construction_consumption(sys::state& state);
-void populate_military_construction_consumption(sys::state& state);
-float estimate_military_construction_stockpile_spending(const sys::state& state, dcon::nation_id nation, float budget);
-tagged_vector<float, dcon::unit_build_commodity_id> estimate_military_construction_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation, float budget);
+void populate_government_construction_consumption(sys::state& state);
+float estimate_construction_stockpile_spending(const sys::state& state, dcon::nation_id nation, float budget);
+tagged_vector<float, dcon::commodity_id> estimate_construction_stockpile_spending_by_commodity(const sys::state& state, dcon::nation_id nation, float budget);
 
 
 
@@ -91,18 +89,67 @@ construction_spending_explanation explain_construction_spending(
 );
 bool can_advance_construction(const sys::state& state, dcon::province_naval_construction_id con);
 bool can_advance_construction(const sys::state& state, dcon::province_land_construction_id con);
+bool can_advance_construction(const sys::state& state, dcon::factory_construction_id con);
+bool can_advance_construction(const sys::state& state, dcon::province_building_construction_id con);
 
-float build_cost_multiplier(const sys::state& state, dcon::province_id location, bool is_pop_project);
-float global_factory_construction_time_modifier(sys::state& state);
-float factory_building_construction_time(sys::state& state, dcon::factory_type_id ftid, bool is_upgrade);
-float factory_build_cost_multiplier(sys::state& state, dcon::nation_id n, dcon::province_id location, bool is_pop_project);
+float construction_build_cost_multiplier(const sys::state& state, dcon::province_land_construction_id con);
+float construction_build_cost_multiplier(const sys::state& state, dcon::province_naval_construction_id con);
+float construction_build_cost_multiplier(const sys::state& state, dcon::province_building_construction_id con);
+float construction_build_cost_multiplier(const sys::state& state, dcon::factory_construction_id con);
+
+template<concepts::construction_type con_type>
+economy::commodity_set construction_get_actual_build_cost(const sys::state& state, con_type construction);
+
+template<concepts::construction_type con_type>
+float construction_progress(const sys::state& state, con_type c);
+
+float location_build_cost_multiplier(const sys::state& state, dcon::province_id location, bool is_pop_project);
+float global_factory_construction_time_modifier(const sys::state& state);
+uint32_t factory_building_construction_time(const sys::state& state, dcon::factory_type_id ftid, bool is_upgrade);
+
+template<concepts::construction_type con_type>
+uint32_t construction_get_actual_construction_time(const sys::state& state, con_type con);
+
+float factory_build_cost_multiplier(const sys::state& state, dcon::nation_id n, dcon::province_id location, bool privately_owned);
+template<concepts::construction_type con_type>
+const economy::commodity_set& construction_get_base_build_cost(const sys::state& state, con_type construction);
+template<concepts::construction_type con_type>
+economy::commodity_set& construction_get_base_build_cost(sys::state& state, con_type construction);
+template<concepts::construction_type con_type>
+const economy::commodity_set& get_purchased_goods(const sys::state& state, con_type construction);
+template<concepts::construction_type con_type>
+economy::commodity_set& get_purchased_goods(sys::state& state, con_type construction);
+
+template<concepts::construction_type con_type>
+bool construction_is_privately_owned(const sys::state& state, con_type construction);
+
+
+dcon::internal::const_iterator_province_land_construction_foreach_land_construction_supply_route_as_construction_generator construction_get_supply_routes(const sys::state& state, dcon::province_land_construction_id con);
+dcon::internal::iterator_province_land_construction_foreach_land_construction_supply_route_as_construction_generator construction_get_supply_routes(sys::state& state, dcon::province_land_construction_id con);
+dcon::internal::const_iterator_province_naval_construction_foreach_naval_construction_supply_route_as_construction_generator construction_get_supply_routes(const sys::state& state, dcon::province_naval_construction_id con);
+dcon::internal::iterator_province_naval_construction_foreach_naval_construction_supply_route_as_construction_generator construction_get_supply_routes(sys::state& state, dcon::province_naval_construction_id con);
+dcon::internal::const_iterator_factory_construction_foreach_factory_construction_supply_route_as_construction_generator construction_get_supply_routes(const sys::state& state, dcon::factory_construction_id con);
+dcon::internal::iterator_factory_construction_foreach_factory_construction_supply_route_as_construction_generator construction_get_supply_routes(sys::state& state, dcon::factory_construction_id con);
+dcon::internal::const_iterator_province_building_construction_foreach_building_construction_supply_route_as_construction_generator construction_get_supply_routes(const sys::state& state, dcon::province_building_construction_id con);
+dcon::internal::iterator_province_building_construction_foreach_building_construction_supply_route_as_construction_generator construction_get_supply_routes(sys::state& state, dcon::province_building_construction_id con);
+
+
+
 uint32_t land_unit_construction_time(const sys::state& state, dcon::unit_type_id utid, dcon::nation_id builder);
 uint32_t naval_unit_construction_time(const sys::state& state, dcon::unit_type_id utid, dcon::nation_id builder);
 void populate_private_construction_consumption(sys::state& state);
-void advance_construction(sys::state& state, dcon::nation_id n, float total_spent_on_construction);
+void advance_nation_private_constructions(sys::state& state, dcon::nation_id n, float total_spent_on_construction);
 void emulate_construction_demand(sys::state& state, dcon::nation_id n);
+
+// Resolves all constructions which are advancable, has been constructing for enough time, and has all goods required
+void resolve_constructions(sys::state& state);
+
+// Advances all valid and advancable constructions by 1 day
+void advance_constructions_progress(sys::state& state);
+
+
 construction_spending_explanation explain_construction_spending_now(sys::state& state, dcon::nation_id n);
-economy::commodity_set calculate_factory_refit_goods_cost(sys::state& state, dcon::nation_id n, dcon::province_id pid, dcon::factory_type_id from, dcon::factory_type_id to);
+economy::commodity_set calculate_factory_refit_goods_cost(const sys::state& state, dcon::nation_id n, dcon::province_id pid, dcon::factory_type_id from, dcon::factory_type_id to);
 float calculate_factory_refit_money_cost(sys::state& state, dcon::nation_id n, dcon::province_id pid, dcon::factory_type_id from, dcon::factory_type_id to);
 float calculate_factory_refit_money_cost(sys::state& state, dcon::nation_id n, dcon::province_id pid, dcon::factory_type_id from, dcon::factory_type_id to);
 

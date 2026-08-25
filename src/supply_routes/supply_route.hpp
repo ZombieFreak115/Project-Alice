@@ -22,6 +22,23 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::navy_suppl
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::land_construction_supply_route_id route);
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_construction_supply_route_id route);
 
+int8_t army_supply_setting_min(const sys::state& state, dcon::nation_id nation);
+int8_t army_supply_setting_max(const sys::state& state, dcon::nation_id nation);
+int8_t army_reinforcement_setting_min(const sys::state& state, dcon::nation_id nation);
+int8_t army_reinforcement_setting_max(const sys::state& state, dcon::nation_id nation);
+int8_t navy_supply_setting_min(const sys::state& state, dcon::nation_id nation);
+int8_t navy_supply_setting_max(const sys::state& state, dcon::nation_id nation);
+int8_t navy_reinforcement_setting_min(const sys::state& state, dcon::nation_id nation);
+int8_t navy_reinforcement_setting_max(const sys::state& state, dcon::nation_id nation);
+int8_t army_construction_setting_min(const sys::state& state, dcon::nation_id nation);
+int8_t army_construction_setting_max(const sys::state& state, dcon::nation_id nation);
+int8_t navy_construction_setting_min(const sys::state& state, dcon::nation_id nation);
+int8_t navy_construction_setting_max(const sys::state& state, dcon::nation_id nation);
+int8_t factory_construction_setting_min(const sys::state& state, dcon::nation_id nation);
+int8_t factory_construction_setting_max(const sys::state& state, dcon::nation_id nation);
+int8_t building_construction_setting_min(const sys::state& state, dcon::nation_id nation);
+int8_t building_construction_setting_max(const sys::state& state, dcon::nation_id nation);
+
 void update_nations_supply_cache(sys::state& state);
 
 // Computes the efficiency of a construct with has consumed vs available. Eg supply throughput
@@ -62,6 +79,47 @@ float calculate_adjacency_net_supply_loss(const sys::state& state, dcon::provinc
 float calculate_adjacency_avg_supply_loss(const sys::state& state, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as);
 float calculate_adjacency_avg_supply_loss(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::nation_id nation_as);
 void update_supply_routes_daily(sys::state& state);
+
+
+template<command::actor actor>
+bool can_change_army_supply_consumption_setting(const sys::state& state, dcon::nation_id source, int8_t new_setting);
+template<command::actor actor>
+void change_army_supply_consumption_setting(sys::state& state, dcon::nation_id source, int8_t new_setting);
+
+template<command::actor actor>
+bool can_change_army_reinforcement_consumption_setting(const sys::state& state, dcon::nation_id source, int8_t new_setting);
+template<command::actor actor>
+void change_army_reinforcement_consumption_setting(sys::state& state, dcon::nation_id source, int8_t new_setting);
+
+template<command::actor actor>
+bool can_change_navy_supply_consumption_setting(const sys::state& state, dcon::nation_id source, int8_t new_setting);
+template<command::actor actor>
+void change_navy_supply_consumption_setting(sys::state& state, dcon::nation_id source, int8_t new_setting);
+
+template<command::actor actor>
+bool can_change_navy_reinforcement_consumption_setting(const sys::state& state, dcon::nation_id source, int8_t new_setting);
+template<command::actor actor>
+void change_navy_reinforcement_consumption_setting(sys::state& state, dcon::nation_id source, int8_t new_setting);
+
+template<command::actor actor>
+bool can_change_army_construction_consumption_setting(const sys::state& state, dcon::nation_id source, int8_t new_setting);
+template<command::actor actor>
+void change_army_construction_consumption_setting(sys::state& state, dcon::nation_id source, int8_t new_setting);
+
+template<command::actor actor>
+bool can_change_navy_construction_consumption_setting(const sys::state& state, dcon::nation_id source, int8_t new_setting);
+template<command::actor actor>
+void change_navy_construction_consumption_setting(sys::state& state, dcon::nation_id source, int8_t new_setting);
+
+template<command::actor actor>
+bool can_change_factory_construction_consumption_setting(const sys::state& state, dcon::nation_id source, int8_t new_setting);
+template<command::actor actor>
+void change_factory_construction_consumption_setting(sys::state& state, dcon::nation_id source, int8_t new_setting);
+
+template<command::actor actor>
+bool can_change_building_construction_consumption_setting(const sys::state& state, dcon::nation_id source, int8_t new_setting);
+template<command::actor actor>
+void change_building_construction_consumption_setting(sys::state& state, dcon::nation_id source, int8_t new_setting);
 
 
 }

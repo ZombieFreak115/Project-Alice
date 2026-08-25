@@ -286,6 +286,10 @@ inline void new_national_construction(sys::state& state, dcon::nation_id n, dcon
 	new_up.set_is_pop_project(false);
 	new_up.set_is_upgrade(false);
 	new_up.set_type(ftid);
+	const auto& base_cost = state.world.factory_type_get_construction_costs(ftid);
+	auto& purchased_goods = economy::get_purchased_goods(state, new_up.id);
+	// init types in new set
+	base_cost.copy_types_to(purchased_goods);
 }
 
 inline void new_national_upgrade(sys::state& state, dcon::nation_id n, dcon::province_id p, dcon::factory_type_id ftid) {
@@ -293,6 +297,10 @@ inline void new_national_upgrade(sys::state& state, dcon::nation_id n, dcon::pro
 	new_up.set_is_pop_project(false);
 	new_up.set_is_upgrade(true);
 	new_up.set_type(ftid);
+	const auto& base_cost = state.world.factory_type_get_construction_costs(ftid);
+	auto& purchased_goods = economy::get_purchased_goods(state, new_up.id);
+	// init types in new set
+	base_cost.copy_types_to(purchased_goods);
 }
 
 void build_or_upgrade_desired_factories(
@@ -552,6 +560,9 @@ void update_ai_econ_construction(sys::state& state) {
 				auto new_rr = fatten(state.world, state.world.force_create_province_building_construction(project_provs[0], n));
 				new_rr.set_is_pop_project(false);
 				new_rr.set_type(uint8_t(economy::province_building_type::naval_base));
+				auto& purchased_goods = economy::get_purchased_goods(state, new_rr.id);
+				// init types in new set
+				costs.copy_types_to(purchased_goods);
 				additional_expenses += expected_item_cost;
 			}
 		}
@@ -619,6 +630,9 @@ void update_ai_econ_construction(sys::state& state) {
 					auto new_proj = fatten(state.world, state.world.force_create_province_building_construction(project_provs[j], n));
 					new_proj.set_is_pop_project(false);
 					new_proj.set_type(uint8_t(econ_buildable[i].type));
+					economy::commodity_set& purchased_goods = economy::get_purchased_goods(state, new_proj.id);
+					// init types in commodity set
+					costs.copy_types_to(purchased_goods);
 					additional_expenses += expected_item_cost;
 				}
 			}
@@ -691,6 +705,9 @@ void update_ai_econ_construction(sys::state& state) {
 				auto new_rr = fatten(state.world, state.world.force_create_province_building_construction(project_provs[i], n));
 				new_rr.set_is_pop_project(false);
 				new_rr.set_type(uint8_t(economy::province_building_type::fort));
+				auto& purchased_goods = economy::get_purchased_goods(state, new_rr.id);
+				// init types in new set
+				costs.copy_types_to(purchased_goods);
 				additional_expenses += expected_item_cost;
 			}
 		}
@@ -759,7 +776,6 @@ void update_budget(sys::state& state, bool presim) {
 		float investments_budget_ratio = 0.15f;
 		float soldiers_budget_ratio = 0.1f;
 		float construction_budget_ratio = 0.45f;
-		float mil_construction_budget_ratio = 0.0f;
 		float stockpile_budget_ratio = 0.0f;
 		float overseas_maintenance_budget_ratio = 0.10f;
 
@@ -774,10 +790,6 @@ void update_budget(sys::state& state, bool presim) {
 			naval_supply_consumption *= 6.0f;
 			naval_reinf_consumption *= 6.0f;
 
-			// If at war and we are constructing mil units, spend some of the budget on it
-			if(total_military_constructions > 0) {
-				mil_construction_budget_ratio += 0.15f;
-			}
 
 		} else if(n.get_ai_is_threatened()) {
 			land_budget_ratio *= 1.5f;
@@ -789,10 +801,6 @@ void update_budget(sys::state& state, bool presim) {
 			naval_supply_consumption *= 2.0f;
 			naval_reinf_consumption *= 2.0f;
 
-			if(total_military_constructions > 0) {
-				// If threatened and has unit constructions, then spend some money to complete them
-				mil_construction_budget_ratio += 0.1f;
-			}
 			// spend some money on stockpiling important goods while threatened in peacetime
 			stockpile_budget_ratio += 0.10f;
 			
@@ -803,17 +811,8 @@ void update_budget(sys::state& state, bool presim) {
 
 			land_supply_consumption *= 2.5f;
 			land_reinf_consumption *= 2.5f;
-
-			if(total_military_constructions > 0) {
-				// If threatened and has unit constructions, then spend some money to complete them
-				mil_construction_budget_ratio += 0.5f;
-			}
 		}
 		else {
-			if(total_military_constructions > 0) {
-				// If any constructions and we arent at war or threatened, only spend a small amount
-				mil_construction_budget_ratio += 0.05f;
-			}
 			// spend some money on stockpiling important goods in peacetime
 			stockpile_budget_ratio += 0.08f;
 		}
@@ -823,6 +822,10 @@ void update_budget(sys::state& state, bool presim) {
 		n.set_land_spending(int8_t(land_budget_ratio * 100.0f));
 		n.set_land_supply_consumption(int8_t(land_supply_consumption * 100.0f));
 		n.set_land_reinforcement_consumption(int8_t(land_reinf_consumption * 100.0f));
+		n.set_army_construction_consumption(int8_t(100));
+		n.set_navy_construction_consumption(int8_t(100));
+		n.set_factory_construction_consumption(int8_t(100));
+		n.set_building_construction_consumption(int8_t(100));
 
 		n.set_naval_spending(int8_t(sea_budget_ratio * 100.0f));
 		n.set_naval_supply_consumption(int8_t(naval_supply_consumption * 100.0f));
@@ -836,7 +839,6 @@ void update_budget(sys::state& state, bool presim) {
 
 		n.set_education_spending(int8_t(education_budget_ratio * 100.f));
 		n.set_construction_spending(int8_t(construction_budget_ratio * 100.f));
-		n.set_military_construction_spending(int8_t(mil_construction_budget_ratio * 100.f));
 		n.set_stockpile_spending(int8_t(stockpile_budget_ratio * 100.f));
 
 		// If State can build factories - why subsidize capitalists
