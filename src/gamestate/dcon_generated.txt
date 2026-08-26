@@ -5038,6 +5038,161 @@ relationship{
 		tag{ save }
 	}
 }
+relationship{
+	name{ supply_route_path }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{province}
+		name{destination}
+		type{many}
+		index_storage{array}
+	}
+	link{
+		object{market}
+		name{origin}
+		type{many}
+		index_storage{array}
+	}
+	composite_key{
+		name{origin_destination_pair}
+		index{destination}
+		index{origin}
+	}
+
+	property{
+		name{ path }
+		type{vector_pool{5000}{province_id}}
+		tag{ save }
+	}
+
+	property{
+		name{ path_out_of_date }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ valid_path }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ inactive_days }
+		type{ uint8_t }
+		tag{ save }
+	}
+}
+
+relationship{
+	name{ army_route_path }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{army_supply_route}
+		name{route}
+		type{unique}
+	}
+	link{
+		object{supply_route_path}
+		name{path}
+		type{many}
+		index_storage{array}
+	}
+}
+relationship{
+	name{ navy_route_path }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{navy_supply_route}
+		name{route}
+		type{unique}
+	}
+	link{
+		object{supply_route_path}
+		name{path}
+		type{many}
+		index_storage{array}
+	}
+}
+relationship{
+	name{ land_construction_route_path }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{land_construction_supply_route}
+		name{route}
+		type{unique}
+	}
+	link{
+		object{supply_route_path}
+		name{path}
+		type{many}
+		index_storage{array}
+	}
+}
+relationship{
+	name{ naval_construction_route_path }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{naval_construction_supply_route}
+		name{route}
+		type{unique}
+	}
+	link{
+		object{supply_route_path}
+		name{path}
+		type{many}
+		index_storage{array}
+	}
+}
+relationship{
+	name{ factory_construction_route_path }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{factory_construction_supply_route}
+		name{route}
+		type{unique}
+	}
+	link{
+		object{supply_route_path}
+		name{path}
+		type{many}
+		index_storage{array}
+	}
+}
+relationship{
+	name{ building_construction_route_path }
+	storage_type{ compactable }
+	size{ 50000 }
+	tag{ save }
+
+	link{
+		object{building_construction_supply_route}
+		name{route}
+		type{unique}
+	}
+	link{
+		object{supply_route_path}
+		name{path}
+		type{many}
+		index_storage{array}
+	}
+}
 
 
 
@@ -5064,25 +5219,9 @@ relationship{
 		index{army}
 		index{origin}
 	}
-
-	property{
-		name{ path_out_of_date }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
-		name{ is_active }
-		type{ bitfield }
-		tag{ save }
-	}
 	property{
 		name{ inactive_days }
 		type{ uint8_t }
-		tag{ save }
-	}
-	property{
-		name{ path }
-		type{vector_pool{5000}{province_id}}
 		tag{ save }
 	}
 	property{
@@ -5138,23 +5277,8 @@ relationship{
 		index{origin}
 	}
 	property{
-		name{ path_out_of_date }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
-		name{ is_active }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
 		name{ inactive_days }
 		type{ uint8_t }
-		tag{ save }
-	}
-	property{
-		name{ path }
-		type{vector_pool{5000}{province_id}}
 		tag{ save }
 	}
 	property{
@@ -5215,23 +5339,8 @@ relationship{
 		index{origin}
 	}
 	property{
-		name{ path_out_of_date }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
-		name{ is_active }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
 		name{ inactive_days }
 		type{ uint8_t }
-		tag{ save }
-	}
-	property{
-		name{ path }
-		type{vector_pool{5000}{province_id}}
 		tag{ save }
 	}
 	property{
@@ -5283,23 +5392,8 @@ relationship{
 		index{origin}
 	}
 	property{
-		name{ path_out_of_date }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
-		name{ is_active }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
 		name{ inactive_days }
 		type{ uint8_t }
-		tag{ save }
-	}
-	property{
-		name{ path }
-		type{vector_pool{5000}{province_id}}
 		tag{ save }
 	}
 	property{
@@ -5352,23 +5446,8 @@ relationship{
 		index{origin}
 	}
 	property{
-		name{ path_out_of_date }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
-		name{ is_active }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
 		name{ inactive_days }
 		type{ uint8_t }
-		tag{ save }
-	}
-	property{
-		name{ path }
-		type{vector_pool{5000}{province_id}}
 		tag{ save }
 	}
 	property{
@@ -5419,23 +5498,8 @@ relationship{
 		index{origin}
 	}
 	property{
-		name{ path_out_of_date }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
-		name{ is_active }
-		type{ bitfield }
-		tag{ save }
-	}
-	property{
 		name{ inactive_days }
 		type{ uint8_t }
-		tag{ save }
-	}
-	property{
-		name{ path }
-		type{vector_pool{5000}{province_id}}
 		tag{ save }
 	}
 	property{

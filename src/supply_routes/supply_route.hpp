@@ -13,6 +13,9 @@ dcon::province_id supply_route_get_origin(const sys::state& state, dcon::navy_su
 dcon::province_id supply_route_get_origin(const sys::state& state, dcon::land_construction_supply_route_id route);
 dcon::province_id supply_route_get_origin(const sys::state& state, dcon::naval_construction_supply_route_id route);
 
+template<concepts::supply_route_type route_type>
+bool supply_route_is_active(const sys::state& state, route_type route);
+
 template<concepts::unit_supply_or_build_commodity_type commodity_type, concepts::military_supply_route_type route_type>
 float military_route_get_buffered_goods(const sys::state& state, route_type route, commodity_type commodity_id);
 
@@ -21,6 +24,14 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::army_suppl
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::navy_supply_route_id route);
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::land_construction_supply_route_id route);
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_construction_supply_route_id route);
+
+dcon::supply_route_path_id create_supply_route_path_no_pathing(sys::state& state, dcon::province_id destination, dcon::market_id origin);
+
+template<concepts::supply_route_type route_type>
+dcon::supply_route_path_id supply_route_get_path(const sys::state& state, route_type route);
+
+template<concepts::supply_route_type route_type>
+dcon::market_id supply_route_get_origin_market(const sys::state& state, route_type route);
 
 int8_t army_supply_setting_min(const sys::state& state, dcon::nation_id nation);
 int8_t army_supply_setting_max(const sys::state& state, dcon::nation_id nation);

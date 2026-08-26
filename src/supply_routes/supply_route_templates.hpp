@@ -104,6 +104,13 @@ void ve_parallel_for_each_supply_route(sys::state& state, F&& functor) {
 }
 
 
+template<typename F>
+void parallel_for_each_supply_route_path(sys::state& state, F&& functor) {
+	concurrency::parallel_for(uint32_t(0), state.world.supply_route_path_size(), [&](uint32_t i) {
+		dcon::supply_route_path_id route = dcon::supply_route_path_id{ dcon::supply_route_path_id::value_base_t(i) };
+		functor(route);
+	});
+}
 
 
 

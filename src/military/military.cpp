@@ -199,7 +199,10 @@ void schedule_all_supply_paths_update(sys::state& state) {
 		float loss = route.get_supply_loss();
 		// update it if throughput is less than 100%, and if loss is greater than 35%
 		if (throughput < 1.0f || loss < 0.65f) {
-			route.set_path_out_of_date(true);
+			dcon::supply_route_path_id path = supply_routes::supply_route_get_path(state, r);
+			if(path) {
+				state.world.supply_route_path_set_path_out_of_date(path, true);
+			}
 		}
 	});
 }
@@ -5317,16 +5320,23 @@ void army_arrives_in_province(sys::state& state, dcon::army_id a, dcon::province
 
 	// Schedule a supply route paths update if the location was changed from the previous one, and updates supply routes passing through destination and previous location if they are enemies with the army owner
 	if(prev_location != p) {
+		auto army_owner = state.world.army_get_controller_from_army_control(a);
+		schedule_prov_enemy_supply_paths_update(state, p, army_owner);
+		// Now that the army is in a diffrent province, update the connected supply routes' paths to reflect it. simply move over to a new path if one exists or create one withput pathing
 		for(auto sup_route : state.world.army_get_army_supply_route(a)) {
-			sup_route.set_path_out_of_date(true);
+			dcon::market_id origin_market = supply_routes::supply_route_get_origin_market(state, sup_route.id);
+			dcon::province_id dest = supply_routes::supply_route_get_destination(state, sup_route.id);
+			dcon::supply_route_path_id sup_path = state.world.get_supply_route_path_by_origin_destination_pair(dest, origin_market);
+			if(!sup_path) {
+				sup_path = supply_routes::create_supply_route_path_no_pathing(state, dest, origin_market );
+			}
+			state.world.force_create_army_route_path(sup_route, sup_path );
 		}
 		if(prev_location) {
-			auto prev_loc_controller = state.world.province_get_nation_from_province_control(prev_location);
-			auto new_loc_controller = state.world.province_get_nation_from_province_control(p);
-			auto army_owner = state.world.army_get_controller_from_army_control(a);
 			schedule_prov_enemy_supply_paths_update(state, prev_location, army_owner);
-			schedule_prov_enemy_supply_paths_update(state, p, army_owner);
 		}
+
+
 	}
 
 	bool is_sea_prov = province::is_sea(state, p);
@@ -8900,15 +8910,19 @@ void navy_arrives_in_province(sys::state& state, dcon::navy_id n, dcon::province
 
 	// Schedule a supply route paths update if the location was changed from the previous one, and updates supply routes passing through destination and previous location if they are enemies with the army owner
 	if(prev_location != p) {
+		auto navy_owner = state.world.navy_get_controller_from_navy_control(n);
+		schedule_prov_enemy_supply_paths_update(state, p, navy_owner);
 		for(auto sup_route : state.world.navy_get_navy_supply_route(n)) {
-			sup_route.set_path_out_of_date(true);
+			dcon::market_id origin_market = supply_routes::supply_route_get_origin_market(state, sup_route.id);
+			dcon::province_id dest = supply_routes::supply_route_get_destination(state, sup_route.id);
+			dcon::supply_route_path_id sup_path = state.world.get_supply_route_path_by_origin_destination_pair(dest, origin_market);
+			if(!sup_path) {
+				sup_path = supply_routes::create_supply_route_path_no_pathing(state, dest, origin_market);
+			}
+			state.world.force_create_navy_route_path(sup_route, sup_path);
 		}
 		if(prev_location) {
-			auto prev_loc_controller = state.world.province_get_nation_from_province_control(prev_location);
-			auto new_loc_controller = state.world.province_get_nation_from_province_control(p);
-			auto army_owner = state.world.navy_get_controller_from_navy_control(n);
-			schedule_prov_enemy_supply_paths_update(state, prev_location, army_owner);
-			schedule_prov_enemy_supply_paths_update(state, p, army_owner);
+			schedule_prov_enemy_supply_paths_update(state, prev_location, navy_owner);
 		}
 
 	}

@@ -1457,7 +1457,7 @@ void resolve_constructions(sys::state& state) {
 				auto new_ship = military::create_new_ship(state, owner, construction_get_type(state, con));
 				auto a = fatten(state.world, state.world.create_navy());
 				a.set_controller_from_navy_control(owner);
-				a.set_location_from_navy_location(location);
+				military::navy_arrives_in_province(state, a, location);
 				state.world.try_create_navy_membership(new_ship, a);
 				military::move_navy_to_merge(state, owner, a, location, template_prov);
 

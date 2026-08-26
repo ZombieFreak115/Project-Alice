@@ -2229,7 +2229,7 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 	auto routes = military::unit_get_supply_routes(state, unit);
 
 	for(auto route : routes) {
-		if(route.get_is_active()) {
+		if(supply_routes::supply_route_is_active(state, route.id)) {
 			for_each_relevant_unit_commodity([&](auto com_id) {
 				dcon::commodity_id base_commodity = economy::unit_commodity_get_base_commodity(state, com_id);
 				float com_supply_loss_mod = state.world.commodity_get_supply_loss_rate(base_commodity);
