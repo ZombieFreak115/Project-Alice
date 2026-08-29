@@ -3023,6 +3023,7 @@ constexpr float lacking_supply_throughput_path_factor = 100.0f;
 // Creates a military supply path, but will actively try to find the path with good supply thoughput and supply attrition. Path is inserted into the passed-in buffer. Buffer must be cleared first
 bool make_military_supply_path(const sys::state& state, dcon::province_id origin_prov, dcon::province_id destination, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result) {
 	struct iteration_data {
+		float prov_supply_throughput{ };
 		float adj_total_supply_throughput{};
 		float free_supply_throughput{};
 		float supply_efficiency{};
@@ -3038,7 +3039,12 @@ bool make_military_supply_path(const sys::state& state, dcon::province_id origin
 		return data.adj_total_supply_throughput > 0.0 && !is_adjacency_impassable(state, nation_as, adj);
 	};
 	auto province_func = [&](dcon::province_id to, iteration_data data) {
-		return true; // Province is always valid. Invalidity can only be checked at the adjacency level, as that is where the supply throughput is
+		if(data.prov_supply_throughput == 0.0f) {
+			return military::province_has_army<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::ourselves>(state, to, nation_as);
+		}
+		else {
+			return true;
+		}
 
 	};
 	auto modifier_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data data) {
@@ -3053,7 +3059,9 @@ bool make_military_supply_path(const sys::state& state, dcon::province_id origin
 		return distance * supply_loss_factor / supply_throughput_factor;
 
 	};
-	auto province_init_func = [&](dcon::province_id to, iteration_data& data) { }; // Nothing
+	auto province_init_func = [&](dcon::province_id to, iteration_data& data) {
+		data.prov_supply_throughput = state.world.nation_get_prov_supply_throughput_cache(nation_as, to);
+	}; // Nothing
 	auto adj_init_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data& data) {
 		float supply_loss = 1.0f - supply_routes::calculate_adjacency_avg_supply_loss(state, adj, nation_as) / state.map_state.map_data.world_circumference; // Get the supply loss measured in loss per km
 		data.supply_loss = std::max(supply_loss, 0.00000001f); // Clamp so that it cannot be zero, but is allowed to be a very small value

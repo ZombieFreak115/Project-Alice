@@ -209,13 +209,7 @@ void schedule_all_supply_paths_update(sys::state& state) {
 
 
 void set_siege_progress(sys::state& state, dcon::province_id prov, float new_val) {
-	float old_val = state.world.province_get_siege_progress(prov);
 	state.world.province_set_siege_progress(prov, new_val);
-	if(old_val != new_val) {
-		schedule_prov_all_supply_paths_update(state, prov);
-	}
-	
-
 }
 
 bool is_infantry_better(sys::state& state, dcon::nation_id n, dcon::unit_type_id best, dcon::unit_type_id given) {
