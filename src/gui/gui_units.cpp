@@ -2229,15 +2229,17 @@ void explain_unit_consumption(sys::state& state, unit_type unit, text::columnar_
 	auto routes = military::unit_get_supply_routes(state, unit);
 
 	for(auto route : routes) {
+		float throughput = supply_routes::supply_route_get_throughput(state, route.id);
+		float supply_loss = supply_routes::supply_route_get_supply_loss(state, route.id);
 		if(supply_routes::supply_route_is_active(state, route.id)) {
 			for_each_relevant_unit_commodity([&](auto com_id) {
 				dcon::commodity_id base_commodity = economy::unit_commodity_get_base_commodity(state, com_id);
 				float com_supply_loss_mod = state.world.commodity_get_supply_loss_rate(base_commodity);
 				float buffered_amount = supply_routes::military_route_get_buffered_goods(state, route.id, com_id);
-				commodities_actual_satisfied[com_id] += (buffered_amount * route.get_throughput() * route.get_supply_loss() * com_supply_loss_mod);
+				commodities_actual_satisfied[com_id] += (buffered_amount * throughput * supply_loss * com_supply_loss_mod);
 				commodities_satisfied_no_loss[com_id] += buffered_amount;
-				commodities_satisfied_w_throughput[com_id] += (buffered_amount * route.get_throughput());
-				commodities_satisfied_w_loss[com_id] += (buffered_amount * route.get_supply_loss() * com_supply_loss_mod);
+				commodities_satisfied_w_throughput[com_id] += (buffered_amount * throughput);
+				commodities_satisfied_w_loss[com_id] += (buffered_amount * supply_loss * com_supply_loss_mod);
 			});
 		}
 	}

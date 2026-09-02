@@ -637,8 +637,11 @@ static_assert(sizeof(small_commodity_set) ==
 	+ sizeof(small_commodity_set::commodity_type) + 2); // take into account two padding bytes
 
 
-using commodity_amounts = sys::fixed_size_vector<float, set_size>;
-static_assert(sizeof(commodity_amounts) == set_size * sizeof(float) + 4);
+using commodity_amounts = std::array<float, set_size>;
+static_assert(sizeof(commodity_amounts) == set_size * sizeof(float));
+
+using commodity_amounts_u64 = std::array<uint64_t, set_size>;
+static_assert(sizeof(commodity_amounts_u64) == set_size * sizeof(uint64_t));
 
 struct production_type_bonus {
 	float amount = 0.0f;

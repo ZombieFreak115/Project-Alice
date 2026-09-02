@@ -515,6 +515,16 @@ object {
 		type{ commodity_id }
 		tag{ scenario }
 	}
+	property{
+		name{ supply_commodity }
+		type{ unit_supply_commodity_id }
+		tag{ scenario }
+	}
+	property{
+		name{ build_commodity }
+		type{ unit_build_commodity_id }
+		tag{ scenario }
+	}
 }
 
 object {
@@ -4938,6 +4948,12 @@ object{
 		type{ array{commodity_id}{float} }
 		tag { mp_checksum_excluded }
 	}
+
+	property {
+		name{ supply_route_path_vector_buffer_1 }
+		type{ vector_pool{500}{supply_route_path_id} }
+		tag { mp_checksum_excluded }
+	}
 }
 
 relationship {
@@ -5083,6 +5099,26 @@ relationship{
 		type{ uint8_t }
 		tag{ save }
 	}
+	property{
+		name{ attempting_to_route }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
+		name{ supply_loss }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ throughput }
+		type{float}
+		tag{ save }
+	}
+	property{
+		name{ volume }
+		type{float}
+		tag{ save }
+	}
 }
 
 relationship{
@@ -5225,21 +5261,6 @@ relationship{
 		tag{ save }
 	}
 	property{
-		name{ supply_loss }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ throughput }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ volume }
-		type{float}
-		tag{ save }
-	}
-	property{
 		name{ buffered_supply_goods }
 		type{ array{unit_supply_commodity_id}{float} }
 		tag{ save }
@@ -5249,7 +5270,6 @@ relationship{
 		type{ array{unit_build_commodity_id}{float}  }
 		tag{ save }
 	}
-
 }
 
 
@@ -5282,21 +5302,6 @@ relationship{
 		tag{ save }
 	}
 	property{
-		name{ supply_loss }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ throughput }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ volume }
-		type{float}
-		tag{ save }
-	}
-	property{
 		name{ buffered_supply_goods }
 		type{  array{unit_supply_commodity_id}{float} }
 		tag{ save }
@@ -5308,11 +5313,6 @@ relationship{
 	}
 
 }
-
-
-
-
-
 
 
 relationship{
@@ -5341,21 +5341,6 @@ relationship{
 	property{
 		name{ inactive_days }
 		type{ uint8_t }
-		tag{ save }
-	}
-	property{
-		name{ supply_loss}
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ throughput }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ volume }
-		type{float}
 		tag{ save }
 	}
 	property{
@@ -5394,21 +5379,6 @@ relationship{
 	property{
 		name{ inactive_days }
 		type{ uint8_t }
-		tag{ save }
-	}
-	property{
-		name{ supply_loss }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ throughput }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ volume }
-		type{float}
 		tag{ save }
 	}
 	property{
@@ -5451,21 +5421,6 @@ relationship{
 		tag{ save }
 	}
 	property{
-		name{ supply_loss }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ throughput }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ volume }
-		type{float}
-		tag{ save }
-	}
-	property{
 		name{ buffered_goods }
 		type{ economy::commodity_amounts }
 		tag{ save }
@@ -5500,21 +5455,6 @@ relationship{
 	property{
 		name{ inactive_days }
 		type{ uint8_t }
-		tag{ save }
-	}
-	property{
-		name{ supply_loss }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ throughput }
-		type{float}
-		tag{ save }
-	}
-	property{
-		name{ volume }
-		type{float}
 		tag{ save }
 	}
 	property{

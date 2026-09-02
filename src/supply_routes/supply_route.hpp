@@ -14,6 +14,11 @@ dcon::province_id supply_route_get_origin(const sys::state& state, dcon::land_co
 dcon::province_id supply_route_get_origin(const sys::state& state, dcon::naval_construction_supply_route_id route);
 
 template<concepts::supply_route_type route_type>
+float supply_route_get_supply_loss(const sys::state& state, route_type route);
+template<concepts::supply_route_type route_type>
+float supply_route_get_throughput(const sys::state& state, route_type route);
+
+template<concepts::supply_route_type route_type>
 bool supply_route_is_active(const sys::state& state, route_type route);
 
 template<concepts::unit_supply_or_build_commodity_type commodity_type, concepts::military_supply_route_type route_type>

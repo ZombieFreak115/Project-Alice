@@ -443,8 +443,9 @@ void military_supply_commodity_set::any_value(std::string_view name, association
 	if(found_commodity != context.map_of_commodity_names.end()) {
 		auto com = fatten(context.state.world, found_commodity->second);
 		// Have we already added it?
-		if(!com.get_unit_supply_and_build_commodity()) {
-			auto supply_build_com_id = fatten(context.state.world, context.state.world.create_unit_supply_and_build_commodity());
+		auto supply_build_com_id = com.get_unit_supply_and_build_commodity();
+		if(!supply_build_com_id) {
+			supply_build_com_id = fatten(context.state.world, context.state.world.create_unit_supply_and_build_commodity());
 			com.set_unit_supply_and_build_commodity(supply_build_com_id);
 			supply_build_com_id.set_base_commodity(com);
 		}
@@ -453,10 +454,10 @@ void military_supply_commodity_set::any_value(std::string_view name, association
 			auto supply_com_id = fatten(context.state.world, context.state.world.create_unit_supply_commodity());
 			com.set_unit_supply_commodity(supply_com_id);
 			supply_com_id.set_base_commodity(com);
+			supply_com_id.set_supply_and_build_commodity(supply_build_com_id);
 
 			// Add the union of supply and build commodities id to be able to retrieve it later
-			auto supply_build_com_id = com.get_unit_supply_and_build_commodity();
-			supply_com_id.set_supply_and_build_commodity(supply_build_com_id);
+			supply_build_com_id.set_supply_commodity(supply_com_id);
 		}
 		commodity_set::any_value(name, c, value, err, line, context);
 	} else {
@@ -474,8 +475,9 @@ void military_build_commodity_set::any_value(std::string_view name, association_
 	if(found_commodity != context.map_of_commodity_names.end()) {
 		auto com = fatten(context.state.world, found_commodity->second);
 		// Have we already added it?
-		if(!com.get_unit_supply_and_build_commodity()) {
-			auto supply_build_com_id = fatten(context.state.world, context.state.world.create_unit_supply_and_build_commodity());
+		auto supply_build_com_id = com.get_unit_supply_and_build_commodity();
+		if(!supply_build_com_id) {
+			supply_build_com_id = fatten(context.state.world, context.state.world.create_unit_supply_and_build_commodity());
 			com.set_unit_supply_and_build_commodity(supply_build_com_id);
 			supply_build_com_id.set_base_commodity(com);
 		}
@@ -484,10 +486,10 @@ void military_build_commodity_set::any_value(std::string_view name, association_
 			auto build_com_id = fatten(context.state.world, context.state.world.create_unit_build_commodity());
 			com.set_unit_build_commodity(build_com_id);
 			build_com_id.set_base_commodity(com);
+			build_com_id.set_supply_and_build_commodity(supply_build_com_id);
 
 			// Add the union of supply and build commodities id to be able to retrieve it later
-			auto supply_build_com_id = com.get_unit_supply_and_build_commodity();
-			build_com_id.set_supply_and_build_commodity(supply_build_com_id);
+			supply_build_com_id.set_build_commodity(build_com_id);
 		}
 		commodity_set::any_value(name, c, value, err, line, context);
 	} else {

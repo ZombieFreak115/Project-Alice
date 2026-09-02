@@ -113,6 +113,21 @@ void parallel_for_each_supply_route_path(sys::state& state, F&& functor) {
 }
 
 
+template<typename F, typename P>
+void parallel_for_each_supply_route_path_predicate(sys::state& state, P&& pred, F&& functor) {
+	static std::vector<dcon::supply_route_path_id> valid_paths;
+	valid_paths.clear();
+	state.world.for_each_supply_route_path([&](dcon::supply_route_path_id path) {
+		if(pred(path)) {
+			valid_paths.push_back(path);
+		}
+	});
+	concurrency::parallel_for_each(valid_paths.begin(), valid_paths.end(), [&](dcon::supply_route_path_id i) {
+		functor(i);
+	});
+}
+
+
 
 
 

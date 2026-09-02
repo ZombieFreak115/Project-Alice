@@ -193,16 +193,12 @@ void schedule_nation_supply_paths_update(sys::state& state, dcon::nation_id nati
 }
 
 void schedule_all_supply_paths_update(sys::state& state) {
-	supply_routes::for_each_supply_route(state, [&](auto r) {
-		auto route = fatten(state.world, r);
-		float throughput = route.get_throughput();
-		float loss = route.get_supply_loss();
+	state.world.for_each_supply_route_path([&](dcon::supply_route_path_id path_id) {
+		float throughput = state.world.supply_route_path_get_throughput(path_id);
+		float loss = state.world.supply_route_path_get_supply_loss(path_id);
 		// update it if throughput is less than 100%, and if loss is greater than 35%
 		if (throughput < 1.0f || loss < 0.65f) {
-			dcon::supply_route_path_id path = supply_routes::supply_route_get_path(state, r);
-			if(path) {
-				state.world.supply_route_path_set_path_out_of_date(path, true);
-			}
+			state.world.supply_route_path_set_path_out_of_date(path_id, true);
 		}
 	});
 }
@@ -9811,7 +9807,7 @@ tagged_vector<float, dcon::unit_supply_commodity_id> get_last_fufilled_supply(co
 			dcon::commodity_id base_commodity = economy::unit_commodity_get_base_commodity(state, supply_com_id);
 			float com_supply_loss_mod = state.world.commodity_get_supply_loss_rate(base_commodity);
 			float buffered_goods = route.get_buffered_supply_goods(supply_com_id);
-			fufilled_supply[supply_com_id] += (buffered_goods * route.get_supply_loss() * com_supply_loss_mod * route.get_throughput()); // take into account goods which will be lost to attrition and throughput
+			fufilled_supply[supply_com_id] += (buffered_goods * supply_routes::supply_route_get_supply_loss(state, route.id) * supply_routes::supply_route_get_throughput(state, route.id)); // take into account goods which will be lost to attrition and throughput
 		});
 	}
 	return fufilled_supply;
@@ -9830,7 +9826,7 @@ tagged_vector<float, dcon::unit_build_commodity_id> get_last_fufilled_reinforcem
 			dcon::commodity_id base_commodity = economy::unit_commodity_get_base_commodity(state, build_com_id);
 			float com_supply_loss_mod = state.world.commodity_get_supply_loss_rate(base_commodity);
 			float buffered_goods = route.get_buffered_reinforcement_goods(build_com_id);
-			fufilled_supply[build_com_id] += (buffered_goods * route.get_supply_loss() * com_supply_loss_mod * route.get_throughput()); // take into account goods which will be lost to attrition and throughput
+			fufilled_supply[build_com_id] += (buffered_goods * supply_routes::supply_route_get_supply_loss(state, route.id) * com_supply_loss_mod * supply_routes::supply_route_get_throughput(state, route.id)); // take into account goods which will be lost to attrition and throughput
 		});
 	}
 	return fufilled_supply;
