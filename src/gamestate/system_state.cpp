@@ -4558,7 +4558,7 @@ void state::single_game_tick() {
 		case 1:
 			nations::update_monthly_points(*this);
 			economy::prune_factories(*this);
-			military::schedule_all_supply_paths_update(*this); // The actual update will happen on the 2nd day of the month, this just schedules it
+			supply_routes::schedule_ineffective_supply_paths_update(*this); // The actual update will happen on the 2nd day of the month, this just schedules it
 			break;
 		case 2:
 			province::update_blockaded_cache(*this);

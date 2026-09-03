@@ -62,9 +62,24 @@ template<typename T, typename ID>
 concept dcon_id_ve_type = dcon_id_type<ID> &&
 						  (std::is_same_v<T, ve::contiguous_tags<ID>> ||
 							  std::is_same_v<T, ve::tagged_vector<ID>>||
-							  std::is_same_v<T, ve::value_to_vector_type<ID>> ||
 						  std::is_same_v <T, ve::partial_contiguous_tags<ID>> ||
 						  std::is_same_v <T, ve::unaligned_contiguous_tags<ID>>);
+
+
+
+
+template<typename T>
+concept ve_military_supply_route_type = dcon_id_ve_type<T, dcon::army_supply_route_id> ||
+										dcon_id_ve_type<T, dcon::navy_supply_route_id>;
+
+template<typename T>
+concept ve_construction_supply_route_type = dcon_id_ve_type<T, dcon::land_construction_supply_route_id> ||
+											dcon_id_ve_type<T, dcon::naval_construction_supply_route_id> ||
+									        dcon_id_ve_type<T, dcon::factory_construction_supply_route_id> ||
+											dcon_id_ve_type<T, dcon::building_construction_supply_route_id>;
+
+template<typename T>
+concept ve_supply_route_type = ve_military_supply_route_type<T> || ve_construction_supply_route_type<T>;
 
 
 // Is this type any dcon id type. Can be either regular or ve
@@ -78,7 +93,6 @@ concept vector_value_type = std::is_same_v<T, ve::value_to_vector_type<value_typ
 
 template<typename T, typename value_type>
 concept normal_or_vector_value_type = std::is_same_v<T, value_type> || vector_value_type<T, value_type>;
-
 
 
 // This is really ugly and unintuitive. If anyone knows a nicer way of doing this (have a concept that accepts all specializations of a specific template) feel free to chang eit

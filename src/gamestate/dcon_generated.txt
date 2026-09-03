@@ -2377,6 +2377,16 @@ object {
 		tag{ save }
 	}
 	property{
+		name{ needs_supply_goods }
+		type{ bitfield }
+		tag { mp_checksum_excluded }
+	}
+	property{
+		name{ needs_reinforcement_goods }
+		type{ bitfield }
+		tag { mp_checksum_excluded }
+	}
+	property{
 		name{ unit_build_commodity_float_buffer_1 }
 		type{ array{unit_build_commodity_id}{float} }
 		tag { mp_checksum_excluded }
@@ -2461,6 +2471,16 @@ object {
 		name{ ai_activity }
 		type{ uint8_t }
 		tag{ save }
+	}
+	property{
+		name{ needs_supply_goods }
+		type{ bitfield }
+		tag { mp_checksum_excluded }
+	}
+	property{
+		name{ needs_reinforcement_goods }
+		type{ bitfield }
+		tag { mp_checksum_excluded }
 	}
 	property{
 		name{ unit_build_commodity_float_buffer_1 }
@@ -5057,7 +5077,7 @@ relationship{
 relationship{
 	name{ supply_route_path }
 	storage_type{ compactable }
-	size{ 50000 }
+	size{ 100000 }
 	tag{ save }
 
 	link{
@@ -5083,7 +5103,11 @@ relationship{
 		type{vector_pool{5000}{province_id}}
 		tag{ save }
 	}
-
+	property{
+		name{ adjacency_path }
+		type{vector_pool{5000}{province_adjacency_id}}
+		tag{ save }   
+	}
 	property{
 		name{ path_out_of_date }
 		type{ bitfield }
@@ -5097,6 +5121,11 @@ relationship{
 	property{
 		name{ inactive_days }
 		type{ uint8_t }
+		tag{ save }
+	}
+	property{
+		name{ is_active }
+		type{ bitfield }
 		tag{ save }
 	}
 	property{
@@ -5261,6 +5290,11 @@ relationship{
 		tag{ save }
 	}
 	property{
+		name{ is_active }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
 		name{ buffered_supply_goods }
 		type{ array{unit_supply_commodity_id}{float} }
 		tag{ save }
@@ -5299,6 +5333,11 @@ relationship{
 	property{
 		name{ inactive_days }
 		type{ uint8_t }
+		tag{ save }
+	}
+	property{
+		name{ is_active }
+		type{ bitfield }
 		tag{ save }
 	}
 	property{
@@ -5344,6 +5383,11 @@ relationship{
 		tag{ save }
 	}
 	property{
+		name{ is_active }
+		type{ bitfield }
+		tag{ save }
+	} 
+	property{
 		name{ buffered_goods }
 		type{ economy::commodity_amounts }
 		tag{ save }
@@ -5379,6 +5423,11 @@ relationship{
 	property{
 		name{ inactive_days }
 		type{ uint8_t }
+		tag{ save }
+	}
+	property{
+		name{ is_active }
+		type{ bitfield }
 		tag{ save }
 	}
 	property{
@@ -5421,6 +5470,11 @@ relationship{
 		tag{ save }
 	}
 	property{
+		name{ is_active }
+		type{ bitfield }
+		tag{ save }
+	}
+	property{
 		name{ buffered_goods }
 		type{ economy::commodity_amounts }
 		tag{ save }
@@ -5457,6 +5511,12 @@ relationship{
 		type{ uint8_t }
 		tag{ save }
 	}
+	property{
+		name{ is_active }
+		type{ bitfield }
+		tag{ save }
+	}
+
 	property{
 		name{ buffered_goods }
 		type{ economy::commodity_amounts }
@@ -5821,6 +5881,11 @@ relationship{
 		tag{ save }
 	}
 	property{
+		name{ needs_construction_goods }
+		type{ bitfield }
+		tag { mp_checksum_excluded }
+	}
+	property{
 		name{ commodity_amounts_buffer_1 }
 		type{ economy::commodity_amounts }
 		tag { mp_checksum_excluded }
@@ -5877,6 +5942,11 @@ relationship{
 		tag{ save }
 	}
 	property{
+		name{ needs_construction_goods }
+		type{ bitfield }
+		tag { mp_checksum_excluded }
+	}
+	property{
 		name{ commodity_amounts_buffer_1 }
 		type{ economy::commodity_amounts }
 		tag { mp_checksum_excluded }
@@ -5926,6 +5996,11 @@ relationship{
 		name{ is_pop_project }
 		type{ bitfield }
 		tag{ save }
+	}
+	property{
+		name{ needs_construction_goods }
+		type{ bitfield }
+		tag { mp_checksum_excluded }
 	}
 	property{
 		name{ commodity_amounts_buffer_1 }
@@ -5989,6 +6064,11 @@ relationship{
 		name{ refit_target }
 		type{ factory_type_id }
 		tag{ save }
+	}
+	property{
+		name{ needs_construction_goods }
+		type{ bitfield }
+		tag { mp_checksum_excluded }
 	}
 	property{
 		name{ commodity_amounts_buffer_1 }

@@ -102,6 +102,27 @@ void ve_parallel_for_each_supply_route(sys::state& state, F&& functor) {
 	ve_parallel_for_each_unit_supply_route(state, functor);
 	ve_parallel_for_each_construction_supply_route(state, functor);
 }
+template<typename F>
+void supply_path_for_each_connected_route(const sys::state& state, dcon::supply_route_path_id path, F&& functor) {
+	for(auto route : state.world.supply_route_path_get_army_route_path(path)) {
+		functor(route.get_route().id);
+	}
+	for(auto route : state.world.supply_route_path_get_navy_route_path(path)) {
+		functor(route.get_route().id);
+	}
+	for(auto route : state.world.supply_route_path_get_land_construction_route_path(path)) {
+		functor(route.get_route().id);
+	}
+	for(auto route : state.world.supply_route_path_get_naval_construction_route_path(path)) {
+		functor(route.get_route().id);
+	}
+	for(auto route : state.world.supply_route_path_get_factory_construction_route_path(path)) {
+		functor(route.get_route().id);
+	}
+	for(auto route : state.world.supply_route_path_get_building_construction_route_path(path)) {
+		functor(route.get_route().id);
+	}
+}
 
 
 template<typename F>

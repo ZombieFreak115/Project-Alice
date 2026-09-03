@@ -591,7 +591,7 @@ void set_province_controller(sys::state& state, dcon::province_id p, dcon::natio
 		state.world.province_set_rebel_faction_from_province_rebel_control(p, dcon::rebel_faction_id{});
 		state.world.province_set_nation_from_province_control(p, n);
 		// Schedule supply route update for routes which pass through this province
-		military::schedule_prov_all_supply_paths_update(state, p);
+		supply_routes::schedule_prov_all_supply_paths_update(state, p);
 		state.military_definitions.pending_blackflag_update = true;
 		// Delete unit constructions in the occupied province
 		for(auto pop_loc : state.world.province_get_pop_location(p)) {
@@ -641,7 +641,7 @@ void set_province_controller(sys::state& state, dcon::province_id p, dcon::rebel
 		state.world.province_set_rebel_faction_from_province_rebel_control(p, rf);
 		state.world.province_set_nation_from_province_control(p, dcon::nation_id{});
 		// Schedule supply route update for routes which pass through this province
-		military::schedule_prov_all_supply_paths_update(state, p);
+		supply_routes::schedule_prov_all_supply_paths_update(state, p);
 		state.military_definitions.pending_blackflag_update = true;
 	}
 }
@@ -1146,7 +1146,7 @@ void change_province_owner(sys::state& state, dcon::province_id id, dcon::nation
 	state.national_cached_values_out_of_date = true;
 
 	// Schedule an update on all routes passing through
-	military::schedule_prov_all_supply_paths_update(state, id);
+	supply_routes::schedule_prov_all_supply_paths_update(state, id);
 
 	bool state_is_new = false;
 	dcon::state_instance_id new_si;
@@ -3021,7 +3021,7 @@ constexpr float excess_supply_throughput_path_factor = 0.1f;
 constexpr float lacking_supply_throughput_path_factor = 100.0f;
 
 // Creates a military supply path, but will actively try to find the path with good supply thoughput and supply attrition. Path is inserted into the passed-in buffer. Buffer must be cleared first
-bool make_military_supply_path(const sys::state& state, dcon::province_id origin_prov, dcon::province_id destination, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result) {
+bool make_military_supply_path(const sys::state& state, dcon::province_id origin_prov, dcon::province_id destination, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result, std::vector<dcon::province_adjacency_id>& adjacency_path_result) {
 	struct iteration_data {
 		float prov_supply_throughput{ };
 		float adj_total_supply_throughput{};
@@ -3077,6 +3077,14 @@ bool make_military_supply_path(const sys::state& state, dcon::province_id origin
 	bool valid_path = make_path_to_prov<1.0f, iteration_data>(state, destination, origin_prov, path_result, adjacency_func, province_func, modifier_func, province_init_func, adj_init_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
 	if(valid_path) {
 		path_result.push_back(destination); // Include the destination in the path (which normally is not included)
+		// Create the adjacency path. Maybe this can be done directly in the pathing algoritm?
+		for(uint32_t i = 1; i < path_result.size(); i++) {
+			auto prov = path_result[i - 1];
+			auto next_prov = path_result[i];
+			auto adj = state.world.get_province_adjacency_by_province_pair(prov, next_prov);
+			assert(adj);
+			adjacency_path_result.push_back(adj);
+		}
 	}
 	return valid_path;
 }

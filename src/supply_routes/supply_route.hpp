@@ -30,7 +30,7 @@ dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::navy_suppl
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::land_construction_supply_route_id route);
 dcon::nation_id supply_route_get_owner(const sys::state& state, dcon::naval_construction_supply_route_id route);
 
-dcon::supply_route_path_id create_supply_route_path_no_pathing(sys::state& state, dcon::province_id destination, dcon::market_id origin);
+dcon::supply_route_path_id create_supply_route_path_no_pathing(sys::state& state, dcon::province_id destination, dcon::market_id origin, bool attempting_to_route);
 
 template<concepts::supply_route_type route_type>
 dcon::supply_route_path_id supply_route_get_path(const sys::state& state, route_type route);
@@ -55,6 +55,23 @@ int8_t factory_construction_setting_max(const sys::state& state, dcon::nation_id
 int8_t building_construction_setting_min(const sys::state& state, dcon::nation_id nation);
 int8_t building_construction_setting_max(const sys::state& state, dcon::nation_id nation);
 
+
+// Schedules a path update on the specific supply path as soon as possible
+void schedule_immediate_supply_path_update(sys::state& state, dcon::supply_route_path_id path);
+// Schedules a path update on all supply paths passing through the given province on next weekly tick
+void schedule_prov_all_supply_paths_update(sys::state& state, dcon::province_id to_update);
+// Schedules a path update on all supply paths passing through the given province controlled by enemy nations on next weekly tick
+void schedule_prov_enemy_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation);
+// Schedules a path update on all supply paths passing through the given province controlled by nation in common wars on next weekly tick
+void schedule_prov_common_war_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation);
+// Schedules a path update on all supply paths passing through the given province controlled by nation on next weekly tick
+void schedule_prov_specific_nation_supply_paths_update(sys::state& state, dcon::province_id to_update, dcon::nation_id nation);
+// Schedules a path update on all supply routes owned by the nation on next weekly tick
+void schedule_nation_supply_paths_update(sys::state& state, dcon::nation_id nation);
+// Schedules supply paths which are considered to be ineffective to be updated as soon as possible. Can be expensive
+void schedule_ineffective_supply_paths_update(sys::state& state);
+
+
 void update_nations_supply_cache(sys::state& state);
 
 // Computes the efficiency of a construct with has consumed vs available. Eg supply throughput
@@ -68,7 +85,6 @@ float port_supply_capacity_mult_supply_access_modifier(const sys::state& state, 
 
 float port_supply_capacity_mult_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
-float port_supply_capacity_efficiency(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
 
 
@@ -83,7 +99,6 @@ float calculate_supply_throughput_in_adjacency(const sys::state& state, dcon::pr
 float calculate_effective_supply_throughput_in_adjacency(const sys::state& state, dcon::province_adjacency_id adj, dcon::nation_id nation);
 
 float supply_throughput_efficiency(const sys::state& state, dcon::province_adjacency_id adj, dcon::nation_id nation_as);
-float supply_throughput_efficiency(const sys::state& state, dcon::province_id prov_a, dcon::province_id prov_b, dcon::nation_id nation_as);
 // Also takes into account potential port supply capacity modifiers if relavent
 float effective_supply_throughput_efficiency(const sys::state& state, dcon::province_adjacency_id adj, dcon::nation_id nation_as);
 
