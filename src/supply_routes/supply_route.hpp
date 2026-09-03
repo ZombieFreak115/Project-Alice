@@ -79,11 +79,12 @@ float compute_efficiency(float consumed, float available);
 
 float port_supply_capacity_mult_hostile_troops_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
 
+float port_supply_capacity_mult_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
+
 float port_supply_capacity_in_province(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
 float port_supply_capacity_mult_supply_access_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
-float port_supply_capacity_mult_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
 
 
@@ -102,7 +103,6 @@ float supply_throughput_efficiency(const sys::state& state, dcon::province_adjac
 // Also takes into account potential port supply capacity modifiers if relavent
 float effective_supply_throughput_efficiency(const sys::state& state, dcon::province_adjacency_id adj, dcon::nation_id nation_as);
 
-float supply_loss_add_convoy_raiding(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 float supply_loss_add_hostile_armies(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 
 float calculate_supply_loss_in_province(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);

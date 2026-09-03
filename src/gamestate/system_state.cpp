@@ -4483,6 +4483,8 @@ void state::single_game_tick() {
 				break;
 			}
 		});
+		// unit movement update should happen before supply routes update at minimum so routes can be immediately updated upon movement completion
+		military::update_movement(*this);
 
 		economy::daily_update(*this, false, 1.f);
 
@@ -4490,7 +4492,7 @@ void state::single_game_tick() {
 		// ALTERNATE PAR DEMO START POINT B
 		//
 
-		// Update cache before doing daily supply routes iådate
+		// Update cache before doing daily supply routes stuff
 		supply_routes::update_nations_supply_cache(*this);
 
 		supply_routes::update_supply_routes_daily(*this);
@@ -4511,7 +4513,6 @@ void state::single_game_tick() {
 			}
 		);
 		military::update_siege_progress(*this);
-		military::update_movement(*this);
 		military::update_naval_battles(*this);
 		military::update_land_battles(*this);
 

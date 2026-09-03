@@ -251,14 +251,8 @@ void active_hardcoded_modifiers_description(sys::state& state, text::layout_base
 	case sys::provincial_mod_offsets::supply_loss_add.value:
 	{
 		bool is_sea = province::is_sea(state, prov);
-		if(is_sea) {
-
-			float convoy_raiding_add = supply_routes::supply_loss_add_convoy_raiding(state, prov, local_nation);
-			if(convoy_raiding_add != 0.0f) {
-				ui::active_single_hardcoded_modifier_description(state, layout, "supply_loss_add_convoy_raiding_modifier", convoy_raiding_add, 8, header, sys::provincial_mod_offsets::supply_loss_add);
-			}
-		}
-		else {
+		
+		if(!is_sea) {
 			float hostile_armies_add = supply_routes::supply_loss_add_hostile_armies(state, prov, local_nation);
 			if(hostile_armies_add != 0.0f) {
 				ui::active_single_hardcoded_modifier_description(state, layout, "supply_loss_add_hostile_armies_modifier", hostile_armies_add, 8, header, sys::provincial_mod_offsets::supply_loss_add);

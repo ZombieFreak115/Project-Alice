@@ -823,18 +823,6 @@ void update_nations_supply_cache(sys::state& state) {
 
 }
 
-float get_enemy_blockade_power(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
-	assert(province::is_sea(state, prov) && !province::province_is_deep_waters(state, prov));
-	// TODO: actually compute blockade power
-	return military::navy_strength_present<military::battle_included::yes, military::retreat_included::no, military::participants_included::enemies>(state, prov, nation_as) * 1.0f;
-}
-
-float get_enemy_convoy_raiding_power(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as) {
-	assert(province::is_sea(state, prov));
-	// TODO: actually compute blockade power
-	return military::navy_strength_present<military::battle_included::yes, military::retreat_included::no, military::participants_included::enemies>(state, prov, nation_as) * 1.0f;
-}
-
 float compute_efficiency(float consumed, float available) {
 	if(consumed == 0.0f) {
 		if(available == 0.0f) {
@@ -855,7 +843,7 @@ float port_supply_capacity_mult_hostile_troops_modifier(const sys::state& state,
 float port_supply_capacity_mult_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
 	assert(province::is_port(state, port_prov));
 	auto port_to_prov = state.world.province_get_port_to(port_prov);
-	auto enemy_blockade_power = get_enemy_blockade_power(state, port_to_prov, nation_as);
+	auto enemy_blockade_power = military::navy_strength_present<military::battle_included::yes, military::retreat_included::no, military::participants_included::enemies>(state, port_to_prov, nation_as);
 	return navy_port_supply_capacity_blockade_threshold > 0.0f ? std::max((navy_port_supply_capacity_blockade_threshold - enemy_blockade_power) / navy_port_supply_capacity_blockade_threshold, 0.f) : 1.0f;
 }
 float port_supply_capacity_mult_supply_access_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as) {
@@ -954,14 +942,9 @@ float effective_supply_throughput_efficiency(const sys::state& state, dcon::prov
 	return compute_efficiency(used_supply_throughput, throughput);
 }
 
-
-float supply_loss_add_convoy_raiding(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
-	assert(province::is_sea(state, province));
-	return get_enemy_convoy_raiding_power(state, province, nation_as) * convoy_raiding_supply_loss;
-}
 float supply_loss_add_hostile_armies(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
 	assert(province::is_land(state, province));
-	return military::army_strength_present<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::enemies>(state, province, nation_as)* hostile_army_supply_loss;
+	return military::army_strength_present<military::battle_included::yes, military::retreat_included::no, military::blackflag_included::no, military::participants_included::enemies>(state, province, nation_as) * hostile_army_supply_loss;
 }
 
 float calculate_supply_loss_in_province(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as) {
@@ -970,7 +953,7 @@ float calculate_supply_loss_in_province(const sys::state& state, dcon::province_
 	float national_percent_mod = (province_is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_loss_percent) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_loss_percent));
 	float national_mul_mod = (province_is_sea ? state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_naval_supply_loss_mul) : state.world.nation_get_modifier_values(nation_as, sys::national_mod_offsets::national_land_supply_loss_mul));
 
-	float hostile_units_add = (province_is_sea ? supply_loss_add_convoy_raiding(state, province, nation_as) : supply_loss_add_hostile_armies(state, province, nation_as));
+	float hostile_units_add = (province_is_sea ? 1.0f : supply_loss_add_hostile_armies(state, province, nation_as));
 	float add_mods = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_loss_add) + national_add_mod + hostile_units_add;
 	float percent_mods = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_loss_percent) + national_percent_mod + 1.0f;
 	float mul_mods = state.world.province_get_modifier_values(province, sys::provincial_mod_offsets::supply_loss_mul) * national_mul_mod;
@@ -1848,11 +1831,13 @@ void update_construction_commodity_satisfaction(sys::state& state, construction_
 	}
 }
 
-void create_spread_supply_path_batches(sys::state& state, uint32_t num_path_batches, std::vector<std::vector<dcon::supply_route_path_id>>& path_batches) {
+void setup_spread_supply_path_batches(sys::state& state, uint32_t num_path_batches, std::vector<std::vector<dcon::supply_route_path_id>>& path_batches) {
 	// Buffer all paths which are active and require an update, and index them by origin market
 	uint32_t total_updatable_paths = 0;
 	state.world.for_each_supply_route_path([&](dcon::supply_route_path_id path) {
-		if(state.world.supply_route_path_get_attempting_to_route(path) && state.world.supply_route_path_get_path_out_of_date(path)) {
+		bool attempting_to_route_goods = state.world.supply_route_path_get_attempting_to_route(path);
+		bool path_out_of_date = state.world.supply_route_path_get_path_out_of_date(path);
+		if(attempting_to_route_goods && path_out_of_date) {
 			dcon::market_id origin = state.world.supply_route_path_get_origin(path);
 			auto paths_by_market = supply_paths_by_market_get(state, origin);
 			paths_by_market.push_back(path);
@@ -2631,7 +2616,7 @@ void update_supply_routes_daily(sys::state& state) {
 	// 
 	// Setup the batch container
 	static std::vector<std::vector<dcon::supply_route_path_id>> path_batches;
-	create_spread_supply_path_batches(state, 50, path_batches);
+	setup_spread_supply_path_batches(state, 50, path_batches);
 
 
 	// Process the batches. The application of used supply throughput is done once per batch, and has to be done serially as it modifies arbitrary province adjacency data
