@@ -554,22 +554,6 @@ bool supply_route_path_is_active(const sys::state& state, dcon::supply_route_pat
 	return state.world.supply_route_path_get_is_active(path);
 }
 
-template<concepts::construction_type con_type>
-int8_t get_nation_construction_consumption_rate_by_type(const sys::state& state, dcon::nation_id nation) {
-	if constexpr(std::is_same_v<con_type, dcon::province_land_construction_id>) {
-		return state.world.nation_get_army_construction_consumption(nation);
-	}
-	else if constexpr(std::is_same_v<con_type, dcon::province_naval_construction_id>) {
-		return state.world.nation_get_navy_construction_consumption(nation);
-	}
-	else if constexpr(std::is_same_v<con_type, dcon::factory_construction_id>) {
-		return state.world.nation_get_factory_construction_consumption(nation);
-	}
-	else if constexpr(std::is_same_v<con_type, dcon::province_building_construction_id>) {
-		return state.world.nation_get_building_construction_consumption(nation);
-	}
-}
-
 
 template<concepts::unit_supply_or_build_commodity_type commodity_type, concepts::military_supply_route_type route_type>
 float military_route_get_buffered_goods(const sys::state& state, route_type route, commodity_type commodity_id) {
@@ -788,12 +772,13 @@ void schedule_nation_supply_paths_update(sys::state& state, dcon::nation_id nati
 constexpr float ineffective_supply_path_throughput_cutoff = 1.0f;
 constexpr float ineffective_supply_path_loss_cutoff = 0.65f;
 
-void schedule_ineffective_supply_paths_update(sys::state& state) {
+void schedule_active_ineffective_supply_paths_update(sys::state& state) {
 	state.world.for_each_supply_route_path([&](dcon::supply_route_path_id path_id) {
 		float throughput = state.world.supply_route_path_get_throughput(path_id);
 		float loss = state.world.supply_route_path_get_supply_loss(path_id);
+		bool active = state.world.supply_route_path_get_is_active(path_id);
 		// update it if throughput is less than 100%, and if loss is greater than 35%
-		if(ineffective_supply_path_throughput_cutoff < 1.0f || loss < ineffective_supply_path_loss_cutoff) {
+		if(active && (throughput < ineffective_supply_path_throughput_cutoff || loss < ineffective_supply_path_loss_cutoff)) {
 			schedule_immediate_supply_path_update(state, path_id);
 		}
 	});
@@ -1586,20 +1571,23 @@ uint32_t supply_route_path_get_connected_routes(const sys::state& state, dcon::s
 	return uint32_t((army_routes.end() - army_routes.begin()) + (navy_routes.end() - navy_routes.begin()) + (land_construction_routes.end() - land_construction_routes.begin()) + (naval_construction_routes.end() - naval_construction_routes.begin()) + (factory_construction_routes.end() - factory_construction_routes.begin()) + (building_construction_routes.end() - building_construction_routes.begin()));
 }
 
+constexpr uint32_t supply_route_inactive_days_before_deletion = 10;
+constexpr uint32_t supply_path_inactive_days_before_deletion = 50;
+
 template<concepts::supply_route_type route_type>
 bool should_delete_route(const sys::state& state, route_type route) {
 	auto fat_route = fatten(state.world, route);
 	dcon::nation_id route_owner = supply_route_get_owner(state, route);
 	dcon::province_id route_origin = supply_route_get_origin(state, route);
 	dcon::nation_id route_origin_controller = state.world.province_get_nation_from_province_control(route_origin);
-	// A supply route shall be deleted if it has been inactive for 10 days or more, OR if the route owner does not control the stockpile the route is connected to
-	return fat_route.get_inactive_days() >= 10 || route_owner != route_origin_controller;
+	// A supply route shall be deleted if it has been inactive for some days or more, OR if the route owner does not control the stockpile the route is connected to
+	return fat_route.get_inactive_days() >= supply_route_inactive_days_before_deletion || route_owner != route_origin_controller;
 }
 bool should_delete_path(const sys::state& state, dcon::supply_route_path_id path) {
 	uint8_t inactive_days = state.world.supply_route_path_get_inactive_days(path);
 	uint32_t num_connected_routes = supply_route_path_get_connected_routes(state, path);
-	// A supply route shall be deleted if it has been inactive for 250 days or more, and if there are no connected routes (even inactive ones)
-	return inactive_days >= 200 && num_connected_routes != 0;
+	// A supply route shall be deleted if it has been inactive for some days or more, and if there are no connected routes (even inactive ones)
+	return inactive_days >= supply_path_inactive_days_before_deletion && num_connected_routes != 0;
 }
 
 
@@ -2220,13 +2208,15 @@ void update_supply_routes_daily(sys::state& state) {
 		economy::get_closest_available_market_states(state, stockpile_buffer, nation, location);
 
 		economy::commodity_amounts& required_buffer = constructions_need_get(state, construction);
-		float consumption_rate = float(get_nation_construction_consumption_rate_by_type<decltype(construction)>(state, nation)) / 100.0f;
+		float consumption_rate = static_cast<float>(nations::get_nation_construction_consumption_setting_by_type<decltype(construction)>(state, nation)) / 100.0f;
+
+		float construction_days = static_cast<float>(economy::construction_get_actual_construction_time(state, construction));
 
 		auto accumulate_func = [&](uint32_t set_indx, float required, float total_cost) {
 			// Cap the amount we want to accumulate (and eventually route from stockpiles to constructions) depending on the consumption rate.
-			float actual_demanded = std::min(required, consumption_rate * total_cost);
+			float actual_demanded = std::min(required, total_cost / construction_days * consumption_rate);
 			required_buffer[set_indx] += actual_demanded;
-			construction_set_needs_construction_goods(state, construction, construction_needs_construction_goods(state, construction) || actual_demanded > 0.0f ); // set bool flag if this unit now needs more than 0 construction goods
+			construction_set_needs_construction_goods(state, construction, construction_needs_construction_goods(state, construction) || actual_demanded > 0.0f ); // set bool flag if this construction now needs more than 0 goods
 		};
 		economy::accumulate_construction_good_requirements(state, construction, accumulate_func);
 	});
@@ -2457,7 +2447,7 @@ void update_supply_routes_daily(sys::state& state) {
 			}
 		}
 	};
-	// Lambda to process all constructions, done in parallel over commodities
+	// Lambda to process all constructions
 	auto process_constructions = [&]() {
 		economy::for_each_construction(state, [&](auto construction) {
 
@@ -2525,7 +2515,7 @@ void update_supply_routes_daily(sys::state& state) {
 		parallel_for_each_supply_route_path(state, [&](dcon::supply_route_path_id path_handle) {
 			bool path_is_valid = state.world.supply_route_path_get_valid_path(path_handle);
 			bool attempting_to_route = state.world.supply_route_path_get_attempting_to_route(path_handle);
-			// If the path is not valid, and the route is attempted to be used then update it so that it can check again if pathing is possible
+			// If the path is not valid, and the route is attempted to be used then update it so that it can check again if pathing is possible. We only do this weekly to prevent lots of daily pathing attempts
 			if(!path_is_valid && attempting_to_route) {
 				schedule_immediate_supply_path_update(state, path_handle);
 				return; // Leave loop iteration 

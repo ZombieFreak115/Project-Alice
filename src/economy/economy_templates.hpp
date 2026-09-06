@@ -154,6 +154,22 @@ void ve_parallel_for_each_construction(const sys::state& state, F&& func) {
 	ve_parallel_for_each_building_construction(state, func);
 }
 
+template<typename F>
+void for_each_nation_construction(const sys::state& state, dcon::nation_id nation, F&& func) {
+	for(auto lc : state.world.nation_get_province_land_construction(nation)) {
+		func(lc.id);
+	}
+	for(auto nc : state.world.nation_get_province_naval_construction(nation)) {
+		func(nc.id);
+	}
+	for(auto fc : state.world.nation_get_factory_construction(nation)) {
+		func(fc.id);
+	}
+	for(auto pc : state.world.nation_get_province_building_construction(nation)) {
+		func(pc.id);
+	}
+}
+
 
 
 template<price_estimation price_est, concepts::any_dcon_id_type<dcon::market_id> market_type, concepts::normal_or_vector_value_type<float> float_type>
@@ -217,11 +233,12 @@ auto government_stockpile_desired_commodity_amount(const sys::state& state, nati
 	}
 }
 
-// Accumulates all construction good requirements via the "acc_func" functor of a given construction. Already-fufilled good requirements are subtracted
+// Accumulates all construction good requirements via the "acc_func" functor of a given construction. Already-fufilled good requirements are subtracted and result passed as the "required_amount" argument, whereas the "total_required" argument is the amount required is the amount required if the construction has not accumulated any goods yet
 // Functor signatures:
 // (dcon::commodity_id commodity, float required_amount),
+// (dcon::commodity_id commodity, float required_amount, float total_required),
 // (uint32_t set_index, float required_amount),
-// (uint32_t set_index, float required_amount, float total_cost)
+// (uint32_t set_index, float required_amount, float total_required)
 template<concepts::construction_type construction_type, typename FAccumulate>
 void accumulate_construction_good_requirements(const sys::state& state, construction_type c, FAccumulate& acc_func) {
 	const economy::commodity_set actual_cost = construction_get_actual_build_cost(state, c);
@@ -235,6 +252,9 @@ void accumulate_construction_good_requirements(const sys::state& state, construc
 			float required = std::max(total_required - fufilled_amount, 0.0f);
 			if constexpr(std::is_invocable_r_v<void, FAccumulate, dcon::commodity_id, float>) {
 				acc_func(cid, required);
+			}
+			else if constexpr(std::is_invocable_r_v<void, FAccumulate, dcon::commodity_id, float, float>) {
+				acc_func(cid, required, total_required);
 			}
 			else if constexpr(std::is_invocable_r_v<void, FAccumulate, uint32_t, float>) {
 				acc_func(i, required);

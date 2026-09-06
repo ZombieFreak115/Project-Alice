@@ -174,6 +174,9 @@ void recalculate_markets_distance(sys::state& state);
 
 dcon::text_key name_from_tag(sys::state& state, dcon::national_identity_id tag);
 
+template<concepts::construction_type con_type>
+int8_t get_nation_construction_consumption_setting_by_type(const sys::state& state, dcon::nation_id nation);
+
 void update_administrative_efficiency(sys::state& state);
 void update_national_administrative_efficiency(sys::state& state);
 float admin_cost_of_province(sys::state& state, dcon::province_id pid);

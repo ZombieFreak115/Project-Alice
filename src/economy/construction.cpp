@@ -396,6 +396,7 @@ template economy::commodity_set& get_purchased_goods(sys::state& state, dcon::pr
 template economy::commodity_set& get_purchased_goods(sys::state& state, dcon::factory_construction_id construction);
 template economy::commodity_set& get_purchased_goods(sys::state& state, dcon::province_building_construction_id construction);
 
+
 dcon::internal::const_iterator_province_land_construction_foreach_land_construction_supply_route_as_construction_generator construction_get_supply_routes(const sys::state& state, dcon::province_land_construction_id con) {
 	return state.world.province_land_construction_get_land_construction_supply_route(con);
 }
@@ -827,63 +828,22 @@ void advance_private_factory_construction(
 	}
 }
 
-//void populate_state_construction_demand(
-//	sys::state& state,
-//	dcon::factory_construction_id construction,
-//	float& budget,
-//	float budget_limit
-//) {
-//	auto details = explain_factory_building_construction(state, construction);
-//	if(!details.can_be_advanced) return;
-//	if(details.is_pop_project) return;
-//
-//	auto base_cost = details.refit_target
-//		? calculate_factory_refit_goods_cost(
-//			state, details.owner, details.province, details.building_type, details.refit_target
-//		) : state.world.factory_type_get_construction_costs(details.building_type);
-//	auto& current_purchased = state.world.factory_construction_get_purchased_goods(construction);
-//
-//	for(uint32_t i = 0; i < commodity_set::set_size; ++i) {
-//		auto cid = base_cost.commodity_type[i];
-//		if(!cid) break;
-//		auto current = current_purchased.commodity_amounts[i];
-//		auto required = base_cost.commodity_amounts[i] * details.cost_multiplier;
-//		if(current >= required) continue;
-//		auto local_price = price(state, details.market, cid);
-//		auto can_purchase_budget = std::min(budget_limit, budget) / (local_price + 0.001f);
-//		auto can_purchase_construction = required / details.construction_time;
-//		auto can_purchase = std::min(can_purchase_budget, can_purchase_construction);
-//		auto satisfaction = state.world.market_get_actual_probability_to_buy(details.market, cid);
-//		budget = std::max(0.f, budget - can_purchase * local_price * satisfaction);
-//		register_construction_demand(state, details.market, cid, can_purchase);
-//	}
-//}
-
 tagged_vector<float, dcon::commodity_id> estimate_nation_construction_consumption(const sys::state& state, dcon::nation_id nation) {
 	tagged_vector<float, dcon::commodity_id> consumption(state.world.commodity_size());
-	auto accumulate_func = [&](dcon::commodity_id com_id, float amount) {
-		consumption[com_id] += amount;
-	};
-	for(auto lc : state.world.nation_get_province_land_construction(nation)) {
-		if(!construction_is_privately_owned(state, lc.id) && can_advance_construction(state, lc)) {
-			accumulate_construction_good_requirements(state, lc.id, accumulate_func);
-		}
-	}
-	for(auto nc : state.world.nation_get_province_naval_construction(nation)) {
-		if(!construction_is_privately_owned(state, nc.id) && can_advance_construction(state, nc)) {
-			accumulate_construction_good_requirements(state, nc.id, accumulate_func);
-		}
-	}
-	for(auto pc : state.world.nation_get_province_building_construction(nation)) {
-		if(!construction_is_privately_owned(state, pc.id) && can_advance_construction(state, pc)) {
-			accumulate_construction_good_requirements(state, pc.id, accumulate_func);
-		}
-	}
-	for(auto fc : state.world.nation_get_factory_construction(nation)) {
-		if(!construction_is_privately_owned(state, fc.id) && can_advance_construction(state, fc)) {
-			accumulate_construction_good_requirements(state, fc.id, accumulate_func);
-		}
-	}
+
+	for_each_nation_construction(state, nation, [&](auto construction) {
+
+		float construction_consumption = static_cast<float>(nations::get_nation_construction_consumption_setting_by_type<decltype(construction)>(state, nation)) / 100.0f;
+		float construction_days = static_cast<float>(construction_get_actual_construction_time(state, construction));
+
+		auto accumulate_func = [&](dcon::commodity_id com_id, float required_amount, float total_required) {
+			float demand_amount = std::min(total_required / construction_days * construction_consumption, required_amount); // Tie the demand amount to add to the construction consumption setting of the nation. Low consumption -> we won't try to purchase as much
+			consumption[com_id] += demand_amount;
+		};
+
+		accumulate_construction_good_requirements(state, construction, accumulate_func);
+
+	});
 	return consumption;
 	
 }
@@ -952,8 +912,14 @@ void populate_government_construction_consumption(sys::state& state) {
 			return;
 		}
 		dcon::nation_id conc_owner = construction_get_controller(state, con);
-		auto accumulate_func = [&](dcon::commodity_id com_id, float amount) {
-			demand_buffer_set(conc_owner, com_id, demand_buffer_get(conc_owner, com_id) + amount);
+
+		float construction_days = static_cast<float>(construction_get_actual_construction_time(state, con));
+		float construction_consumption = static_cast<float>(nations::get_nation_construction_consumption_setting_by_type<decltype(con)>(state, conc_owner)) / 100.0f;
+
+
+		auto accumulate_func = [&](dcon::commodity_id com_id, float required_amount, float total_required) {
+			float demand_amount = std::min(total_required / construction_days * construction_consumption, required_amount); // Tie the demand amount to add to the construction consumption setting of the nation. Low consumption -> we won't try to purchase as much
+			demand_buffer_set(conc_owner, com_id, demand_buffer_get(conc_owner, com_id) + demand_amount);
 		};
 		accumulate_construction_good_requirements(state, con, accumulate_func);
 	});

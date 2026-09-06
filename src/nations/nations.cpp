@@ -851,6 +851,20 @@ dcon::text_key name_from_tag(sys::state& state, dcon::national_identity_id tag) 
 		return state.world.national_identity_get_name(tag);
 }
 
+
+template<concepts::construction_type con_type>
+int8_t get_nation_construction_consumption_setting_by_type(const sys::state& state, dcon::nation_id nation) {
+	if constexpr(std::is_same_v<con_type, dcon::province_land_construction_id>) {
+		return state.world.nation_get_army_construction_consumption(nation);
+	} else if constexpr(std::is_same_v<con_type, dcon::province_naval_construction_id>) {
+		return state.world.nation_get_navy_construction_consumption(nation);
+	} else if constexpr(std::is_same_v<con_type, dcon::factory_construction_id>) {
+		return state.world.nation_get_factory_construction_consumption(nation);
+	} else if constexpr(std::is_same_v<con_type, dcon::province_building_construction_id>) {
+		return state.world.nation_get_building_construction_consumption(nation);
+	}
+}
+
 // updates ONLY national admin
 void update_national_administrative_efficiency(sys::state& state) {
 	/*
