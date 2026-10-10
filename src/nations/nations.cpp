@@ -1283,6 +1283,16 @@ float priority_private(sys::state& state, dcon::nation_id n, dcon::factory_type_
 	}
 }
 
+float cb_generation_speed_modifier(const sys::state& state, dcon::nation_id nation) {
+	return std::max(state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::cb_generation_speed_modifier) + 1.0f, 0.01f); // Can't go below 1% efficiency
+}
+
+float cb_justification_speed(const sys::state& state, dcon::nation_id nation, dcon::cb_type_id cb) {
+	float cb_speed = state.world.cb_type_get_construction_speed(cb);
+	float mods = cb_generation_speed_modifier(state, nation);
+	return state.defines.cb_generation_base_speed * cb_speed * mods;
+}
+
 void update_research_points(sys::state& state) {
 	/*
 	Let pop-sum = for each pop type (research-points-from-type x 1^(fraction of population / optimal fraction))

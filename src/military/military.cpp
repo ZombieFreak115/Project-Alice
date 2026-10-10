@@ -1755,7 +1755,7 @@ void update_cbs(sys::state& state) {
 			(national-cb-construction-speed-modifiers + technology-cb-construction-speed-modifier + 1).
 			*/
 
-			auto eff_speed = state.defines.cb_generation_base_speed * n.get_constructing_cb_type().get_construction_speed() * (n.get_modifier_values(sys::national_mod_offsets::cb_generation_speed_modifier) + 1.0f);
+			auto eff_speed = nations::cb_justification_speed(state, n, n.get_constructing_cb_type());
 
 			n.set_constructing_cb_progress(n.get_constructing_cb_progress() + std::max(eff_speed, 0.0f));
 
