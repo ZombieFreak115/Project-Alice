@@ -76,12 +76,6 @@ dcon::nation_id unit_get_controller(const sys::state& state, dcon::navy_id unit)
 	return state.world.navy_get_controller_from_navy_control(unit);
 }
 
-dcon::unit_type_id subunit_get_type(const sys::state& state, dcon::regiment_id subunit) {
-	return state.world.regiment_get_type(subunit);
-}
-dcon::unit_type_id subunit_get_type(const sys::state& state, dcon::ship_id subunit) {
-	return state.world.ship_get_type(subunit);
-}
 void subunit_set_last_required_supply_percent_base_cost(sys::state& state, dcon::regiment_id unit, float val) {
 	state.world.regiment_set_last_required_supply_percent_base_cost(unit, val);
 }
@@ -9848,13 +9842,13 @@ float nation_average_military_satisfaction_by_type(const sys::state& state, dcon
 template float nation_average_military_satisfaction_by_type<dcon::army_id>(const sys::state& state, dcon::nation_id nation);
 template float nation_average_military_satisfaction_by_type<dcon::navy_id>(const sys::state& state, dcon::nation_id nation);
 
-
-float get_over_naval_cap_penalty_modifier(const sys::state& state, dcon::nation_id nation) {
-	float oversize_amount =
+template<typename nation_type>
+adaptive_ve::convert_to_float<nation_type> get_over_naval_cap_penalty_modifier(const sys::state& state, nation_type nation) {
+	auto oversize_amount =
 		state.world.nation_get_naval_supply_points(nation) > 0
-		? std::min(float(state.world.nation_get_used_naval_supply_points(nation)) / float(state.world.nation_get_naval_supply_points(nation)), 1.75f)
+		? std::min(ve::to_float(state.world.nation_get_used_naval_supply_points(nation)) / ve::to_float(state.world.nation_get_naval_supply_points(nation)), 1.75f)
 		: 1.75f;
-	float over_size_penalty = oversize_amount > 1.0f ? 2.0f - oversize_amount : 1.0f;
+	auto over_size_penalty = adaptive_ve::select(oversize_amount > 1.0f, 2.0f - oversize_amount, 1.0f);
 	return over_size_penalty;
 }
 
@@ -10051,7 +10045,7 @@ float calculate_battle_reinforcement(sys::state& state, dcon::land_battle_id b, 
 		bool battle_attacker = is_attacker_in_battle(state, army.get_army());
 		if((battle_attacker && attacker) || (!battle_attacker && !attacker)) {
 			for(auto reg : state.world.army_get_army_membership(army.get_army())) {
-				total += estimate_reinforcement<military::interval_estimation::monthly, supply_estimation::based_on_satisfaction, reinforcement_cap::capped_at_max_strength>(state, reg.get_regiment()) * state.defines.pop_size_per_regiment;
+				total += estimate_reinforcement<military::interval_estimation::monthly, supply_estimation::based_on_satisfaction, reinforcement_cap::capped_at_max_strength>(state, reg.get_regiment().id) * state.defines.pop_size_per_regiment;
 			}
 		}
 	}
@@ -10100,7 +10094,7 @@ maximum-strength x (technology-repair-rate + provincial-modifier-to-repair-rate 
 	for(auto ship : state.world.in_ship) {
 		auto navy = ship.get_navy_from_navy_membership();
 		auto in_nation = navy.get_controller_from_navy_control();
-		auto reinforcement = estimate_reinforcement<interval_estimation::daily, supply_estimation::based_on_satisfaction, reinforcement_cap::capped_at_max_strength>(state, ship);
+		auto reinforcement = estimate_reinforcement<interval_estimation::daily, supply_estimation::based_on_satisfaction, reinforcement_cap::capped_at_max_strength>(state, ship.id);
 		assert(std::isfinite(reinforcement));
 		assert(std::isfinite(ship.get_strength()));
 		ship.set_strength(ship.get_strength() + reinforcement);
@@ -10111,78 +10105,107 @@ maximum-strength x (technology-repair-rate + provincial-modifier-to-repair-rate 
 
 	}
 }
-float get_national_supply_cost_modifiers(const sys::state& state, dcon::nation_id nation) {
+template<typename nation_type>
+adaptive_ve::convert_to_float<nation_type> get_national_supply_cost_modifiers(const sys::state& state, nation_type nation) {
 	return state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::supply_consumption);
 }
-
-float get_strength_supply_cost_modifier(const sys::state& state, dcon::nation_id owner, dcon::regiment_id regiment) {
+template<concepts::any_dcon_id_type<dcon::regiment_id> regiment_type>
+auto get_strength_supply_cost_modifier(const sys::state& state, regiment_type regiment) {
 	return state.world.regiment_get_strength(regiment);
 }
-float get_strength_supply_cost_modifier(const sys::state& state, dcon::nation_id owner, dcon::ship_id ship) {
+template<concepts::any_dcon_id_type<dcon::ship_id> ship_type>
+auto get_strength_supply_cost_modifier(const sys::state& state, ship_type ship) {
 	return state.world.ship_get_strength(ship);
 }
-float get_unit_tech_supply_cost_modifiers(const sys::state& state, dcon::nation_id owner, dcon::unit_type_id unit_type) {
-	auto unit_supply_cost_mod = state.world.nation_get_unit_stats(owner, unit_type).supply_consumption;
-	return unit_supply_cost_mod;
+template<typename nation_type>
+auto get_unit_tech_supply_cost_modifiers(const sys::state& state, nation_type owners, dcon::unit_type_id unit_type) {
+	return ve::apply([&](dcon::nation_id nation) {
+		return state.world.nation_get_unit_stats(nation, unit_type).supply_consumption;
+	}, owners);
 }
 
-float get_supply_cost_modifiers(const sys::state& state, dcon::ship_id ship) {
+
+template<concepts::any_dcon_id_type<dcon::ship_id> ship_type>
+adaptive_ve::convert_to_float<ship_type> get_supply_cost_modifiers(const sys::state& state, ship_type ship) {
+	using float_type = adaptive_ve::convert_to_float<ship_type>;
+
 	auto navy = state.world.ship_get_navy_from_navy_membership(ship);
 	auto nation = state.world.navy_get_controller_from_navy_control(navy);
 	auto type = state.world.ship_get_type(ship);
-	float national_mod = get_national_supply_cost_modifiers(state, nation);
-	float str_mod = get_strength_supply_cost_modifier(state, nation, ship);
-	float unit_tech_mod = get_unit_tech_supply_cost_modifiers(state, nation, type);
-	return std::max(national_mod + unit_tech_mod, 0.01f) * str_mod;
+	auto national_mod = get_national_supply_cost_modifiers(state, nation);
+	auto str_mod = get_strength_supply_cost_modifier(state, ship);
+	auto unit_tech_mod = get_unit_tech_supply_cost_modifiers(state, nation, type);
+	return adaptive_ve::max<float_type>(national_mod + unit_tech_mod, 0.01f) * str_mod;
 }
+template adaptive_ve::convert_to_float<dcon::ship_id> get_supply_cost_modifiers(const sys::state& state, dcon::ship_id ship);
 
-float get_supply_cost_modifiers(const sys::state& state, dcon::regiment_id regiment) {
+template<concepts::any_dcon_id_type<dcon::regiment_id> regiment_type>
+adaptive_ve::convert_to_float<regiment_type> get_supply_cost_modifiers(const sys::state& state, regiment_type regiment) {
+	using float_type = adaptive_ve::convert_to_float<regiment_type>;
 	auto army = state.world.regiment_get_army_from_army_membership(regiment);
-	bool black_flag = state.world.army_get_black_flag(army);
+	auto black_flag = state.world.army_get_black_flag(army);
 	auto nation = state.world.army_get_controller_from_army_control(army);
 	auto type = state.world.regiment_get_type(regiment);
-	float national_mod = get_national_supply_cost_modifiers(state, nation);
-	float str_mod = get_strength_supply_cost_modifier(state, nation, regiment);
-	float unit_tech_mod = get_unit_tech_supply_cost_modifiers(state, nation, type);
-	return std::max(national_mod + unit_tech_mod, 0.01f) * str_mod * !black_flag; // blackflagged units can not receive supply
+	auto national_mod = get_national_supply_cost_modifiers(state, nation);
+	auto str_mod = get_strength_supply_cost_modifier(state, regiment);
+	auto unit_tech_mod = ve::apply([&](dcon::unit_type_id single_type) {
+		return get_unit_tech_supply_cost_modifiers(state, nation, single_type);
+	}, type);
+	return adaptive_ve::select(black_flag, 0.0f, adaptive_ve::max<float_type>(national_mod + unit_tech_mod, 0.01f) * str_mod); // blackflagged units can not receive supply
 }
+template adaptive_ve::convert_to_float<dcon::regiment_id> get_supply_cost_modifiers(const sys::state& state, dcon::regiment_id regiment);
 
-
-float get_national_reinforcement_modifiers(const sys::state& state, dcon::nation_id nation) {
+template<typename nation_type>
+adaptive_ve::convert_to_float<nation_type> get_national_reinforcement_modifiers(const sys::state& state, nation_type nation) {
 	auto combined = state.defines.reinforce_speed * (1.0f + state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::reinforce_speed)) * (1.0f + state.world.nation_get_modifier_values(nation, sys::national_mod_offsets::reinforce_rate));
 	return combined;
 }
 
-
-float get_land_reinforcement_modifiers(const sys::state& state, dcon::army_id army) {
+template<typename army_type>
+adaptive_ve::convert_to_float<army_type> get_land_reinforcement_modifiers(const sys::state& state, army_type army) {
+	using float_type = adaptive_ve::convert_to_float<army_type>;
+	using bool_type = adaptive_ve::convert_to_bool<army_type>;
 	auto nation = state.world.army_get_controller_from_army_control(army);
 	bool blackflagged = state.world.army_get_black_flag(army);
 	// No reinforcements if blackflagged
-	auto combined = get_national_reinforcement_modifiers(state, nation) * !blackflagged;
-
-	assert(std::isfinite(combined));
+	auto combined = adaptive_ve::select<bool_type, float_type>(blackflagged, 0.0f, get_national_reinforcement_modifiers(state, nation));
+	
+	adaptive_ve::v_assert(adaptive_ve::isfinite(combined));
 	return combined;
 
 }
+template<typename navy_type>
+adaptive_ve::convert_to_float<navy_type> get_naval_reinforcement_modifiers(const sys::state& state, navy_type navy) {
 
-float get_naval_reinforcement_modifiers(const sys::state& state, dcon::navy_id navy) {
-	auto nation = state.world.navy_get_controller_from_navy_control(navy);
+	using float_type = adaptive_ve::convert_to_float<navy_type>;
 
-	auto location = state.world.navy_get_location_from_navy_location(navy);
-	auto naval_base_lvl = state.world.province_get_building_level(location, uint8_t(economy::province_building_type::naval_base));
+	auto nations = state.world.navy_get_controller_from_navy_control(navy);
+
+	auto locations = state.world.navy_get_location_from_navy_location(navy);
+	auto naval_base_lvl = state.world.province_get_building_level(locations, uint8_t(economy::province_building_type::naval_base));
+	auto nations_exist = nations::exists(state, nations);
+	auto has_naval_base = naval_base_lvl >= 1;
+	auto is_moving = ve::apply([&](dcon::navy_id n) {
+		return bool(state.world.navy_get_arrival_time(n));
+	}, navy);
 	// Can't repair while moving or not being at a naval base
-	if(state.world.navy_get_arrival_time(navy) || naval_base_lvl < 1) {
-		return 0.0f;
+	auto can_reinforce = nations_exist && has_naval_base && !is_moving;
+	if(adaptive_ve::true_forall(can_reinforce)) {
+		auto repair_mod = state.world.province_get_modifier_values(locations, sys::provincial_mod_offsets::local_repair) + 1.0f;
+		auto main_mods = get_national_reinforcement_modifiers(state, nations);
+		auto over_size_penalty = get_over_naval_cap_penalty_modifier(state, nations);
+
+
+		ve::apply([&](float main_m, float size_penalty) {
+			assert(std::isfinite(main_mods));
+			assert(std::isfinite(over_size_penalty));
+		}, main_mods, over_size_penalty);
+		return main_mods * repair_mod * over_size_penalty;
 	}
-	auto repair_mod = state.world.province_get_modifier_values(location, sys::provincial_mod_offsets::local_repair) + 1.0f;
-	auto main_mods = get_national_reinforcement_modifiers(state, nation);
-	float over_size_penalty = get_over_naval_cap_penalty_modifier(state, nation);
-
-
-
-	assert(std::isfinite(main_mods));
-	assert(std::isfinite(over_size_penalty));
-	return main_mods * repair_mod  * over_size_penalty;
+	else {
+		return float_type{ 0.0f };
+	}
+	
 
 }
 

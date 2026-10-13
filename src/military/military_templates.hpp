@@ -2,8 +2,18 @@
 #include "system_state.hpp"
 #include "military.hpp"
 #include "economy_constants.hpp"
+#include "adaptive_ve.hpp"
 
 namespace military {
+
+template<concepts::any_dcon_id_type<dcon::regiment_id> ID>
+auto subunit_get_type(const sys::state& state, ID subunit) {
+	return state.world.regiment_get_type(subunit);
+}
+template<concepts::any_dcon_id_type<dcon::ship_id> ID>
+auto subunit_get_type(const sys::state& state, ID subunit) {
+	return state.world.ship_get_type(subunit);
+}
 
 template<typename T>
 auto province_is_blockaded(sys::state const& state, T ids) {
@@ -323,39 +333,41 @@ dcon::pop_id find_available_soldier_parsing(sys::state& state, dcon::province_id
 // interval_type: Do we estimate the reinforcement per day, or per month?
 // supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
 // cap_rule: Do we want the uncapped reinforcement regain above max strength? For regiments, the queued potential reinforcements counts as the current strength
-template<interval_estimation interval_type, supply_estimation supply_type, reinforcement_cap cap_rule>
-float estimate_reinforcement(const sys::state& state, dcon::regiment_id regiment, float reinforcement_mods) {
-	float reinf_fufillment;
-	if constexpr(interval_type == interval_estimation::daily) {
-		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = std::clamp(state.world.regiment_get_reinforcement_satisfaction(regiment) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+template<interval_estimation interval_type, supply_estimation supply_type, reinforcement_cap cap_rule, concepts::any_dcon_id_type<dcon::regiment_id> regiment_type, typename float_type>
+float_type estimate_reinforcement(const sys::state& state, regiment_type regiment, float_type reinforcement_mods) {
+
+	auto reinf_fufillment = [&]() {
+		if constexpr(interval_type == interval_estimation::daily) {
+			if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
+				return adaptive_ve::clamp<float_type>(state.world.regiment_get_reinforcement_satisfaction(regiment) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+			}
+			// full supply always
+			else {
+				return adaptive_ve::clamp<float_type>(1.0f / economy::unit_reinforcement_demand_divisor, 0.f, 1.f); 
+			}
 		}
-		// full supply always
+		// monthly
 		else {
-			reinf_fufillment = std::clamp(1.0f / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+			if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
+				return state.world.regiment_get_reinforcement_satisfaction(regiment);
+			}
+			// full supply always
+			else {
+				return float_type {1.0f };
+			}
 		}
-	}
-	// monthly
-	else {
-		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = state.world.regiment_get_reinforcement_satisfaction(regiment);
-		}
-		// full supply always
-		else {
-			reinf_fufillment = 1.0f;
-		}
-	}
+	}();
+	
 	auto pop = state.world.regiment_get_pop_from_regiment_source(regiment);
 	auto combined = reinf_fufillment * reinforcement_mods;
-	float newstr;
-	float curstr = state.world.regiment_get_strength(regiment);
+	auto curstr = state.world.regiment_get_strength(regiment);
 	auto pop_size = state.world.pop_get_size(pop);
-	float pending_reinf = state.world.regiment_get_total_pending_reinforcement(regiment);
+	auto pending_reinf = state.world.regiment_get_total_pending_reinforcement(regiment);
 	if constexpr(cap_rule == reinforcement_cap::capped_at_max_strength) {
-		combined = std::min(combined, 1.0f - (curstr + pending_reinf)); // Can only reinforce up to the amount of missing strength
-		auto limit_fraction = std::max(state.defines.alice_full_reinforce, std::min(1.0f, pop_size / state.defines.pop_size_per_regiment));
-		newstr = std::min(curstr + combined, limit_fraction);
-		return std::max(newstr - curstr, 0.0f); 
+		combined = adaptive_ve::min<float_type>(combined, 1.0f - (curstr + pending_reinf)); // Can only reinforce up to the amount of missing strength
+		auto limit_fraction = adaptive_ve::max< float_type>(state.defines.alice_full_reinforce, adaptive_ve::min<float_type>(1.0f, pop_size / state.defines.pop_size_per_regiment));
+		auto newstr = adaptive_ve::min<float_type>(curstr + combined, limit_fraction);
+		return adaptive_ve::max<float_type>(newstr - curstr, 0.0f);
 	} else if constexpr(cap_rule == reinforcement_cap::uncapped) {
 		return combined;
 	}
@@ -367,8 +379,8 @@ float estimate_reinforcement(const sys::state& state, dcon::regiment_id regiment
 }
 // Estimates reinforcement for a regiment, and computes the modifiers on its own
 // US14 Calculates reinforcement for a particular regiment
-template<interval_estimation interval_type, supply_estimation supply_type, reinforcement_cap cap_rule>
-float estimate_reinforcement(const sys::state& state, dcon::regiment_id regiment) {
+template<interval_estimation interval_type, supply_estimation supply_type, reinforcement_cap cap_rule, concepts::any_dcon_id_type<dcon::regiment_id> regiment_type>
+auto estimate_reinforcement(const sys::state& state, regiment_type regiment) {
 	auto army = state.world.regiment_get_army_from_army_membership(regiment);
 	auto mods = get_land_reinforcement_modifiers(state, army);
 	return estimate_reinforcement<interval_type, supply_type, cap_rule>(state, regiment, mods);
@@ -381,7 +393,7 @@ float estimate_reinforcement(const sys::state& state, dcon::army_id army) {
 	float total_reinforcement = 0.0f;
 	for(auto r : state.world.army_get_army_membership(army)) {
 		auto regiment = r.get_regiment();
-		total_reinforcement += estimate_reinforcement<interval_type, supply_type, cap_rule>(state, regiment);
+		total_reinforcement += estimate_reinforcement<interval_type, supply_type, cap_rule>(state, regiment.id);
 	}
 	return total_reinforcement;
 
@@ -392,33 +404,35 @@ float estimate_reinforcement(const sys::state& state, dcon::army_id army) {
 // interval_type: Do we estimate the reinforcement per day, or per month?
 // supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
 // cap_rule: Do we want the uncapped reinforcement regain above max strength?
-template<interval_estimation interval_type, supply_estimation supply_type, reinforcement_cap cap_rule>
-float estimate_reinforcement(const sys::state& state, dcon::ship_id ship, float reinforcement_mods) {
-	float reinf_fufillment;
-	if constexpr(interval_type == interval_estimation::daily) {
-		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = std::clamp(state.world.ship_get_reinforcement_satisfaction(ship) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+template<interval_estimation interval_type, supply_estimation supply_type, reinforcement_cap cap_rule, concepts::any_dcon_id_type<dcon::ship_id> ship_type, typename float_type>
+float_type estimate_reinforcement(const sys::state& state, ship_type ship, float_type reinforcement_mods) {
+	float reinf_fufillment = [&]() {
+		if constexpr(interval_type == interval_estimation::daily) {
+			if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
+				return adaptive_ve::clamp<float_type>(state.world.ship_get_reinforcement_satisfaction(ship) / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+			}
+			// full supply always
+			else {
+				return adaptive_ve::clamp<float_type>(1.0f / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+			}
 		}
-		// full supply always
+		// monthly
 		else {
-			reinf_fufillment = std::clamp(1.0f / economy::unit_reinforcement_demand_divisor, 0.f, 1.f);
+			if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
+				return state.world.ship_get_reinforcement_satisfaction(ship);
+			}
+			// full supply always
+			else {
+				return float_type { 1.0f };
+			}
 		}
-	}
-	// monthly
-	else {
-		if constexpr(supply_type == supply_estimation::based_on_satisfaction) {
-			reinf_fufillment = state.world.ship_get_reinforcement_satisfaction(ship);
-		}
-		// full supply always
-		else {
-			reinf_fufillment = 1.0f;
-		}
-	}
+	}();
+	
 	auto combined = reinf_fufillment * reinforcement_mods;
-	float curstr = state.world.ship_get_strength(ship);
+	auto curstr = state.world.ship_get_strength(ship);
 	if constexpr(cap_rule == reinforcement_cap::capped_at_max_strength) {
-		combined = std::min(combined, 1.0f - curstr); // Can only reinforce up to the amount of missing strength
-		return std::max(combined, 0.0f);
+		combined = adaptive_ve::min<float_type>(combined, 1.0f - curstr); // Can only reinforce up to the amount of missing strength
+		return adaptive_ve::max<float_type>(combined, 0.0f);
 	} else if constexpr(cap_rule == reinforcement_cap::uncapped) {
 		return combined;
 	}
@@ -432,8 +446,8 @@ float estimate_reinforcement(const sys::state& state, dcon::ship_id ship, float 
 // interval_type: Do we estimate the reinforcement per day, or per month?
 // supply_type: Do we assume we have full supply, or do we scale it based on current satisfaction?
 // cap_rule: Do we want the uncapped reinforcement regain above max strength?
-template<interval_estimation interval_type, supply_estimation supply_type, reinforcement_cap cap_rule>
-float estimate_reinforcement(const sys::state& state, dcon::ship_id ship) {
+template<interval_estimation interval_type, supply_estimation supply_type, reinforcement_cap cap_rule,concepts::any_dcon_id_type<dcon::ship_id> ship_type>
+auto estimate_reinforcement(const sys::state& state, ship_type ship) {
 	auto navy = state.world.ship_get_navy_from_navy_membership(ship);
 	auto mods = get_naval_reinforcement_modifiers(state, navy);
 	return estimate_reinforcement<interval_type, supply_type, cap_rule>(state, ship, mods);
@@ -454,14 +468,14 @@ float estimate_reinforcement(const sys::state& state, dcon::navy_id navy) {
 	return total_reinforcement;
 
 }
-// Accumulates the daily goods consumption required for a subunit (regiment or ship) for full goods fufillment using the functor for supply consumption or reinforcement consumption depending on the enum
+// Accumulates the daily goods consumption required for a subunit (regiment or ship) or subunits if vectorized for full goods fufillment using the functor for supply consumption or reinforcement consumption depending on the enum
 // Functor signature is: (dcon::commodity_id, float)
-template<unit_consumption_type consume_type, concepts::military_subunit subunit_type, typename FAccumulate>
-void accumulate_subunit_daily_goods_requirements(const sys::state& state, dcon::nation_id owner, subunit_type subunit, FAccumulate&& acc_func) {
-	assert(owner);
-	dcon::unit_type_id type = subunit_get_type(state, subunit);
+template<unit_consumption_type consume_type, typename nation_type, typename subunit_type, typename FAccumulate>
+void accumulate_subunit_daily_goods_requirements(const sys::state& state, nation_type owners, subunit_type subunit, FAccumulate&& acc_func) {
 
-	float cost_mod = [&]() {
+	auto types = subunit_get_type(state, subunit);
+
+	auto cost_mods = [&]() {
 		if constexpr(consume_type == unit_consumption_type::supply) {
 			return military::get_supply_cost_modifiers(state, subunit);
 		}
@@ -469,11 +483,12 @@ void accumulate_subunit_daily_goods_requirements(const sys::state& state, dcon::
 			return military::estimate_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, reinforcement_cap::capped_at_max_strength>(state, subunit);
 		}
 	}();
-
-	const economy::commodity_set& base_cost = unit_type_get_base_commodity_costs<consume_type>(state, type);
-	base_cost.for_each_commodity([&](dcon::commodity_id com_id, float required_amounts) {
-		acc_func(com_id, required_amounts * cost_mod);
-	});
+	ve::apply([&](dcon::unit_type_id type, float cost_mod) {
+		const economy::commodity_set& base_cost = unit_type_get_base_commodity_costs<consume_type>(state, type);
+		base_cost.for_each_commodity([&](dcon::commodity_id com_id, float required_amounts) {
+			acc_func(com_id, required_amounts * cost_mod);
+		});
+	}, types, cost_mods);
 }
 
 template<typename F>

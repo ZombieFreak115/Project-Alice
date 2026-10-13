@@ -8,6 +8,7 @@
 #include "constants_dcon.hpp"
 #include "commands_constants.hpp"
 #include "concept_declarations.hpp"
+#include "adaptive_ve.hpp"
 
 namespace military {
 namespace cb_flag {
@@ -162,11 +163,10 @@ dcon::navy_id subunit_get_membership(const sys::state& state, dcon::ship_id unit
 dcon::nation_id unit_get_controller(const sys::state& state, dcon::army_id unit);
 dcon::nation_id unit_get_controller(const sys::state& state, dcon::navy_id unit);
 
-dcon::unit_type_id subunit_get_type(const sys::state& state, dcon::regiment_id subunit);
-dcon::unit_type_id subunit_get_type(const sys::state& state, dcon::ship_id subunit);
-
-template<concepts::military_subunit subunit_type>
-float subunit_get_last_required_reinforcement_percent_base_cost(const sys::state& state, subunit_type unit);
+template<typename value_type, concepts::any_dcon_id_type<dcon::regiment_id> ID>
+value_type subunit_get_type(const sys::state& state, ID subunit);
+template<typename value_type, concepts::any_dcon_id_type<dcon::ship_id> ID>
+value_type subunit_get_type(const sys::state& state, ID subunit);
 
 float subunit_get_last_required_supply_percent_base_cost(const sys::state& state, dcon::regiment_id unit);
 float subunit_get_last_required_supply_percent_base_cost(const sys::state& state, dcon::ship_id unit);
@@ -561,15 +561,19 @@ void run_gc(sys::state& state);
 void update_blackflag_status(sys::state& state);
 void send_rebel_hunter_to_next_province(sys::state& state, dcon::army_id ar, dcon::province_id prov);
 
+
 // Gets the net total supply cost modifier for the naval unit,with all modifiers included
-float get_supply_cost_modifiers(const sys::state& state, dcon::ship_id ship);
+template<concepts::any_dcon_id_type<dcon::ship_id> ship_type>
+adaptive_ve::convert_to_float<ship_type> get_supply_cost_modifiers(const sys::state& state, ship_type ship);
 
 // Gets the net total supply cost modifier for the land unit, with all modifiers included
-float get_supply_cost_modifiers(const sys::state& state, dcon::regiment_id regiment);
+template<concepts::any_dcon_id_type<dcon::regiment_id> regiment_type>
+adaptive_ve::convert_to_float<regiment_type> get_supply_cost_modifiers(const sys::state& state, regiment_type regiment);
 
-
-float get_land_reinforcement_modifiers(const sys::state& state, dcon::army_id regiment);
-float get_naval_reinforcement_modifiers(const sys::state& state, dcon::navy_id navy);
+template<typename army_type>
+adaptive_ve::convert_to_float<army_type> get_land_reinforcement_modifiers(const sys::state& state, army_type army);
+template<typename navy_type>
+adaptive_ve::convert_to_float<navy_type> get_naval_reinforcement_modifiers(const sys::state& state, navy_type navy);
 
 bool is_battle_retreatable(sys::state& state, dcon::naval_battle_id battle, retreat_type retreat_type);
 bool is_battle_retreatable(sys::state& state, dcon::land_battle_id battle);
@@ -621,7 +625,8 @@ template<regiment_dmg_source damage_source>
 void disband_regiment_w_pop_death(sys::state& state, dcon::regiment_id reg_id);
 
 // Does not add a +1 as it is expected that will be by caller
-float get_national_supply_cost_modifiers(const sys::state& state, dcon::nation_id nation);
+template<typename nation_type>
+adaptive_ve::convert_to_float<nation_type> get_national_supply_cost_modifiers(const sys::state& state, nation_type nation);
 
 
 military::unit_priority increment_priority(military::unit_priority priority);
