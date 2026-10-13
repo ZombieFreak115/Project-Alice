@@ -1709,17 +1709,16 @@ void populate_army_consumption(sys::state& state) {
 		});
 	});
 	// Add up total commodity demand from regiments per nation. We always want to populate demand as if we are trying to buy as many goods as it would take to fully supply all units, clamped by the budget allocated
-	state.world.for_each_regiment([&](dcon::regiment_id regiment) {
-		auto army = state.world.regiment_get_army_from_army_membership(regiment);
+	state.world.execute_serial_over_regiment([&](auto regiments) {
+		auto army = state.world.regiment_get_army_from_army_membership(regiments);
 		auto nation = state.world.army_get_controller_from_army_control(army);
-		if(nation) {
-			auto accumulate_consumption = [&](dcon::commodity_id com_id, float amount) {
-				auto union_com_id = state.world.commodity_get_unit_supply_and_build_commodity(com_id);
-				demand_buffer_set(nation, union_com_id, demand_buffer_get(nation, union_com_id) + amount);
-			};
-			military::accumulate_subunit_daily_goods_requirements<military::unit_consumption_type::supply>(state, nation, regiment, accumulate_consumption);
-			military::accumulate_subunit_daily_goods_requirements<military::unit_consumption_type::reinforcement>(state, nation, regiment, accumulate_consumption);
-		}
+		auto accumulate_consumption = [&](dcon::commodity_id com_id, float amount) {
+			auto union_com_id = state.world.commodity_get_unit_supply_and_build_commodity(com_id);
+			demand_buffer_set(nation, union_com_id, demand_buffer_get(nation, union_com_id) + amount);
+		};
+		military::accumulate_subunit_daily_goods_requirements<military::unit_consumption_type::supply>(state, nation, regiments, accumulate_consumption);
+		military::accumulate_subunit_daily_goods_requirements<military::unit_consumption_type::reinforcement>(state, nation, regiments, accumulate_consumption);
+		
 	});
 	// Calculate the total expected price per nation, when taking into account demand weights in their controlled states.
 	// We need to calculate this to be a modifier on demand later

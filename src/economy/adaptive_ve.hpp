@@ -121,5 +121,21 @@ RELEASE_INLINE VALUE clamp(const VALUE val, const VALUE min_val, const VALUE max
 	return ve::min(ve::max(val, min_val), max_val);
 }
 
+template<typename VALUE> requires concepts::dcon_id_type<VALUE>
+RELEASE_INLINE bool id_is_valid(const VALUE val) {
+	return bool(val);
+}
+
+template<typename VALUE>
+RELEASE_INLINE ve::mask_vector id_is_valid(const VALUE val) {
+	return ve::apply([&](auto v) {
+		return bool(v);
+	}, val);
+}
+
+
+
+
+
 
 }

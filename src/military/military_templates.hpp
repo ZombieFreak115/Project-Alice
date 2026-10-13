@@ -474,21 +474,24 @@ template<unit_consumption_type consume_type, typename nation_type, typename subu
 void accumulate_subunit_daily_goods_requirements(const sys::state& state, nation_type owners, subunit_type subunit, FAccumulate&& acc_func) {
 
 	auto types = subunit_get_type(state, subunit);
-
-	auto cost_mods = [&]() {
-		if constexpr(consume_type == unit_consumption_type::supply) {
-			return military::get_supply_cost_modifiers(state, subunit);
-		}
-		else if constexpr(consume_type == unit_consumption_type::reinforcement) {
-			return military::estimate_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, reinforcement_cap::capped_at_max_strength>(state, subunit);
-		}
-	}();
-	ve::apply([&](dcon::unit_type_id type, float cost_mod) {
-		const economy::commodity_set& base_cost = unit_type_get_base_commodity_costs<consume_type>(state, type);
-		base_cost.for_each_commodity([&](dcon::commodity_id com_id, float required_amounts) {
-			acc_func(com_id, required_amounts * cost_mod);
-		});
-	}, types, cost_mods);
+	auto valid_owners_and_units = adaptive_ve::id_is_valid(owners) && adaptive_ve::id_is_valid(subunit); // Checks for invalid subunit handles and rebel units
+	if(adaptive_ve::true_forall(valid_owners_and_units)) {
+		auto cost_mods = [&]() {
+			if constexpr(consume_type == unit_consumption_type::supply) {
+				return military::get_supply_cost_modifiers(state, subunit);
+			} else if constexpr(consume_type == unit_consumption_type::reinforcement) {
+				return military::estimate_reinforcement<military::interval_estimation::daily, military::supply_estimation::full_supply_always, reinforcement_cap::capped_at_max_strength>(state, subunit);
+			}
+		}();
+		ve::apply([&](dcon::unit_type_id type, float cost_mod, bool is_valid) {
+			if(is_valid) {
+				const economy::commodity_set& base_cost = unit_type_get_base_commodity_costs<consume_type>(state, type);
+				base_cost.for_each_commodity([&](dcon::commodity_id com_id, float required_amounts) {
+					acc_func(com_id, required_amounts * cost_mod);
+				});
+			}
+		}, types, cost_mods, valid_owners_and_units);
+	}
 }
 
 template<typename F>
