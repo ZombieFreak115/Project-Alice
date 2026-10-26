@@ -24,16 +24,20 @@ namespace province {
 template auto is_overseas<ve::tagged_vector<dcon::province_id>>(sys::state const&, ve::tagged_vector<dcon::province_id>);
 template void for_each_province_in_state_instance<std::function<void(dcon::province_id)>>(sys::state const &, dcon::state_instance_id, std::function<void(dcon::province_id)> const&);
 
-bool is_sea(const sys::state& state, dcon::province_id prov) {
-	return state.province_definitions.first_sea_province.index() <= prov.index();
-}
 
-bool is_land(const sys::state& state, dcon::province_id prov) {
+template<typename province_type>
+adaptive_ve::convert_to_bool<province_type> is_sea(const sys::state& state, province_type prov) {
+	return ve::apply([&](dcon::province_id p) {
+		return state.province_definitions.first_sea_province.index() <= p.index();
+	}, prov);
+}
+template<typename province_type>
+adaptive_ve::convert_to_bool<province_type> is_land(const sys::state& state, province_type prov) {
 	return !is_sea(state, prov);
 }
-
-bool prov_is_coastal(const sys::state& state, dcon::province_id prov) {
-	return bool(state.world.province_get_port_to(prov));
+template<typename province_type>
+adaptive_ve::convert_to_bool<province_type> prov_is_coastal(const sys::state& state, province_type prov) {
+	return state.world.province_get_port_to(prov) != province_type{};
 }
 
 bool adj_is_coastal(const sys::state& state, dcon::province_adjacency_id adj) {
@@ -2561,33 +2565,20 @@ bool has_safe_access_to_province(sys::state& state, dcon::nation_id nation_as, d
 	return false;
 }
 
-
-bool has_supply_access_to_province(const sys::state& state, dcon::nation_id nation_as, dcon::province_id prov) {
+template<typename province_type>
+adaptive_ve::convert_to_bool<province_type> has_supply_access_to_province(const sys::state& state, dcon::nation_id nation_as, province_type prov) {
 	assert(nation_as);
 
-	bool is_sea = province::is_sea(state, prov);// Sea provinces are always accessible. Blockades are resolved elsewhere
+	auto is_sea = province::is_sea(state, prov);// Sea provinces are always accessible. Blockades are resolved elsewhere
 	auto controller = state.world.province_get_nation_from_province_control(prov);
 	auto coverl = state.world.nation_get_overlord_as_subject(controller);
-	bool is_controller = (controller == nation_as);
-	bool is_spherelord = (state.world.nation_get_in_sphere_of(controller) == nation_as);
-	bool is_overlord = (state.world.overlord_get_ruler(coverl) == nation_as);
-
-	if(is_sea || is_controller || is_spherelord || is_overlord) {
-		return true;
-	}
-
-	if(military::has_military_access_to(state, nation_as, controller))
-		return true;
-
-	// War check is fairly cheap. Do that before more expensive checks
-	if(military::are_enemies(state, nation_as, controller)) {
-		return false;
-	}
-
-	if(military::are_on_same_side_in_common_war(state, nation_as, controller))
-		return true;
-
-	return false;
+	auto is_controller = (controller == nation_as);
+	auto is_spherelord = (state.world.nation_get_in_sphere_of(controller) == nation_as);
+	auto is_overlord = (state.world.overlord_get_ruler(coverl) == nation_as);
+	auto has_mil_access = military::has_military_access_to(state, nation_as, controller);
+	auto are_hostile = military::are_enemies(state, controller, nation_as);
+	auto on_same_side_in_war = military::are_on_same_side_in_common_war(state, controller, nation_as);
+	return (is_sea || is_controller || is_spherelord || is_overlord || has_mil_access || on_same_side_in_war) && !are_hostile;
 }
 
 void make_adjacency_path_from_prov_path(const sys::state& state, std::span<const dcon::province_id> prov_path, std::vector<dcon::province_adjacency_id>& adj_path_out) {
@@ -3074,58 +3065,73 @@ bool make_logistics_path(const sys::state& state, dcon::province_id origin_prov,
 
 	// Will store data relavent to each pathfind iteration, and initalized when a new iteration begins. Saves some duplicate computations
 	struct iteration_data {
-		bool is_land_to_sea{};
-		bool port_connection{};
-		uint8_t highest_naval_base_level{ };
-		float to_prov_supply_throughput{ };
+		ve::mask_vector is_land_to_sea{};
+		ve::mask_vector port_connection{};
+		ve::int_vector highest_naval_base_level{ };
+		ve::fp_vector to_prov_supply_throughput{ };
 		float from_prov_supply_throughput{ };
-		float to_prov_port_capacity{ };
+		ve::fp_vector to_prov_port_capacity{ };
 		float from_prov_port_capacity{ };
-		float adj_supply_throughput{};
+		ve::fp_vector adj_supply_throughput{};
 		float from_prov_supply_loss{ };
-		float to_prov_supply_loss{ };
-		float adj_supply_loss{};
-		float free_supply_throughput{};
-		float supply_efficiency{};
+		ve::fp_vector to_prov_supply_loss{ };
+		ve::fp_vector adj_supply_loss{};
+		ve::fp_vector free_supply_throughput{};
+		ve::fp_vector supply_efficiency{};
 	};
-	auto adjacency_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, const iteration_data& data) {
+	auto adjacency_func = [&](auto to_prov, dcon::province_id from, auto to_adj, const iteration_data& data) {
 		// Most of the checks were done in the province func already. We do have to check supply throughput again, since it may change in the adjacency init func if its a port
-		
-		if(data.is_land_to_sea && !data.port_connection) {
-			return false;
-		}
-		return data.adj_supply_throughput > 0.0 && !is_adjacency_impassable(state, nation_as, adj);
+
+		ve::mask_vector invalid_connection = (data.is_land_to_sea && !data.port_connection) || data.adj_supply_throughput <= 0.0f;
+
+		return ve::apply([&](dcon::province_adjacency_id to_adj_single, bool invalid_connection_single) {
+			if(bool(to_adj_single) && !invalid_connection_single) {
+				return !is_adjacency_impassable(state, nation_as, to_adj_single);
+			}
+			else {
+				return false;
+			}
+		}, to_adj, invalid_connection);
+
 	};
-	auto to_province_func = [&](dcon::province_id to, const iteration_data& data) {
+	auto to_province_func = [&](auto to, const iteration_data& data) {
 		// If the province supply throughput of the to-province is 0 (eg. by being at war with the controller), then we may only path to it as long as there is a friendly army due to the special condition
-		if(data.to_prov_supply_throughput == 0.0f && data.to_prov_port_capacity == 0.0f) {
-			return military::province_has_army<military::battle_included::yes, military::retreat_included::yes, military::blackflag_included::no, military::participants_included::ourselves>(state, to, nation_as);
-		}
-		else {
-			return true;
-		}
+		ve::mask_vector no_throughput = data.to_prov_supply_throughput == 0.0f && data.to_prov_port_capacity == 0.0f;
+		return ve::apply([&](dcon::province_id to_single, bool no_throughput_single) {
+			if(bool(to_single) && no_throughput_single) {
+				return military::province_has_army<military::battle_included::yes, military::retreat_included::yes, military::blackflag_included::no, military::participants_included::ourselves>(state, to_single, nation_as);
+			}
+			else {
+				return true;
+			}
+		}, to, no_throughput);
 
 	};
-	auto movement_cost_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, const iteration_data& data) {
+	auto movement_cost_func = [&](auto to, dcon::province_id from, auto adj, ve::fp_vector distance, const iteration_data& data) {
 		// Take into account the expected supply throughput, and supply loss. Increase perceived distance based on them to nudge the pathfinding to find a better path
-		assert(data.adj_supply_throughput > 0.0f);
-		assert(data.supply_efficiency > 0.0f);
-		assert(data.adj_supply_loss > 0.0f);
-		bool no_naval_base = (data.highest_naval_base_level == 0);
-		bool lacking_navalbase_penalty = (data.is_land_to_sea && no_naval_base);
+		ve::mask_vector no_naval_base = (data.highest_naval_base_level == 0);
+		ve::mask_vector lacking_navalbase = (data.is_land_to_sea && no_naval_base);
+		ve::fp_vector lacking_navalbase_penalty = ve::select(lacking_navalbase, ve::fp_vector { 0.0f }, ve::fp_vector {1.0f });
 
-		float supply_loss_factor = (1.0f - data.adj_supply_loss) * supply_loss_path_factor + 1.0f;
-		float lacking_navalbase_factor = lacking_navalbase_path_factor * lacking_navalbase_penalty + 1.0f; // Apply lacking naval base weight
+		ve::fp_vector supply_loss_factor = (1.0f - data.adj_supply_loss) * supply_loss_path_factor + 1.0f;
+		ve::fp_vector lacking_navalbase_factor = lacking_navalbase_path_factor * lacking_navalbase_penalty + 1.0f; // Apply lacking naval base weight
 		// if there is free supply throughput, the percived distance will be reduced. If there is no free throughput, then the percieved distance will be increased the lower the supply efficiency is (0.0-1.0)
-		float supply_throughput_factor = (data.free_supply_throughput > 0.0f ? data.free_supply_throughput * excess_supply_throughput_path_factor + 1.0f : data.supply_efficiency / lacking_supply_throughput_path_factor);
+		ve::fp_vector supply_throughput_factor = ve::select(data.free_supply_throughput > 0.0f, data.free_supply_throughput * excess_supply_throughput_path_factor + 1.0f, data.supply_efficiency / lacking_supply_throughput_path_factor);
 		return distance * supply_loss_factor * lacking_navalbase_factor / supply_throughput_factor;
 
 	};
-	auto to_province_init_func = [&](dcon::province_id to, iteration_data& data) {
+	auto to_province_init_func = [&](auto to, iteration_data& data) {
 		data.to_prov_supply_throughput = logistics::calculate_supply_throughput_in_province(state, to, nation_as);
 		data.to_prov_supply_loss = logistics::calculate_supply_loss_in_province(state, to, nation_as);
-		bool is_coastal = province::prov_is_coastal(state, to);
-		data.to_prov_port_capacity = (is_coastal ? logistics::port_supply_capacity_in_province(state, to, nation_as) : 0.0f);
+		auto is_coastal = province::prov_is_coastal(state, to);
+		data.to_prov_port_capacity = ve::apply([&](dcon::province_id to_single, bool coastal) {
+			if(bool(to_single) && coastal) {
+				return logistics::port_supply_capacity_in_province(state, to_single, nation_as);
+			}
+			else {
+				return 0.0f;
+			}
+		}, to, is_coastal);
 	}; 
 	auto from_province_init_func = [&](dcon::province_id from, iteration_data& data) {
 		data.from_prov_supply_throughput = logistics::calculate_supply_throughput_in_province(state, from, nation_as);
@@ -3134,36 +3140,36 @@ bool make_logistics_path(const sys::state& state, dcon::province_id origin_prov,
 		data.from_prov_port_capacity = (is_coastal ? logistics::port_supply_capacity_in_province(state, from, nation_as) : 0.0f);
 	}; 
 
-	auto adj_init_func = [&](dcon::province_id to, dcon::province_id from, dcon::province_adjacency_id adj, float distance, iteration_data& data) {
-		float supply_loss = 1.0f - logistics::calculate_adjacency_avg_supply_loss(state, from, to, data.from_prov_supply_loss, data.to_prov_supply_loss, nation_as) / state.map_state.map_data.world_circumference; // Get the supply loss measured in loss per km
-		data.adj_supply_loss = std::max(supply_loss, 0.00000001f); // Clamp so that it cannot be zero, but is allowed to be a very small value
-		float used_throughput = state.world.province_adjacency_get_used_supply_throughput(adj) + expected_volume;
-		float adj_throughput = [&]() {
-			if(province::adj_is_coastal(state, adj)) {
-				return logistics::calculate_supply_throughput_in_coastal_adjacency(state, adj, from, to, data.from_prov_port_capacity, data.to_prov_port_capacity, nation_as);
+	auto adj_init_func = [&](auto to, dcon::province_id from, auto adj, ve::fp_vector distance, iteration_data& data) {
+		auto supply_loss = 1.0f - logistics::calculate_adjacency_avg_supply_loss(state, to, from, data.to_prov_supply_loss, data.from_prov_supply_loss, nation_as) / state.map_state.map_data.world_circumference; // Get the supply loss measured in loss per km
+		data.adj_supply_loss = ve::max(supply_loss, 0.00000001f); // Clamp so that it cannot be zero, but is allowed to be a very small value
+		auto used_throughput = state.world.province_adjacency_get_used_supply_throughput(adj) + expected_volume;
+		auto adj_throughput = ve::apply([&](dcon::province_id to_single, float to_prov_port_capacity, float to_prov_supply_throughput, dcon::province_adjacency_id adj_single) {
+			if(province::adj_is_coastal(state, adj_single)) {
+				return logistics::calculate_supply_throughput_in_coastal_adjacency(state, adj_single, from, to_single, data.from_prov_port_capacity, to_prov_port_capacity, nation_as);
 			}
 			else {
-				return logistics::calculate_supply_throughput_in_noncoastal_adjacency(state, adj, from, to, data.from_prov_supply_throughput, data.to_prov_supply_throughput, nation_as);
+				return logistics::calculate_supply_throughput_in_noncoastal_adjacency(state, adj_single, from, to_single, data.from_prov_supply_throughput, to_prov_supply_throughput, nation_as);
 			}
-		}();
+		}, to, data.to_prov_port_capacity, data.to_prov_supply_throughput, adj);
 		data.adj_supply_throughput = adj_throughput;
 		data.free_supply_throughput = data.adj_supply_throughput - used_throughput;
 		data.supply_efficiency = logistics::compute_efficiency(used_throughput, data.adj_supply_throughput);
 
 		dcon::province_id from_port_to = state.world.province_get_port_to(from);
-		dcon::province_id to_port_to = state.world.province_get_port_to(to);
-		bool land_to_sea = (province::is_sea(state, to) != province::is_sea(state, from));
-		bool from_prov_is_connected_to_to = (from_port_to == to);
-		bool to_prov_is_connected_to_from = (to_port_to == from);
+		auto to_port_to = state.world.province_get_port_to(to);
+		auto land_to_sea = (province::is_sea(state, to) != province::is_sea(state, from));
+		auto from_prov_is_connected_to_to = (from_port_to == to);
+		auto to_prov_is_connected_to_from = (to_port_to == from);
 		data.port_connection = (from_prov_is_connected_to_to || to_prov_is_connected_to_from);
 		data.is_land_to_sea = land_to_sea;
 		// Get the highest naval base lvl of the two provinces. Non-coast provinces or sea provinces should always have level 0 naval base
-		data.highest_naval_base_level = std::max(state.world.province_get_building_level(to, uint8_t(economy::province_building_type::naval_base)), state.world.province_get_building_level(from, uint8_t(economy::province_building_type::naval_base)));
+		data.highest_naval_base_level = adaptive_ve::max(state.world.province_get_building_level(to, uint8_t(economy::province_building_type::naval_base)), ve::int_vector{ state.world.province_get_building_level(from, uint8_t(economy::province_building_type::naval_base)) });
 
 	};
 	// We are passing "origin" province as end, and "destination" as start. This is because creating the path in reverse has some desired effects. For example it means the province the army is on will not be path of the path (so that you wont lose supply instantly when adjacen to a friendly province)
 	// And will enable faster early-exits if units are deep in enemy territory
-	bool valid_path = make_path_to_prov<1.0f, iteration_data>(state, destination, origin_prov, path_result, adjacency_func, to_province_func, movement_cost_func, to_province_init_func, adj_init_func, from_province_init_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
+	bool valid_path = ve_make_path_to_prov<1.0f, iteration_data>(state, destination, origin_prov, path_result, adjacency_func, to_province_func, movement_cost_func, to_province_init_func, adj_init_func, from_province_init_func); // multiply heuristic by 1 for faster path ( is called as part of supply logic)
 	if(valid_path) {
 		path_result.push_back(destination); // Include the destination in the path (which normally is not included)
 		// Create the adjacency path. Maybe this can be done directly in the pathing algoritm?

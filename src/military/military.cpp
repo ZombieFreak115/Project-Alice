@@ -995,19 +995,6 @@ uint32_t state_railroad_level(sys::state const& state, dcon::state_instance_id s
 	}
 	return level;
 }
-// wrapper for are_at_war which also returns true if one of the tags is rebel, and the other is not
-bool are_enemies(sys::state const& state, dcon::nation_id a, dcon::nation_id b) {
-	return (!b && a) || (b && !a) || are_at_war(state, a, b);
-}
-
-bool are_at_war(sys::state const& state, dcon::nation_id a, dcon::nation_id b) {
-	bool at_war_with = state.world.nation_get_is_at_war_with(a, b);
-	return at_war_with;
-}
-
-bool are_on_same_side_in_common_war(sys::state const& state, dcon::nation_id a, dcon::nation_id b) {
-	return state.world.nation_get_is_on_same_side_in_war_with(a, b);
-}
 
 bool are_in_common_war(sys::state const& state, dcon::nation_id a, dcon::nation_id b) {
 	return state.world.nation_get_is_in_common_war_with(a, b);

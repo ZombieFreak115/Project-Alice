@@ -22,6 +22,7 @@
 #include <set>
 #include "logistics.hpp"
 #include "logistics_templates.hpp"
+#include "military_templates.hpp"
 
 namespace map {
 

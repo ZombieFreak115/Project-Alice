@@ -30,6 +30,24 @@ adaptive_ve::convert_to_bool<target_nation_type> has_military_access_to(const sy
 	return state.world.nation_get_has_military_access_from(to, accessing_nation);
 }
 
+template<typename nation_type>
+adaptive_ve::convert_to_bool<nation_type> are_at_war(sys::state const& state, nation_type a, dcon::nation_id b) {
+	auto at_war_with = state.world.nation_get_is_at_war_with(a, b);
+	return at_war_with;
+}
+// wrapper for are_at_war which also returns true if one of the tags is rebel, and the other is not
+template<typename nation_type>
+adaptive_ve::convert_to_bool<nation_type> are_enemies(sys::state const& state, nation_type a, dcon::nation_id b) {
+	auto a_is_rebel = (a == nation_type{ });
+	bool b_is_rebel = !bool(b);
+	return (b_is_rebel && !a_is_rebel) || (!b_is_rebel && a_is_rebel) || are_at_war(state, a, b);
+}
+
+template<typename nation_type>
+adaptive_ve::convert_to_bool<nation_type> are_on_same_side_in_common_war(sys::state const& state, nation_type a, dcon::nation_id b) {
+	return state.world.nation_get_is_on_same_side_in_war_with(a, b);
+}
+
 
 enum class battle_included : uint8_t {
 	no = 0,

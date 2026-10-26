@@ -35,14 +35,19 @@ using convert_to_int = std::conditional_t<ve::is_vector_type_s<T>::value, ve::in
 template<typename T>
 using convert_to_bool = std::conditional_t<ve::is_vector_type_s<T>::value, ve::mask_vector, bool>;
 
-template<typename VALUE> requires has_default_order<VALUE>
+template<typename VALUE> requires std::integral<VALUE> || std::floating_point<VALUE>
 RELEASE_INLINE VALUE min(const VALUE a, const VALUE b) {
 	return std::min(a, b);
 }
 
-template<typename VALUE>
+template<typename VALUE> requires std::is_same_v<VALUE, ve::fp_vector>
 RELEASE_INLINE VALUE min(const VALUE a, const VALUE b) {
 	return ve::min(a, b);
+}
+template<typename VALUE> requires std::is_same_v<VALUE, ve::int_vector>
+RELEASE_INLINE VALUE min(const VALUE a, const VALUE b) {
+	auto less_than = (a < b);
+	return ve::select(less_than, a, b);
 }
 
 template<typename VALUE> requires std::integral<VALUE> || std::floating_point<VALUE>
@@ -50,10 +55,16 @@ RELEASE_INLINE VALUE max(const VALUE a, const VALUE b) {
 	return std::max(a, b);
 }
 
-template<typename VALUE> requires is_vector<VALUE>
+template<typename VALUE> requires std::is_same_v<VALUE, ve::fp_vector>
 RELEASE_INLINE VALUE max(const VALUE a, const VALUE b) {
 	return ve::max(a, b);
 }
+template<typename VALUE> requires std::is_same_v<VALUE, ve::int_vector>
+RELEASE_INLINE VALUE max(const VALUE a, const VALUE b) {
+	auto greater_than = (a > b);
+	return ve::select(greater_than, a, b);
+}
+
 template<typename VALUE> requires ceil_is_defined<VALUE>
 RELEASE_INLINE VALUE ceil(const VALUE a) {
 	return std::ceil(a);

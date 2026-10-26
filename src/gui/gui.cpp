@@ -1,6 +1,7 @@
 #include "gui_map_icons.hpp"
 #include "gui_element_base.hpp"
 #include "gui_templates.hpp"
+#include "military_templates.hpp"
 
 namespace ui {
 

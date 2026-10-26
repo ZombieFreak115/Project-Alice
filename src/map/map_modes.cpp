@@ -869,7 +869,7 @@ std::vector<uint32_t> supply_throughput_map_from(sys::state& state) {
 		float mn = 1.0f;
 		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
 			// Only include provinces we have potential access to
-			if(province::has_supply_access_to_province(state, state.local_player_nation, p.get_province())) {
+			if(province::has_supply_access_to_province(state, state.local_player_nation, p.get_province().id)) {
 				auto v = logistics::calculate_supply_throughput_in_province(state, p.get_province(), state.local_player_nation);
 				mn = std::min(mn, v);
 				mx = std::max(mx, v);
@@ -879,7 +879,7 @@ std::vector<uint32_t> supply_throughput_map_from(sys::state& state) {
 
 		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
 			auto i = province::to_map_id(p.get_province());
-			if(province::has_supply_access_to_province(state, state.local_player_nation, p.get_province())) {
+			if(province::has_supply_access_to_province(state, state.local_player_nation, p.get_province().id)) {
 				auto v = logistics::calculate_supply_throughput_in_province(state, p.get_province(), state.local_player_nation);
 
 				uint32_t color = [&]() {
@@ -959,7 +959,7 @@ std::vector<uint32_t> port_supply_capacity_map_from(sys::state& state) {
 		float mn = 1.0f;
 		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
 			// Only include ports and provinces we know we can access in the min/max gradient
-			if(province::prov_is_coastal(state, p.get_province()) && province::has_supply_access_to_province(state, state.local_player_nation, p.get_province())) {
+			if(province::prov_is_coastal(state, p.get_province().id) && province::has_supply_access_to_province(state, state.local_player_nation, p.get_province().id)) {
 				auto v = logistics::port_supply_capacity_in_province(state, p.get_province(), state.local_player_nation);
 				mn = std::min(mn, v);
 				mx = std::max(mx, v);
@@ -969,7 +969,7 @@ std::vector<uint32_t> port_supply_capacity_map_from(sys::state& state) {
 		for(auto p : state.world.nation_get_province_ownership(for_nation)) {
 			auto i = province::to_map_id(p.get_province());
 			// Non-port non-accessible provinces are blacked out
-			if(province::prov_is_coastal(state, p.get_province()) && province::has_supply_access_to_province(state, state.local_player_nation, p.get_province())) {
+			if(province::prov_is_coastal(state, p.get_province().id) && province::has_supply_access_to_province(state, state.local_player_nation, p.get_province().id)) {
 				auto v = logistics::port_supply_capacity_in_province(state, p.get_province(), state.local_player_nation);
 
 				uint32_t color = [&]() {

@@ -4,6 +4,7 @@
 #include "lua.hpp"
 #include "text.hpp"
 #include "commands.hpp"
+#include "military_templates.hpp"
 
 static sys::state* alice_state_ptr;
 

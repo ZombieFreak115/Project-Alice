@@ -402,6 +402,8 @@ bool make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::p
 template<float HeuristicModifier, typename StateType, typename AdjPred, typename ToProvPred, typename MovementCostFunc, typename StateInitToProvFunc, typename StateInitAdjFunc, typename StateInitFromProvFunc>
 bool ve_make_path_to_prov(const sys::state& state, dcon::province_id start, dcon::province_id end, std::vector<dcon::province_id>& path_result, AdjPred&& adj_predicate, ToProvPred&& to_prov_predicate, MovementCostFunc&& movementcost_func, StateInitToProvFunc&& stateinit_to_prov_func, StateInitAdjFunc&& stateinit_adj_func, StateInitFromProvFunc&& stateinit_from_prov_func) {
 
+	auto start_name = text::produce_simple_string(state, state.world.province_get_name(start));
+	auto end_name = text::produce_simple_string(state, state.world.province_get_name(end));
 	// uses an A* implementation with direct distance as heuristic
 	StateType local_state{ };
 	if(start == end) // early exit if start is already at destination
@@ -413,14 +415,14 @@ bool ve_make_path_to_prov(const sys::state& state, dcon::province_id start, dcon
 	if constexpr(!std::is_same_v<StateType, std::monostate>) {
 		stateinit_to_prov_func(ve_end, local_state);
 	}
-	bool prov_check = [&]() {
+	ve::mask_vector prov_check = [&]() {
 		if constexpr(std::is_same_v<StateType, std::monostate>) {
 			return to_prov_predicate(ve_end);
 		} else {
 			return to_prov_predicate(ve_end, local_state);
 		}
 		}();
-	if(!prov_check) { //  or if the end province would fail the province check
+	if(!prov_check[0]) { //  or if the end province would fail the province check
 		return false;
 	}
 
@@ -520,13 +522,13 @@ bool ve_make_path_to_prov(const sys::state& state, dcon::province_id start, dcon
 				// set distance and parent
 				ve::fp_vector distance_to_neighbor = path_node_container.distance_covered.get(other_provs) + actual_dist; // computes net distance to neighbor from the start province
 				ve::mask_vector better_paths = distance_to_neighbor < path_node_container.distance_covered.get(other_provs);
-				path_node_container.distance_covered.set(other_provs, distance_to_neighbor);
-				path_node_container.parent.set(other_provs, current_prov);
-				ve::apply([&](dcon::province_id other_prov, bool passes_check, bool open_list, bool better_path) {
+				ve::apply([&](dcon::province_id other_prov, float dist_to_neighbor, bool passes_check, bool open_list, bool better_path) {
 					if(passes_check) {
 						if(!open_list) {
 							// add it to the open queue
 							path_node_container.distance_to_target.set(other_prov, direct_distance(state, other_prov, end) * HeuristicModifier);
+							path_node_container.distance_covered.set(other_prov, dist_to_neighbor);
+							path_node_container.parent.set(other_prov, current_prov);
 							open_queue.push_back(other_prov);
 							std::push_heap(open_queue.begin(), open_queue.end(), province_comparer);
 							path_node_container.is_in_open_list.set(other_prov, true);
@@ -534,10 +536,12 @@ bool ve_make_path_to_prov(const sys::state& state, dcon::province_id start, dcon
 							// this is a better path
 							// Add it to the heap again to update it with the new distance information. The old one is kept, but ignored when it is popped
 							open_queue.push_back(other_prov);
+							path_node_container.distance_covered.set(other_prov, dist_to_neighbor);
+							path_node_container.parent.set(other_prov, current_prov);
 							std::push_heap(open_queue.begin(), open_queue.end(), province_comparer);
 						}
 					}
-				}, other_provs, passes_checks, is_open_list, better_paths);
+				}, other_provs, distance_to_neighbor, passes_checks, is_open_list, better_paths);
 			}
 		});
 	}

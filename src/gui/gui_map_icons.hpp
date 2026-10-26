@@ -9,6 +9,7 @@
 #include "gui_combat.hpp"
 #include "gui_units.hpp"
 #include "gui_lookup.hpp"
+#include "military_templates.hpp"
 
 namespace ui {
 
