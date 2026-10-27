@@ -120,20 +120,27 @@ float port_supply_capacity_mult_hostile_troops_modifier(const sys::state& state,
 
 float port_supply_capacity_mult_blockaded_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
+template<typename province_type, typename float_type>
+float_type port_supply_capacity_in_province(const sys::state& state, province_type port_prov, dcon::nation_id nation_as, float_type hostile_army_strength, float_type hostile_blockading_naval_strength);
+
 float port_supply_capacity_in_province(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
 
-float port_supply_capacity_mult_supply_access_modifier(const sys::state& state, dcon::province_id port_prov, dcon::nation_id nation_as);
-
 template<typename province_type>
-adaptive_ve::convert_to_float<province_type> supply_throughput_mult_access_modifier(const sys::state& state, province_type province, dcon::nation_id nation_as);
+adaptive_ve::convert_to_float<province_type> port_supply_capacity_mult_supply_access_modifier(const sys::state& state, province_type port_prov, dcon::nation_id nation_as);
+
+template<typename province_type, typename bool_type>
+adaptive_ve::convert_to_float<province_type> supply_throughput_mult_access_modifier(const sys::state& state, province_type province, dcon::nation_id nation_as, bool_type prov_is_sea);
+float supply_throughput_mult_access_modifier(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 float supply_throughput_mult_hostile_troops_modifier(const sys::state& state, dcon::province_id prov, dcon::nation_id nation_as);
 
 // Gets the max supply throughput modifier in goods volume for the specified nation in the specified province, with percentage-based modifiers taken into account
-template<typename province_type>
-adaptive_ve::convert_to_float<province_type> calculate_supply_throughput_in_province(const sys::state& state, province_type province, dcon::nation_id nation_as);
-float calculate_supply_throughput_in_noncoastal_adjacency(const sys::state& state, dcon::province_adjacency_id adj, dcon::province_id prov_1, dcon::province_id prov_2, float prov_1_throughput, float prov_2_throughput, dcon::nation_id nation);
+template<typename province_type, typename float_type, typename bool_type>
+adaptive_ve::convert_to_float<province_type> calculate_supply_throughput_in_province(const sys::state& state, province_type province, dcon::nation_id nation_as, float_type hostile_unit_strength, bool_type prov_is_sea);
+template<typename province_type, typename adjacency_type, typename float_type, typename bool_type>
+float_type calculate_supply_throughput_in_noncoastal_adjacency(const sys::state& state, adjacency_type adj, province_type prov_1, dcon::province_id prov_2, float_type prov_1_throughput, float prov_2_throughput, dcon::nation_id nation, bool_type prov_1_has_friendly_unit, bool prov_2_has_friendly_unit);
 float calculate_supply_throughput_in_noncoastal_adjacency(const sys::state& state, dcon::province_adjacency_id adj, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation);
-float calculate_supply_throughput_in_coastal_adjacency(const sys::state& state, dcon::province_adjacency_id adj, dcon::province_id prov_1, dcon::province_id prov_2, float prov_1_capacity, float prov_2_capacity, dcon::nation_id nation);
+template<typename province_type, typename adjacency_type, typename float_type>
+float_type calculate_supply_throughput_in_coastal_adjacency(const sys::state& state, adjacency_type adj, province_type prov_1, dcon::province_id prov_2, float_type prov_1_capacity, float prov_2_capacity, dcon::nation_id nation);
 float calculate_supply_throughput_in_coastal_adjacency(const sys::state& state, dcon::province_adjacency_id adj, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation);
 
 // Calculates the actual supply throughput after taking into account both regular supply throughput and potential port supply capacity
@@ -144,8 +151,8 @@ float supply_throughput_efficiency(const sys::state& state, dcon::province_adjac
 
 float supply_loss_add_hostile_armies(const sys::state& state, dcon::province_id province, dcon::nation_id nation_as);
 
-template<typename province_type>
-adaptive_ve::convert_to_float<province_type> calculate_supply_loss_in_province(const sys::state& state, province_type province, dcon::nation_id nation_as);
+template<typename province_type, typename float_type, typename bool_type>
+float_type calculate_supply_loss_in_province(const sys::state& state, province_type province, dcon::nation_id nation_as, float_type hostile_unit_strength, bool_type prov_is_sea);
 float calculate_adjacency_net_supply_loss(const sys::state& state, dcon::province_adjacency_id province_adj, dcon::province_id prov_1, dcon::province_id prov_2, dcon::nation_id nation_as);
 template<typename province_type>
 adaptive_ve::convert_to_float<province_type> calculate_adjacency_avg_supply_loss(const sys::state& state, province_type prov_1, dcon::province_id prov_2, dcon::nation_id nation_as);

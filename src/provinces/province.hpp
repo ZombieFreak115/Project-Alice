@@ -33,7 +33,8 @@ adaptive_ve::convert_to_bool<province_type> is_land(const sys::state& state, pro
 template<typename province_type>
 adaptive_ve::convert_to_bool<province_type> prov_is_coastal(const sys::state& state, province_type prov);
 
-bool adj_is_coastal(const sys::state& state, dcon::province_adjacency_id adj);
+template<typename adjacency_type>
+adaptive_ve::convert_to_bool<adjacency_type> adj_is_coastal(const sys::state& state, adjacency_type adj);
 
 // Checks if the port province is connected to the given sea province
 bool is_port_connected_to(const sys::state& state, dcon::province_id port, dcon::province_id port_to);
@@ -143,8 +144,10 @@ bool has_naval_access_to_province(sys::state& state, dcon::nation_id nation_as, 
 bool has_safe_access_to_province(sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
 
 // Determines whether the nation can have supply routes go through this province
-template<typename province_type>
-adaptive_ve::convert_to_bool<province_type> has_supply_access_to_province(const sys::state& state, dcon::nation_id nation_as, province_type prov);
+bool has_supply_access_to_province(const sys::state& state, dcon::nation_id nation_as, dcon::province_id prov);
+// Determines whether the nation can have supply routes go through this province
+template<typename province_type, typename bool_type>
+adaptive_ve::convert_to_bool<province_type> has_supply_access_to_province(const sys::state& state, dcon::nation_id nation_as, province_type prov, bool_type prov_is_sea);
 
 void make_adjacency_path_from_prov_path(const sys::state& state, std::span<const dcon::province_id> prov_path, dcon::dcon_vv_fat_id<dcon::province_adjacency_id>& adj_path_out);
 
@@ -197,7 +200,7 @@ std::vector<dcon::province_id> make_land_manual_retreat_path(sys::state& state, 
 std::vector<dcon::province_id> make_path_to_nearest_coast(sys::state& state, dcon::nation_id nation_as, dcon::province_id start);
 std::vector<dcon::province_id> make_unowned_path_to_nearest_coast(sys::state& state, dcon::province_id start);
 
-bool make_logistics_path(const sys::state& state, dcon::province_id origin_prov, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result, std::vector<dcon::province_adjacency_id>& adjacency_path_result);
+bool ve_make_logistics_path(const sys::state& state, dcon::province_id origin_prov, dcon::province_id end, dcon::nation_id nation_as, float expected_volume, std::vector<dcon::province_id>& path_result, std::vector<dcon::province_adjacency_id>& adjacency_path_result);
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::nation_id n);
 void set_province_controller(sys::state& state, dcon::province_id p, dcon::rebel_faction_id rf);
 

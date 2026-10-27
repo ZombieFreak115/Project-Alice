@@ -111,7 +111,7 @@ ve::value_to_vector_type<float> movement_cost(const sys::state& state, ve_id_typ
 	return ve::max(state.world.province_get_modifier_values(prov, sys::provincial_mod_offsets::movement_cost), 0.01f);
 }
 template<typename F>
-void ve_for_each_adjacency_and_province(const sys::state& state, dcon::province_id prov, F&& func) {
+void ve_for_each_neighbor_adjacency_and_province(const sys::state& state, dcon::province_id prov, F&& func) {
 	auto adjacencies = state.world.province_get_province_adjacency(prov);
 	auto adj_end = adjacencies.end();
 	auto cur_adj = adjacencies.begin();
@@ -411,15 +411,17 @@ bool ve_make_path_to_prov(const sys::state& state, dcon::province_id start, dcon
 
 	// Initialize to-province state on the last province, and run the check function for the end province to see if it is valid in the first place
 	ve::tagged_vector<dcon::province_id> ve_end{ };
+	ve::mask_vector ve_end_mask{ };
+	ve_end_mask.set(0, true);
 	ve_end.set(0, end);
 	if constexpr(!std::is_same_v<StateType, std::monostate>) {
-		stateinit_to_prov_func(ve_end, local_state);
+		stateinit_to_prov_func(ve_end, ve_end_mask, local_state);
 	}
 	ve::mask_vector prov_check = [&]() {
 		if constexpr(std::is_same_v<StateType, std::monostate>) {
-			return to_prov_predicate(ve_end);
+			return to_prov_predicate(ve_end, ve_end_mask);
 		} else {
-			return to_prov_predicate(ve_end, local_state);
+			return to_prov_predicate(ve_end, ve_end_mask, local_state);
 		}
 		}();
 	if(!prov_check[0]) { //  or if the end province would fail the province check
@@ -486,39 +488,42 @@ bool ve_make_path_to_prov(const sys::state& state, dcon::province_id start, dcon
 		if constexpr(!std::is_same_v<StateType, std::monostate>) {
 			stateinit_from_prov_func(current_prov, local_state);
 		}
-		ve_for_each_adjacency_and_province(state, current_prov, [&](ve::tagged_vector<dcon::province_adjacency_id> adjacencies, ve::tagged_vector<dcon::province_id> other_provs) {
-			auto distance = state.world.province_adjacency_get_distance(adjacencies);
+		ve_for_each_neighbor_adjacency_and_province(state, current_prov, [&](ve::tagged_vector<dcon::province_adjacency_id> adjacencies, ve::tagged_vector<dcon::province_id> other_provs) {
+			ve::fp_vector distance = state.world.province_adjacency_get_distance(adjacencies);
 			ve::mask_vector is_not_in_closed_list = (path_node_container.is_in_closed_list.get(other_provs) != true);
-			ve::mask_vector valid_ids =  adjacencies != decltype(adjacencies){};
+			ve::mask_vector valid_ids = adjacencies != ve::tagged_vector<dcon::province_adjacency_id>{};
 			ve::mask_vector is_open_list = (path_node_container.is_in_open_list.get(other_provs) == true);
-			if(ve::compress_mask(is_not_in_closed_list).v != 0) { // Is any neighboring province not in the closed list?
+			ve::mask_vector node_valid = is_not_in_closed_list && valid_ids;
+			if(ve::compress_mask(node_valid).v != 0) { // Is any neighboring province not in the closed list or invalid?
 				ve::mask_vector prov_check = [&]() {
 					if constexpr(std::is_same_v<StateType, std::monostate>) {
-						return to_prov_predicate(other_provs);
+						return to_prov_predicate(other_provs, node_valid);
 					} else {
-						stateinit_to_prov_func(other_provs, local_state);
-						return to_prov_predicate(other_provs, local_state);
+						stateinit_to_prov_func(other_provs, node_valid, local_state);
+						return to_prov_predicate(other_provs, node_valid, local_state);
 					}
-					}();
+				}();
+				node_valid = prov_check && node_valid;
 				ve::mask_vector adj_check = [&]() {
 					if constexpr(std::is_same_v<StateType, std::monostate>) {
-						return adj_predicate(other_provs, current_prov, adjacencies);
+						return adj_predicate(other_provs, current_prov, adjacencies, node_valid);
 					} else {
-						stateinit_adj_func(other_provs, current_prov, adjacencies, distance, local_state);
-						return adj_predicate(other_provs, current_prov, adjacencies, local_state);
+						stateinit_adj_func(other_provs, current_prov, adjacencies, distance, node_valid, local_state);
+						return adj_predicate(other_provs, current_prov, adjacencies, node_valid, local_state);
 					}
-					}();
+				}();
+				node_valid = adj_check && node_valid;
 				ve::fp_vector actual_dist = [&]() {
 					// to and from province
 					if constexpr(std::is_same_v<StateType, std::monostate>) {
-						return movementcost_func(other_provs, current_prov, adjacencies, distance);
+						return movementcost_func(other_provs, current_prov, adjacencies, distance, node_valid);
 					} else {
-						return movementcost_func(other_provs, current_prov, adjacencies, distance, local_state);
+						return movementcost_func(other_provs, current_prov, adjacencies, distance, node_valid, local_state);
 					}
-					}();
+				}();
 				ve::mask_vector add_to_closed_list = valid_ids && is_not_in_closed_list && !prov_check;
 				path_node_container.is_in_closed_list.set(other_provs, ve::select(add_to_closed_list, true, path_node_container.is_in_closed_list.get(other_provs)));
-				ve::mask_vector passes_checks = is_not_in_closed_list && valid_ids && prov_check && adj_check;
+				ve::mask_vector passes_checks = node_valid;;
 				// set distance and parent
 				ve::fp_vector distance_to_neighbor = path_node_container.distance_covered.get(other_provs) + actual_dist; // computes net distance to neighbor from the start province
 				ve::mask_vector better_paths = distance_to_neighbor < path_node_container.distance_covered.get(other_provs);
