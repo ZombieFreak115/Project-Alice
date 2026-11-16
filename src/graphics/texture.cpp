@@ -1111,5 +1111,17 @@ font_texture_result make_font_texture(simple_fs::file& f) {
 
 	return font_texture_result{ ftexid, uint32_t(size_x) };
 }
+GLFWimage make_cursor_image(const simple_fs::file& file)
+{
+	auto content = simple_fs::view_contents(file);
+	int width, height, channels;
+	unsigned char* pixels = stbi_load_from_memory(reinterpret_cast<unsigned char const*>(content.data), int32_t(content.file_size), &width, &height, &channels, 0 );
+		auto fail = stbi_failure_reason();
+		GLFWimage image;
+	image.width = width;
+	image.height = height;
+	image.pixels = pixels;
+	return image;
+}
 
 } // namespace ogl

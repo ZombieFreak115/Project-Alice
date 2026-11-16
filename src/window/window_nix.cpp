@@ -2,8 +2,7 @@
 #include "map.hpp"
 #include "user_interactions.hpp"
 #include "system_state.hpp"
-
-#include <GLFW/glfw3.h>
+#include "GLFW/glfw3.h"
 #include <unordered_map>
 
 namespace window {
@@ -361,7 +360,87 @@ void create_window(sys::state& game_state, creation_parameters const& params) {
 }
 
 void change_cursor(sys::state& state, cursor_type type) {
-	//TODO: Implement on linux
+	auto root = simple_fs::get_root(state.common_fs);
+	auto gfx_dir = simple_fs::open_directory(root, NATIVE("gfx"));
+	auto cursors_dir = simple_fs::open_directory(gfx_dir, NATIVE("cursors"));
+	cursor_type curr_cursor = state.win_ptr->current_cursor;
+	// Only cancel the "busy" cursor if "normal_cancel_busy" type is passed. Otherwise random mouse clicks may cancel it early
+	if(curr_cursor == cursor_type::busy) {
+		if(type == cursor_type::normal_cancel_busy) {
+			type = cursor_type::normal;
+		}
+		else {
+			return;
+		}
+	}
+	if(state.win_ptr->cursors[uint8_t(type)] == nullptr) {
+		native_string_view fname = NATIVE("normal.cur");
+		switch(type) {
+		case cursor_type::normal:
+			fname = NATIVE("normal.cur");
+			break;
+		case cursor_type::busy:
+			fname = NATIVE("busy.ani");
+			break;
+		case cursor_type::drag_select:
+			fname = NATIVE("dragselect.ani");
+			break;
+		case cursor_type::hostile_move:
+			fname = NATIVE("attack_move.ani");
+			break;
+		case cursor_type::friendly_move:
+			fname = NATIVE("friendly_move.ani");
+			break;
+		case cursor_type::no_move:
+			fname = NATIVE("no_move.ani");
+			break;
+		case cursor_type::text:
+		{
+			GLFWcursor* text_cursor = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+			if (text_cursor) {
+				glfwSetCursor(state.win_ptr->window, text_cursor);
+				state.win_ptr->cursors[uint8_t(type)] = text_cursor;
+			}
+			else {
+				state.win_ptr->cursors[uint8_t(type)] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR); // default cursor
+			}
+			state.win_ptr->current_cursor = type;
+			return;
+		}
+
+		default:
+		{
+			fname = NATIVE("normal.cur");
+			break;
+		}
+
+		}
+
+		if(auto f = simple_fs::peek_file(cursors_dir, fname); f) {
+			auto opened_file = simple_fs::open_file(*f);
+			if (opened_file)
+			{
+				GLFWimage image = ogl::make_cursor_image(*opened_file);
+				GLFWcursor* cursor = glfwCreateCursor(&image, 0, 0);
+				if (cursor) {
+					state.win_ptr->cursors[uint8_t(type)] = cursor;
+				}
+				else {
+					state.win_ptr->cursors[uint8_t(type)] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR); // default cursor
+				}
+			}
+			else {
+				state.win_ptr->cursors[uint8_t(type)] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR); // default cursor
+			}
+
+
+		} else {
+			state.win_ptr->cursors[uint8_t(type)] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR); // default cursor
+		}
+		state.ui_state.cursor_size = 32; // All of the cursors used are 32x32
+	}
+	glfwSetCursor(state.win_ptr->window, state.win_ptr->cursors[uint8_t(type)]);
+	state.win_ptr->current_cursor = type;
 }
 
 void emit_error_message(std::string const& content, bool fatal) {

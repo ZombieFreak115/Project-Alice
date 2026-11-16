@@ -11,6 +11,8 @@
 #include "glew.h"
 #include "culture.hpp"
 
+#include "GLFW/glfw3.h"
+
 namespace dcon {
 class government_flag_id;
 }
@@ -89,5 +91,7 @@ struct font_texture_result {
 };
 
 font_texture_result make_font_texture(simple_fs::file& f);
+
+GLFWimage make_cursor_image(const simple_fs::file& file);
 
 } // namespace ogl

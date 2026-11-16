@@ -15,6 +15,17 @@ struct ITfThreadMgr;
 namespace window {
 struct text_services_object;
 
+enum class cursor_type : uint8_t {
+	normal,
+	busy,
+	drag_select,
+	hostile_move,
+	friendly_move,
+	no_move,
+	text,
+	normal_cancel_busy
+};
+
 struct win32_text_services {
 private:
 	ITfThreadMgr* manager_ptr = nullptr;
@@ -66,12 +77,16 @@ public:
 } // namespace window
 #else
 struct GLFWwindow;
+#include "GLFW/glfw3.h"
 
 namespace window {
 class window_data_impl {
 public:
 	win32_text_services text_services;
 	GLFWwindow* window = nullptr;
+
+	GLFWcursor* cursors[9] = {nullptr};
+	cursor_type current_cursor = cursor_type::normal;
 
 	int32_t creation_x_size = 600;
 	int32_t creation_y_size = 400;
@@ -102,16 +117,6 @@ void set_borderless_full_screen(sys::state& game_state, bool fullscreen);
 bool is_in_fullscreen(sys::state const& game_state);
 bool is_key_depressed(sys::state const& game_state, sys::virtual_key key); // why not cheer it up then?
 
-enum class cursor_type : uint8_t {
-	normal,
-	busy,
-	drag_select,
-	hostile_move,
-	friendly_move,
-	no_move,
-	text,
-	normal_cancel_busy
-};
 void change_cursor(sys::state& state, cursor_type type);
 
 void get_window_size(sys::state const& game_state, int& width, int& height);
